@@ -1,0 +1,29 @@
+{
+ "jobs": [
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/1001?gh_jid=1001",
+   "location": {"name": "Berlin, Germany"},
+   "id": 1001,
+   "updated_at": "2026-11-01T09:00:00-04:00",
+   "title": "Sales Development Representative",
+   "company_name": "Acme",
+   "first_published": "2026-10-30T10:00:00-04:00",
+   "language": "en",
+   "content": "&lt;div class=&quot;intro&quot;&gt;&lt;p&gt;We&amp;#39;re growing our &lt;strong&gt;sales&lt;/strong&gt; team.&lt;/p&gt;&lt;/div&gt;&lt;h2&gt;What you&amp;#39;ll do&lt;/h2&gt;&lt;ul&gt;&lt;li&gt;Book meetings&lt;/li&gt;&lt;li&gt;Research accounts&amp;nbsp;and&amp;nbsp;teams&lt;/li&gt;&lt;/ul&gt;&lt;script&gt;alert(1)&lt;/script&gt;&lt;p&gt;Pay &amp;amp; benefits&lt;br&gt;Remote friendly&lt;/p&gt;",
+   "departments": [{"id": 1, "name": "Sales"}],
+   "offices": [{"id": 2, "name": "Germany", "location": null}]
+  },
+  {
+   "absolute_url": "https://job-boards.greenhouse.io/acme/jobs/1002?gh_jid=1002",
+   "location": {"name": "Remote"},
+   "id": 1002,
+   "updated_at": "2026-11-02T12:30:00Z",
+   "title": "Account Executive",
+   "company_name": "Acme",
+   "first_published": null,
+   "language": null,
+   "content": "&lt;p&gt;Close deals.&lt;/p&gt;"
+  }
+ ],
+ "meta": {"total": 2}
+}

@@ -263,7 +263,7 @@ Rules for reading, based on each service's own documentation, checked on 4 Nov 2
 - The list of careers pages belongs to the workspace, so each person has their own. Neither job source publishes a directory, so the project includes a command that builds a list from Common Crawl, a public archive of the web. People can also supply their own list, and the repo holds a small example list to start with.
 - A quick test on 5 Nov 2026 returned Greenhouse names from Common Crawl, but the Lever query timed out. Stage 2 must prove this works for both job sources and read Common Crawl's terms in full. If it fails for one, that job source relies on lists people supply.
 - The owner's copy starts from an existing private file with 8,333 Greenhouse and 4,368 Lever names. Its origin isn't known, so it isn't republished.
-- A careers page that fails for 7 days in a row is set aside and retried once a month. Rerunning the list command adds new names.
+- A careers page that fails for 7 days in a row is set aside and retried once a month. The 7 days are days with a read, so a day with no read doesn't count, and one good read starts the count again. Rerunning the list command adds new names.
 
 What the terms say, as far as we could find:
 
@@ -435,6 +435,9 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | Re-mark after 7 days | Against remembering the first answers | The "about a week later" in the marking steps |
 | 90% of a source's boards failing at once is an outage | Boards being set aside because the whole source was down | Starting guess |
 | 30 days before trying a set-aside page again | Pages that come back | Starting guess |
+| 3 tries when a job source is busy | A short rate limit costing a page its day | Starting guess |
+| 60 seconds at most when asked to wait | One page asking for a long pause stalling the whole read | Starting guess |
+| 30 seconds for a job source to answer | A hung connection stalling the read. Large careers pages arrive as one big reply, so this is longer than for web pages | Starting guess |
 | $0 fixed monthly costs | Counting AWS and Langfuse, which have no per-call meter, towards the $70 limit | Set by each person to their own expected bill |
 | 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |

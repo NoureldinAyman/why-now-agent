@@ -5,13 +5,11 @@ once in `Workspace` below. Adding a method to an area only touches that area's f
 """
 
 from why_now.workspace.base import WorkspaceBase
+from why_now.workspace.read import ReadArea
 
 
-class Workspace(WorkspaceBase):
-    """Add each area's mixin before `WorkspaceBase`.
-
-    For example: `class Workspace(AdsArea, WorkspaceBase)`.
-    """
+class Workspace(ReadArea, WorkspaceBase):
+    """Add each area's mixin before `WorkspaceBase`."""
 
 
 __all__ = ["Workspace"]

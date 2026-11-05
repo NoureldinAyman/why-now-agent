@@ -44,6 +44,20 @@ Ticket 04 and ticket 07 were worked on at the same time in the same folder. The 
 
 **What it taught:** one branch per ticket is not enough when sessions share a folder. Each session working at the same time needs its own worktree, and a session should check for files it did not write before switching branches.
 
+## 6 Nov 2026: The store refused safe names when two threads wrote at once
+
+The read step reads each job source in its own thread. A test that reads two sources at once failed now and then with "name leaves the workspace", for an ordinary name like `l`. The store checked each name by asking the disk where the file would really be, and comparing that with where the workspace really is. On Windows, that answer can briefly come out in a different form while another thread is creating a folder or swapping in a file next to it, so the two paths stopped matching. A test with 32 threads writing at once failed every time.
+
+The check now compares the two paths as text, after making both absolute, without asking the disk. The rules for names already refuse `..`, slashes and names starting with a dot, so a name still cannot reach outside the workspace.
+
+**What it taught:** a test that fails only sometimes is a real bug, not bad luck. Run it in a loop until it fails and read the full error.
+
+## 6 Nov 2026: The read counted every ad as new on a second read
+
+The first real read of 3 Greenhouse careers pages saved 1,418 job ads. A second read the same day also reported 1,418 new ads. The summary counted ads first seen today, and on the same day that is every ad. The saved dates were right, only the count was wrong. It now counts ads that no earlier read had seen, and the second read reports 0 new.
+
+**What it taught:** running the real command twice found what the tests missed, because the tests only ever read once on a given day.
+
 ## 6 Nov 2026: The plan asked for something the model no longer allows
 
 The plan said the Claude judge should be made to answer through one forced tool call, a common way to get answers in a fixed shape. Reading the current Claude documentation before writing the code showed that Claude Sonnet 5.5, the judge, rejects forced tool calls with an error. Code written from the plan would have failed on its first real call, after all its tests had passed against a fake.

@@ -130,3 +130,12 @@ class CaseRecord(BaseModel):
     seed: int
     pile: Literal["practice", "check", "final", "unsplit"] | None = None
     check_version: int | None = None
+
+
+class BoardHealth(BaseModel):
+    """How reading one careers page has gone lately, so dead pages can be set aside."""
+
+    failing_days: int = 0
+    last_failed: date | None = None
+    set_aside_on: date | None = None
+    last_retry: date | None = None
