@@ -1,5 +1,5 @@
 private/
-workspace/
+/workspace/
 .env
 /settings.toml
 .venv/
