@@ -96,3 +96,16 @@ def test_a_job_that_cannot_be_read_is_skipped_not_fatal():
     body = {"jobs": [{"id": 5, "title": "No address or dates"}, FIXTURE["jobs"][0]]}
     ads = source(RecordingHttp(body=body)).fetch_ads("acme", TODAY)
     assert [a.ad_id for a in ads] == ["1001"]
+
+
+def test_tags_escaped_twice_are_removed_too():
+    twice = "&amp;lt;p&amp;gt;Close &amp;lt;b&amp;gt;deals&amp;lt;/b&amp;gt;.&amp;lt;/p&amp;gt;"
+    job = FIXTURE["jobs"][1] | {"content": twice}
+    ad = source(RecordingHttp(body={"jobs": [job]})).fetch_ads("acme", TODAY)[0]
+    assert ad.text == "Close deals."
+
+
+def test_a_less_than_sign_in_prose_is_kept():
+    job = FIXTURE["jobs"][1] | {"content": "&lt;p&gt;Teams of &amp;lt; 10 people&lt;/p&gt;"}
+    ad = source(RecordingHttp(body={"jobs": [job]})).fetch_ads("acme", TODAY)[0]
+    assert ad.text == "Teams of < 10 people"

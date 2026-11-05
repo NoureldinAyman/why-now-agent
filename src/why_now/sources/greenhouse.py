@@ -1,4 +1,4 @@
-"""Greenhouse: reads one careers page through its public job board API."""
+"""Greenhouse: reads one careers page through its public API."""
 
 from datetime import date
 from typing import Any

@@ -2,6 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from why_now.settings import Settings
 from why_now.sources.boards import BoardList
 from why_now.workspace import Workspace
 
@@ -14,7 +15,7 @@ def workspace(store) -> Workspace:
 
 
 def boards(workspace, names=("a", "b"), settings=None) -> BoardList:
-    return BoardList(workspace, "s", list(names), settings=settings)
+    return BoardList(workspace, "s", list(names), settings or Settings())
 
 
 def fail_b_for(b: BoardList, days: int, start: date = TODAY) -> None:

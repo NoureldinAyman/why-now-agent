@@ -16,10 +16,7 @@ class BoardList:
     per source, so a list built from a sample shares it with the full list.
     """
 
-    def __init__(
-        self, workspace: Workspace, source: str, names: list[str], settings: Settings | None = None
-    ):
-        settings = settings or Settings()
+    def __init__(self, workspace: Workspace, source: str, names: list[str], settings: Settings):
         self.workspace = workspace
         self.source = source
         self.names = list(dict.fromkeys(names))

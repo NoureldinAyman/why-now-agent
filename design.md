@@ -263,7 +263,7 @@ Rules for reading, based on each service's own documentation, checked on 4 Nov 2
 - The list of careers pages belongs to the workspace, so each person has their own. Neither job source publishes a directory, so the project includes a command that builds a list from Common Crawl, a public archive of the web. People can also supply their own list, and the repo holds a small example list to start with.
 - A quick test on 5 Nov 2026 returned Greenhouse names from Common Crawl, but the Lever query timed out. Stage 2 must prove this works for both job sources and read Common Crawl's terms in full. If it fails for one, that job source relies on lists people supply.
 - The owner's copy starts from an existing private file with 8,333 Greenhouse and 4,368 Lever names. Its origin isn't known, so it isn't republished.
-- A careers page that fails for 7 days in a row is set aside and retried once a month. Rerunning the list command adds new names.
+- A careers page that fails for 7 days in a row is set aside and retried once a month. The 7 days are days with a read, so a day with no read doesn't count, and one good read starts the count again. Rerunning the list command adds new names.
 
 What the terms say, as far as we could find:
 

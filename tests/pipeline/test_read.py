@@ -5,12 +5,14 @@ import pytest
 
 from why_now.domain import JobAd
 from why_now.pipeline.read import read_all
+from why_now.settings import Settings
 from why_now.sources import BoardFailed
 from why_now.sources.boards import BoardList
 from why_now.store.local import LocalStore
 from why_now.workspace import Workspace
 
 TODAY = date(2026, 11, 5)
+SETTINGS = Settings()
 
 
 def ad(board: str, ad_id: str, today: date, source: str = "s") -> JobAd:
@@ -54,7 +56,10 @@ def workspace(store) -> Workspace:
 
 
 def read(sources, workspace, today=TODAY, outage_share=0.9, **kw):
-    boards = {s.name: BoardList(workspace, s.name, sorted(s.ads.keys() | s.fail)) for s in sources}
+    boards = {
+        s.name: BoardList(workspace, s.name, sorted(s.ads.keys() | s.fail), SETTINGS)
+        for s in sources
+    }
     return read_all(sources, boards, workspace, today, outage_share=outage_share, **kw)
 
 
@@ -85,28 +90,28 @@ def test_one_failing_board_does_not_stop_the_read(workspace):
     assert r.failed_boards == {"s": ["b"]}
     assert r.ads
     assert r.outage_sources == []
-    assert BoardList(workspace, "s", ["b"]).health("b").failing_days == 1
+    assert BoardList(workspace, "s", ["b"], SETTINGS).health("b").failing_days == 1
 
 
 def test_whole_source_outage_is_reported_and_no_board_is_punished(workspace):
     # Review Focus 1: a job source down for a whole day.
     r = read([FakeSource(fail=["a", "b"])], workspace)
     assert r.outage_sources == ["s"]
-    assert BoardList(workspace, "s", ["a", "b"]).health("a").failing_days == 0
+    assert BoardList(workspace, "s", ["a", "b"], SETTINGS).health("a").failing_days == 0
 
 
 def test_a_share_of_failures_counts_as_an_outage(workspace):
     pages = {str(i): ["1"] for i in range(1)}
     r = read([FakeSource(ads=pages, fail=[f"x{i}" for i in range(9)])], workspace)
     assert r.outage_sources == ["s"]
-    assert BoardList(workspace, "s", ["x0"]).health("x0").failing_days == 0
+    assert BoardList(workspace, "s", ["x0"], SETTINGS).health("x0").failing_days == 0
 
 
 def test_below_the_share_failures_count_against_boards(workspace):
     pages = {str(i): ["1"] for i in range(2)}
     r = read([FakeSource(ads=pages, fail=[f"x{i}" for i in range(8)])], workspace)
     assert r.outage_sources == []
-    assert BoardList(workspace, "s", ["x0"]).health("x0").failing_days == 1
+    assert BoardList(workspace, "s", ["x0"], SETTINGS).health("x0").failing_days == 1
 
 
 def test_a_board_name_the_workspace_cannot_store_fails_alone(workspace):

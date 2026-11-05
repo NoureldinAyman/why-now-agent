@@ -13,6 +13,8 @@ _BLOCK_TAGS = {
 # Tags whose content is never text a reader would see.
 _HIDDEN_TAGS = {"script", "style", "template", "noscript"}
 _SPACES = re.compile(r"[^\S\n]+")
+# Something that looks like an HTML tag, such as `<b>`, `</p>` or `<!-- -->`.
+_TAG = re.compile(r"<[A-Za-z/!][^<>]*>")
 
 
 class _TextParser(HTMLParser):
@@ -48,5 +50,10 @@ def html_to_text(markup: str) -> str:
 
 
 def escaped_html_to_text(escaped: str) -> str:
-    """For HTML that arrives with its tags escaped, as `&lt;p&gt;`: unescape once, then strip."""
-    return html_to_text(html.unescape(escaped))
+    """For HTML that arrives with its tags escaped, as `&lt;p&gt;`: unescape once, then strip.
+
+    Some ads escape their tags twice, so tags show up only after the first strip.
+    Those are stripped again. A plain `<` in prose, as in "teams of < 10", is kept.
+    """
+    text = html_to_text(html.unescape(escaped))
+    return html_to_text(text) if _TAG.search(text) else text

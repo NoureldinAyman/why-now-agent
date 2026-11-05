@@ -321,7 +321,8 @@ class JobSource(Protocol):
 class BoardFailed(Exception): ...
 
 class PoliteClient:
-    def __init__(self, http: httpx.Client, delay_seconds: float, sleep=time.sleep, clock=time.monotonic): ...
+    def __init__(self, http: httpx.Client, delay_seconds: float, sleep=time.sleep, clock=time.monotonic,
+                 *, attempts: int, max_retry_wait_seconds: float): ...  # both from settings
     def get_json(self, url: str) -> Any: ...
 
 class GreenhouseSource: name = "greenhouse"  # GET https://boards-api.greenhouse.io/v1/boards/{board}/jobs?content=true
@@ -395,7 +396,7 @@ def test_profile_is_private_by_default(profile_file):
 
 ```python
 class BoardList:
-    def __init__(self, workspace: Workspace, source: str, names: list[str]): ...
+    def __init__(self, workspace: Workspace, source: str, names: list[str], settings: Settings): ...
     def to_read(self, today: date) -> list[str]: ...  # skips set-aside boards unless due for a retry
     def record_results(self, today: date, ok: list[str], failed: list[str]) -> None: ...
     def health(self, board: str) -> BoardHealth: ...  # failing_days, set_aside_on, last_retry
@@ -406,7 +407,7 @@ class ReadResult(BaseModel):
     open_job_counts: dict[str, int]  # company key to total open jobs
 
 def read_all(sources: list[JobSource], boards: dict[str, BoardList], workspace: Workspace,
-             today: date, on_progress=None) -> ReadResult: ...
+             today: date, on_progress=None, *, outage_share: float) -> ReadResult: ...
 ```
 
 `Workspace` adds `load_board_ads(source, board)`, `save_board_ads(source, board, ads)` and `board_health(source)`, `save_board_health(source, doc)`.
