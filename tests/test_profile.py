@@ -56,3 +56,10 @@ def test_a_profile_with_no_search_words_is_refused(tmp_path):
 def test_a_missing_file_gives_a_profile_error(tmp_path):
     with pytest.raises(ProfileError):
         load_profile(tmp_path / "nowhere.yaml")
+
+
+def test_a_misspelt_field_inside_a_question_is_refused(tmp_path):
+    p = tmp_path / "p.yaml"
+    p.write_text(COMPLETE.replace("kind: required", "knd: required"), encoding="utf-8")
+    with pytest.raises(ProfileError, match="fit_questions.0.knd"):
+        load_profile(p)

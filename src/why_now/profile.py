@@ -5,7 +5,9 @@ from pathlib import Path
 import yaml
 from pydantic import ValidationError
 
-from why_now.domain import Profile
+from why_now.domain import FitQuestion, Profile
+
+QUESTION_LISTS = ("quick_look_questions", "fit_questions")
 
 
 class ProfileError(Exception):
@@ -22,7 +24,14 @@ def load_profile(path: Path) -> Profile:
     if not isinstance(raw, dict):
         raise ProfileError(f"profile {path} must be a set of named fields")
 
+    # A misspelt field would otherwise be dropped quietly and its default used instead.
     unknown = sorted(str(k) for k in raw if k not in Profile.model_fields)
+    for name in QUESTION_LISTS:
+        questions = raw.get(name)
+        if isinstance(questions, list):
+            for i, q in enumerate(questions):
+                if isinstance(q, dict):
+                    unknown += [f"{name}.{i}.{k}" for k in q if k not in FitQuestion.model_fields]
     if unknown:
         raise ProfileError(f"profile {path} has unknown fields: {', '.join(unknown)}")
 

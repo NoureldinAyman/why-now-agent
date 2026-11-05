@@ -41,15 +41,18 @@ def search_ads(
     languages = {lang.casefold() for lang in profile.languages}
     all_counts: dict[str, int] = {}
     matched: dict[str, list[JobAd]] = {}
-    for a in ads:
-        key = company_key(a.board)
+    for ad in ads:
+        try:
+            key = company_key(ad.board)
+        except ValueError:
+            continue  # no company can be named from it, and one odd page must not stop the day
         all_counts[key] = all_counts.get(key, 0) + 1
         if (
-            pattern.search(a.title)
-            and _allowed(a.country, countries)
-            and _allowed(a.language, languages)
+            pattern.search(ad.title)
+            and _allowed(ad.country, countries)
+            and _allowed(ad.language, languages)
         ):
-            matched.setdefault(key, []).append(a)
+            matched.setdefault(key, []).append(ad)
     # The read step's count covers every ad read today, so it wins when it has the company.
     return [
         Company(

@@ -112,3 +112,13 @@ def test_filtered_out_ads_still_count_as_open_jobs(make_profile):
 
 def test_no_matches_gives_no_companies(make_profile):
     assert search_ads([ad("Engineer")], make_profile(search_words=["sales"]), {}) == []
+
+
+def test_a_hyphen_counts_as_a_word_break(make_profile):
+    found = search_ads([ad("Pre-Sales Engineer")], make_profile(search_words=["sales"]), {})
+    assert titles(found) == ["Pre-Sales Engineer"]
+
+
+def test_an_ad_whose_page_name_has_no_letters_or_digits_is_skipped(make_profile):
+    found = search_ads([ad("Sales Rep", board="---"), ad("Sales Rep")], make_profile(), {})
+    assert [c.key for c in found] == ["acme"]
