@@ -139,11 +139,3 @@ class BoardHealth(BaseModel):
     last_failed: date | None = None
     set_aside_on: date | None = None
     last_retry: date | None = None
-
-
-def company_key(board: str) -> str:
-    """A company's key from its careers page name: lower case, letters and digits only.
-
-    Names that match after this cleaning are treated as one company across job sources.
-    """
-    return "".join(c for c in board.lower() if c.isalnum())

@@ -120,6 +120,12 @@ def test_a_board_name_the_workspace_cannot_store_fails_alone(workspace):
     assert [a.board for a in r.ads] == ["acme"]
 
 
+def test_a_board_name_with_no_letters_or_digits_fails_alone(workspace):
+    r = read([FakeSource(ads={"acme": ["1"], "---": ["2"]})], workspace)
+    assert r.failed_boards == {"s": ["---"]}
+    assert r.open_job_counts == {"acme": 1}
+
+
 def test_open_jobs_are_counted_per_company_across_sources(workspace):
     r = read(
         [FakeSource("g", ads={"Acme-Inc": ["1", "2"]}), FakeSource("l", ads={"acmeinc": ["3"]})],

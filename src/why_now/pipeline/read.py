@@ -8,7 +8,8 @@ from datetime import date
 
 from pydantic import BaseModel
 
-from why_now.domain import JobAd, company_key
+from why_now.domain import JobAd
+from why_now.pipeline.search import company_key
 from why_now.sources import BoardFailed, JobSource
 from why_now.sources.boards import BoardList
 from why_now.workspace import Workspace
@@ -108,6 +109,7 @@ def _read_board(
     source: JobSource, board: str, workspace: Workspace, today: date
 ) -> tuple[list[JobAd], int]:
     """Fetch one page, keep each known ad's first-seen date, and save only if anything changed."""
+    company_key(board)  # a name with no letters or digits can't be a company: fail it now
     seen = {a.ad_id: a.first_seen for a in workspace.load_board_ads(source.name, board) or []}
     ads = [
         a.model_copy(update={"first_seen": seen[a.ad_id]}) if a.ad_id in seen else a

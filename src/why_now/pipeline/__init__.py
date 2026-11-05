@@ -1,1 +1,1 @@
-"""The steps of a run, from reading job ads to writing briefs."""
+"""The fixed steps of a daily run."""

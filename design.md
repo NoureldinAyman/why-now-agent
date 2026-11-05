@@ -287,6 +287,8 @@ Measured on 4 to 5 Nov 2026, from a random sample of 200 companies per job sourc
 - Normal code handles every fixed step. AI is used only where judgement is needed.
 - The project uses plain Python and the official AI libraries, with no agent framework. Most of the pipeline is fixed steps, so a graph framework would add a layer without changing the design. Research is the one place where the model chooses its next action, and it is a small loop with a hard limit.
 - A company is identified by its job source and careers page name. Names that match after cleaning are treated as one company across the two sources.
+- Search matches whole words or phrases in ad titles, in any letter case. The country and language filters use the job source's own fields. An ad with no such field is kept, because Greenhouse gives no country and Lever gives no language, so dropping those ads would drop a whole job source.
+- A profile file is refused with a clear message if a field is missing or misspelt, or if it has no search words.
 - When a company has many relevant ads, the agent reads the newest few and is told the total count, including the company's total open jobs.
 - Steps save their results as they finish, so a rerun continues where it stopped and doesn't pay twice.
 
