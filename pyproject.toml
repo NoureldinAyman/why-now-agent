@@ -1,0 +1,56 @@
+[project]
+name = "why-now-agent"
+version = "0.1.0"
+description = "An agent that reads public job ads, judges each company against a written profile, and writes a fact-checked brief for a person to approve."
+readme = "README.md"
+requires-python = ">=3.13"
+license = { text = "MIT" }
+dependencies = [
+    "anthropic>=2.5",
+    "fastapi>=0.115",
+    "httpx>=0.27",
+    "jinja2>=3.1",
+    "pydantic>=2.9",
+    "python-multipart>=0.0.12",
+    "pyyaml>=6.0",
+    "typer>=0.12",
+    "uvicorn>=0.32",
+]
+
+[project.optional-dependencies]
+jev = ["typesafe-sdk>=0.7.5"]
+langfuse = ["langfuse>=5.1"]
+aws = ["boto3>=1.35", "authlib>=1.3", "itsdangerous>=2.2"]
+infra = ["aws-cdk-lib>=2.160", "constructs>=10.3"]
+
+[project.scripts]
+why-now = "why_now.cli:app"
+
+[dependency-groups]
+dev = ["pytest>=8.3", "ruff>=0.7", "pyright>=1.1.385", "moto[s3,dynamodb]>=5.0"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/why_now"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["live: calls real services and costs money. Run only on purpose, after the owner's yes."]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pyright]
+include = ["src", "tests"]
+pythonVersion = "3.13"
+typeCheckingMode = "standard"
+venvPath = "."
+venv = ".venv"

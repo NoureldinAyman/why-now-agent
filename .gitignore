@@ -1,0 +1,11 @@
+private/
+workspace/
+.env
+/settings.toml
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+cdk.out/
+dist/
