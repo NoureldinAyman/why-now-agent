@@ -21,3 +21,20 @@
 **The hardest question:** "Why not use an existing settings library, such as pydantic-settings, instead of your own loader?"
 
 **The honest answer:** it would work, and it is the usual choice. The loader here is two short functions on top of pydantic, which the project already uses, and it reads one TOML file plus prefixed environment variables, which is all the design asks for. A library would add a dependency and features the project does not need. If settings later need more, such as secrets files, switching is a small change because the rest of the code only sees the `Settings` model.
+
+## Profiles and search (ticket 07)
+
+**What was built.**
+
+- **Profile loading** (`src/why_now/profile.py`). `load_profile` reads a profile from a YAML file. If a field is missing, the error names it, for example `missing field search_words`. A field the loader does not know, such as a misspelt `serach_words` or a misspelt `knd` inside a question, is refused too, because silently ignoring it could turn a filter off without anyone noticing. A profile with no search words is refused, since it would find nothing. A new profile is private unless it says `public: true`.
+- **Search and grouping** (`src/why_now/pipeline/search.py`). `search_ads` keeps job ads whose titles contain one of the profile's search words as a whole word, in any letter case, so "sales" finds "Sales Manager" but not "Wholesale Buyer", and a phrase such as "account executive" matches even with extra spaces. Only titles are searched, never the ad text. The kept ads are grouped so each company appears once. A company's key is its careers page name in lower case with only letters and digits, so `Acme-Inc` on Greenhouse and `acmeinc` on Lever become one company. Each company keeps its total count of open jobs, counting every ad it has, not only the ones that matched.
+
+**Why it is shaped this way.** The search runs on every ad every day, so it is plain code with no AI and costs nothing. Titles only, because ad text mentions "sales" in almost every job ("work with our sales team"), which would find nearly every company.
+
+**One decision beyond the plan.** The plan said an ad with no language field is kept. The same is now true of country: Greenhouse ads carry no country field at all, so a country filter that dropped ads without one would drop all of Greenhouse. The cost is that a country filter only narrows Lever ads for now: a profile set to `countries: [SG]` still gets Greenhouse ads from every country. Reading the country out of the free-text location was left out, because guessing it wrongly would hide companies without anyone seeing why.
+
+**Limits we know about.** Two different companies whose page names match after cleaning, such as `acme-inc` and `acmeinc`, are treated as one. The company's display name comes from its first matching ad, and Lever gives no company name, so a Lever-only company shows a tidied page name. A language filter treats an ad tagged `en-GB` as `en`, but a profile asking for `en-GB` does not match an ad tagged `en`. An ad whose careers page name has no letters or digits is skipped, because no company can be named from it. The read step's count of open jobs must use the same `company_key`, or the counts will not line up.
+
+**The hardest question:** "Matching by careers page name is crude. Won't it merge unrelated companies and split real ones?"
+
+**The honest answer:** yes, sometimes. It merges two companies that picked near-identical page names, and it splits one company that uses different names on the two sources. We have not measured how often either happens. It is the rule the design chose because both sources give a page name and nothing better, such as a company website, is in every ad. If the reviewer sees bad merges on the daily list, a better rule can replace `company_key` without changing anything else.
