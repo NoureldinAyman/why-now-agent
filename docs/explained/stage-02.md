@@ -60,3 +60,21 @@
 **The hardest question:** "Matching by careers page name is crude. Won't it merge unrelated companies and split real ones?"
 
 **The honest answer:** yes, sometimes. It merges two companies that picked near-identical page names, and it splits one company that uses different names on the two sources. We have not measured how often either happens. It is the rule the design chose because both sources give a page name and nothing better, such as a company website, is in every ad. If the reviewer sees bad merges on the daily list, a better rule can replace `company_key` without changing anything else.
+
+## Adding Lever (ticket 05)
+
+**What was built.** Lever, the second job source, read the same way as Greenhouse.
+
+- **The Lever adapter** (`src/why_now/sources/lever.py`). Lever is a hiring service like Greenhouse, and its public postings API returns a careers page's jobs as one JSON list. The adapter turns each posting into the shared job ad shape. A Lever posting keeps its text in pieces: a description, titled lists such as "What We Require", and a closing note. They are joined into one plain text in that order, with each list's title above its items. Every piece goes through the same tag remover as Greenhouse, so no tag or script from an ad is kept. Lever gives its country as a code such as `SG`, which is kept. It has no language field, so the language stays empty, and the search keeps such ads. A posting with no address or date is skipped and the rest of the page is kept.
+- **One line in the registry** (`src/why_now/sources/registry.py`). That is the only existing file that changed. The read step, the careers page lists and the command needed nothing, because they already pick a job source by name.
+- **The company name.** Lever gives no company name, so the page name is tidied for display: `big_corp-two` shows as `Big Corp Two`.
+
+**Why it is shaped this way.** The design says each job source sits behind one small adapter, and the test `tests/sources/test_registry.py` is the proof: it reads a Lever page and a Greenhouse page at the same time through the unchanged read step, each with its own polite client.
+
+**Measured.** Not measured on the real service yet. The tests use a short recorded-style response with invented text, and no live request to Lever has been made. The first real read, with the owner's yes, will show whether the response matches.
+
+**Limits we know about.** Lever may serve some careers pages from a separate European address. This adapter only tries the main one and this has not been checked, so a page hosted elsewhere would count as failed. The ad date comes from Lever's `createdAt`, the date the posting was created, which may be earlier than the date it went public.
+
+**The hardest question:** "Lever has no language field and Greenhouse has no country field. Doesn't that make both filters unreliable?"
+
+**The honest answer:** yes, each filter only narrows one job source. Dropping every ad that lacks the field would drop a whole job source, so such ads are kept. The cost is that a profile asking for English ads still gets Lever ads in any language. Reading the language or country out of the ad text was left out, because a wrong guess would hide companies without anyone seeing why.

@@ -1,0 +1,30 @@
+[
+ {
+  "id": "7a1b2c3d-0000-4000-8000-000000000001",
+  "text": "Sales Development Representative",
+  "country": "SG",
+  "categories": {"location": "Singapore", "team": "Sales", "commitment": "Full-time"},
+  "createdAt": 1793354400000,
+  "hostedUrl": "https://jobs.lever.co/acme-inc/7a1b2c3d-0000-4000-8000-000000000001",
+  "applyUrl": "https://jobs.lever.co/acme-inc/7a1b2c3d-0000-4000-8000-000000000001/apply",
+  "descriptionPlain": "We're growing our sales team.\nPay & benefits are fair.",
+  "description": "<div>We're growing our sales team.</div>",
+  "lists": [
+   {"text": "What We Require", "content": "<li>Two years selling software</li><li>Clear writing<br>and calls</li>"},
+   {"text": "What You'll Do", "content": "<li>Book meetings</li><li>Research accounts&nbsp;and&nbsp;teams</li><script>alert(1)</script>"}
+  ],
+  "additionalPlain": "Remote friendly.",
+  "workplaceType": "hybrid"
+ },
+ {
+  "id": "7a1b2c3d-0000-4000-8000-000000000002",
+  "text": "Account Executive",
+  "country": null,
+  "categories": {},
+  "createdAt": 1793440800000,
+  "hostedUrl": "https://jobs.lever.co/acme-inc/7a1b2c3d-0000-4000-8000-000000000002",
+  "descriptionPlain": "Close deals.",
+  "lists": [],
+  "additionalPlain": ""
+ }
+]
