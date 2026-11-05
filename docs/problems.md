@@ -37,3 +37,9 @@ TypeSafe, which makes Jev, said on its X account on 27 Sep 2026 that new account
 The rule that keeps the workspace out of Git was written as `workspace/`, which matches a folder with that name anywhere in the repo. When ticket 03 added the code package `src/why_now/workspace/`, Git ignored it without a warning, and the first commit of the ticket left it out. It showed up only because the list of files to commit was missing it.
 
 **What it taught:** an ignore rule meant for one folder should be anchored to where that folder lives. It is now `/workspace/`, which matches only the folder at the top of the repo, where the default workspace lives. Check the list of files in each commit, not just that tests pass.
+
+## 5 Nov 2026: Two sessions shared one folder
+
+Ticket 04 and ticket 07 were worked on at the same time in the same folder. The ticket 07 session switched the folder to its own branch without noticing that the ticket 04 session had unsaved files there, and saw ticket 04's half-finished tests fail its lint check. No work was lost, because Git carries uncommitted files across a branch switch, and the folder was put back on ticket 04's branch while ticket 07 moved to its own Git worktree.
+
+**What it taught:** one branch per ticket is not enough when sessions share a folder. Each session working at the same time needs its own worktree, and a session should check for files it did not write before switching branches.
