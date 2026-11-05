@@ -60,3 +60,22 @@
 **The hardest question:** "Matching by careers page name is crude. Won't it merge unrelated companies and split real ones?"
 
 **The honest answer:** yes, sometimes. It merges two companies that picked near-identical page names, and it splits one company that uses different names on the two sources. We have not measured how often either happens. It is the rule the design chose because both sources give a page name and nothing better, such as a company website, is in every ad. If the reviewer sees bad merges on the daily list, a better rule can replace `company_key` without changing anything else.
+
+## Building a careers page list (ticket 06)
+
+**What was built.** The command that makes the list of careers pages to read.
+
+- **`why-now build-list --source greenhouse|lever --out PATH`** (`src/why_now/cli/sources.py`). It asks Common Crawl, a public archive of the web, which addresses it has seen under the job source's website, and keeps the company name from each address. The names are merged into the list at `PATH`, with names already there kept and no name twice. Names match without regard to case.
+- **The reader of addresses** (`src/why_now/sources/commoncrawl.py`). `https://jobs.lever.co/acme/1234` gives `acme`. An address with no name, such as the front page, is skipped, and so are Greenhouse's embed links, which have a different shape.
+- **Slowness.** Common Crawl is often slow. Each request waits 1 second after the last one. A time-out, a "busy" reply, or a reply cut off halfway is tried again, up to 3 tries in all. Then the command says plainly that it could not build the list, writes nothing, and keeps the old list.
+- **The decision note** `docs/decisions/0001-common-crawl-for-careers-page-lists.md` records what Common Crawl's terms allow, and what the real runs found.
+
+**Why it is shaped this way.** The command only asks for addresses and never downloads archived pages, which is the smallest use that does the job. It reuses the existing settings for the pause and the number of tries, so there is no new number. A failed run writes nothing, so a person never ends up with half a list.
+
+**Measured.** On 6 Nov 2026, Greenhouse gave 3,840 careers page names and Lever gave 266. Some runs failed with time-outs first, and later runs worked.
+
+**Limits we know about.** The command does not check that a name is a real, working careers page. The read step finds that out and sets dead ones aside. The list only has companies Common Crawl happened to see, which is far fewer for Lever. Lever's job adapter does not exist yet, so only the list was proved for Lever, not reading it. The terms were read through a tool that returns them section by section, so the owner should read the original once before the project is published.
+
+**The hardest question:** "Is it allowed to use Common Crawl like this?"
+
+**The honest answer:** the terms do not forbid it and say nothing about request rates. We take only careers page names, not archived pages or personal details, send few and spaced requests, and say who we are in each one. We are not lawyers, and Common Crawl itself recommends asking one before commercial use.
