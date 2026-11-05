@@ -1,0 +1,14 @@
+"""The workspace: everything a run produces, kept apart from the code.
+
+Each area adds its methods in its own mixin file in this package, and is listed
+once in `Workspace` below. Adding a method to an area only touches that area's file.
+"""
+
+from why_now.workspace.base import WorkspaceBase
+
+
+class Workspace(WorkspaceBase):
+    """Add each area's mixin before `WorkspaceBase`, for example `class Workspace(AdsArea, WorkspaceBase)`."""
+
+
+__all__ = ["Workspace"]

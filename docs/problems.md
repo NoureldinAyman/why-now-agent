@@ -31,3 +31,9 @@ The first key check failed for Langfuse with a connection error, although the ke
 TypeSafe, which makes Jev, said on its X account on 27 Sep 2026 that new accounts no longer get free credit. Its console would not create an API key while the account had no credit, and we found no code for free credit published by TypeSafe. The owner added $5 of prepaid credit with automatic top-up turned off, so the account cannot spend more than that while top-up stays off, and created a key. A check that lists Jev's models passed.
 
 **What it taught:** Jev access is confirmed, so the judge comparison can run Jev against Claude as the design intends. Someone cloning the project may have to pay before trying Jev, which is one reason it stays optional and the quick look falls back to Claude Haiku without it.
+
+## 5 Nov 2026: The ignore rule for run data hid a code folder
+
+The rule that keeps the workspace out of Git was written as `workspace/`, which matches a folder with that name anywhere in the repo. When ticket 03 added the code package `src/why_now/workspace/`, Git ignored it without a warning, and the first commit of the ticket left it out. It showed up only because the list of files to commit was missing it.
+
+**What it taught:** an ignore rule meant for one folder should be anchored to where that folder lives. It is now `/workspace/`, which matches only the folder at the top of the repo, where the default workspace lives. Check the list of files in each commit, not just that tests pass.
