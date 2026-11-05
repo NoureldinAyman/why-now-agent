@@ -433,6 +433,9 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | Re-mark after 7 days | Against remembering the first answers | The "about a week later" in the marking steps |
 | 90% of a source's boards failing at once is an outage | Boards being set aside because the whole source was down | Starting guess |
 | 30 days before trying a set-aside page again | Pages that come back | Starting guess |
+| 3 tries when a job source is busy | A short rate limit costing a page its day | Starting guess |
+| 60 seconds at most when asked to wait | One page asking for a long pause stalling the whole read | Starting guess |
+| 30 seconds for a job source to answer | A hung connection stalling the read. Large careers pages arrive as one big reply, so this is longer than for web pages | Starting guess |
 | $0 fixed monthly costs | Counting AWS and Langfuse, which have no per-call meter, towards the $70 limit | Set by each person to their own expected bill |
 | 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |

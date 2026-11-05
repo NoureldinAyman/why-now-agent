@@ -62,7 +62,11 @@ class LocalStore:
         return self._inside(folder / (parts[-1] + SUFFIX), key)
 
     def _inside(self, path: Path, name: str) -> Path:
-        if not path.resolve().is_relative_to(self.root.resolve()):
+        # Compared as text, after making both absolute. Asking the disk instead
+        # (`Path.resolve`) can give different answers on Windows while another
+        # thread is creating folders, which refused safe names. `_parts` already
+        # refuses `..` and separators, so this is a second guard.
+        if not Path(os.path.abspath(path)).is_relative_to(os.path.abspath(self.root)):
             raise ValueError(f"name leaves the workspace: {name!r}")
         return path
 

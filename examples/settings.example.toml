@@ -59,6 +59,12 @@ outage_share = 0.9
 dead_after_days = 7
 # Days before a page that was set aside is tried again.
 retry_dead_after_days = 30
+# Tries per request when a job source says it is busy or asks us to slow down.
+request_attempts = 3
+# Longest pause a job source may ask for. Asked for more, the page is counted as failed.
+max_retry_wait_seconds = 60
+# Seconds to wait for a job source to answer one request.
+source_timeout_seconds = 30
 
 # Monthly spending limit in US dollars. Paid calls stop here.
 budget_limit_usd = 70
@@ -102,7 +108,8 @@ quick_look_fallback_model = "claude-haiku-5-5"
 # Model that judges each evidence pack.
 judge_model = "claude-sonnet-5-5"
 
-# Board list files, one per job source, for example greenhouse = "boards/greenhouse.txt".
+# Careers page lists, one JSON list of page names per job source. To start with the example list:
+# greenhouse = "examples/boards.greenhouse.example.json"
 [board_lists]
 
 # Prices in US dollars per model, used by the budget meter, for example:

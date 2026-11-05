@@ -58,6 +58,9 @@ class Settings(BaseModel):
     outage_share: float = 0.9
     dead_after_days: int = 7
     retry_dead_after_days: int = 30
+    request_attempts: int = 3
+    max_retry_wait_seconds: float = 60
+    source_timeout_seconds: float = 30
 
     budget_limit_usd: float = 70
     budget_warning_usd: float = 50

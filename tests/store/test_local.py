@@ -83,3 +83,19 @@ def test_interrupted_write_leaves_old_value(tmp_path, monkeypatch):
     monkeypatch.undo()
     assert s.get("c", "k") == {"v": 1}
     assert [k for k, _ in s.list("c")] == ["k"]
+
+
+def test_writes_from_several_threads_at_once_are_all_accepted(tmp_path):
+    # The read step writes from one thread per job source. The check that a name
+    # stays inside the workspace must not depend on folders other threads are making.
+    from concurrent.futures import ThreadPoolExecutor
+
+    s = LocalStore(tmp_path / "fresh")
+
+    def write(i: int) -> None:
+        for n in range(5):
+            s.put(f"c{n}", f"k{i}", {"v": i})
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        list(pool.map(write, range(32)))
+    assert len(list(s.list("c4"))) == 32
