@@ -305,7 +305,7 @@ Measured on 4 to 5 Nov 2026, from a random sample of 200 companies per job sourc
 - **Why this matters for the loop.** A required question can only turn a yes into a no. A supporting question can move a company either way, so the loop can fix both wrong yeses and wrong no's. Profiles keep required questions to true deal-breakers, because the loop can't change them.
 - **The comparison.** Both judges run on the same check pile, before the loop starts, and the higher score wins. The result is published, whichever way it goes. The loop then runs with the winner. If there is no Jev access, the comparison is Claude Haiku 5.5 against Claude Sonnet 5.5.
 - **Fixed thresholds.** The cut-off points for combining answers are set using the practice pile only, and are recorded.
-- **Version locking.** Every model version is locked and recorded with each score. The `jev-latest` name is never used, because Jev's documentation warns its answers can change without any code change.
+- **Version locking.** Every model version is locked and recorded with each score. The `jev-latest` and `jev-preview` names are never used, because Jev's documentation warns their answers can change without any code change. A model name without a full version, or without a price, is refused.
 - **Why Jev is treated with care.** Jev's main selling points are speed and cost. Speed doesn't matter in an overnight run. Its large claimed gains come from its maker's own tests. Its documentation says it reads literally and struggles with several steps of reasoning, and that irrelevant text lowers its accuracy. What interests us is that it returns probabilities and can only answer from fixed options, which limits what a hostile ad can make it output.
 
 ### Research limits
@@ -440,6 +440,8 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 20,000 characters per ad, 60,000 per evidence pack | The cost of each model call | Starting guess |
 | 1,200 characters per brief | The reviewer's time | Starting guess |
 | 8 copied words, 20 words of reason | Learned rules that copy ad text, or that cannot be explained briefly | Starting guess |
+| 16,000 tokens written per Claude call at most | A call finishing inside the Claude library's time limit | The library's guidance for calls that are not streamed. Calls are charged for what they use, not for this ceiling |
+| Model prices | Charging each call at its real cost | Anthropic's and TypeSafe's published prices, checked on 6 Nov 2026. A model with no price is refused |
 
 ### Records
 

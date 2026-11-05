@@ -81,8 +81,18 @@ class Settings(BaseModel):
     quick_look_model: str = "jev-1.14.0"
     quick_look_fallback_model: str = "claude-haiku-5-5"  # used when there is no Jev key
     judge_model: str = "claude-sonnet-5-5"
-    # Filled with checked prices when the budget meter is built (Task 9).
-    prices: dict[str, ModelPrice] = Field(default_factory=dict)
+    model_max_output_tokens: int = 16_000
+    # Checked on 6 Nov 2026: Claude from Anthropic's model table, Jev from TypeSafe's
+    # models page (it charges for input tokens only). A model with no price is refused.
+    prices: dict[str, ModelPrice] = Field(
+        default_factory=lambda: {
+            "claude-sonnet-5-5": ModelPrice(
+                input_per_million_usd=2, output_per_million_usd=10, per_search_usd=0.01
+            ),
+            "claude-haiku-5-5": ModelPrice(input_per_million_usd=0.1, output_per_million_usd=0.5),
+            "jev-1.14.0": ModelPrice(input_per_million_usd=0.042, output_per_million_usd=0),
+        }
+    )
 
 
 def load_settings(path: Path | None = None, env: Mapping[str, str] | None = None) -> Settings:
