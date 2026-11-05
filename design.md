@@ -429,6 +429,17 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | $70 limit, $50 warning | Money | The owner's choice |
 | $25 a month for the loop | The money research needs | Worked out from the $70 limit, then redone from measured cost |
 | 40,000 Langfuse units | The free plan's limit of 50,000 | A safety margin |
+| Newest 5 ads read per company | Cost, and the size of each evidence pack | Starting guess. The total number of ads is always given as well |
+| Re-mark after 7 days | Against remembering the first answers | The "about a week later" in the marking steps |
+| 90% of a source's boards failing at once is an outage | Boards being set aside because the whole source was down | Starting guess |
+| 30 days before trying a set-aside page again | Pages that come back | Starting guess |
+| $0 fixed monthly costs | Counting AWS and Langfuse, which have no per-call meter, towards the $70 limit | Set by each person to their own expected bill |
+| 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
+| 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |
+| 2 MB and 15 seconds per page | The page reader, against huge or slow pages | Starting guess |
+| 20,000 characters per ad, 60,000 per evidence pack | The cost of each model call | Starting guess |
+| 1,200 characters per brief | The reviewer's time | Starting guess |
+| 8 copied words, 20 words of reason | Learned rules that copy ad text, or that cannot be explained briefly | Starting guess |
 
 ### Records
 

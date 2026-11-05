@@ -1,0 +1,109 @@
+# Example settings for the Why-Now Agent. Every setting is listed here with its default.
+# Copy this file, change what you need, and pass it to the `why-now` command.
+# Any setting can also be set in the environment with a WHY_NOW_ prefix,
+# for example WHY_NOW_SHORT_LIST_SIZE=5. Lists and tables are written as JSON there.
+# The design's "Every number, and why" table says where each number comes from.
+
+# Where the workspace lives: "local" for a folder, "aws" for S3 and DynamoDB.
+deployment = "local"
+# The workspace folder, kept out of Git. Everything a run produces goes here.
+workspace_path = "workspace"
+# Profile files to run every day.
+daily_profiles = []
+# Public results pages. Off by default, and only public profiles are ever shown.
+public_results_enabled = false
+
+# Most companies on the short list each day, to protect the reviewer's time.
+short_list_size = 10
+# Days a decided company stays hidden, so it is not reviewed again too soon.
+hide_days = 90
+# A company needs a new ad within this many days to have a why-now reason.
+new_ad_days = 14
+# Companies researched a day, to stay inside the budget.
+research_per_day = 12
+# Most research steps per company, limiting cost and how far a page can lead the agent.
+research_steps = 5
+# Newest relevant ads read per company. The total count is always given as well.
+newest_ads_read = 5
+# Extra companies a change must get right on the check pile to be kept.
+keep_min_gain = 2
+# Tries allowed against one check pile before it is worn out.
+tries_per_check_pile = 50
+
+# Companies in the practice pile.
+practice_size = 150
+# Companies in the check pile.
+check_size = 75
+# Companies in the final pile.
+final_size = 75
+# Companies marked first, to learn the share of yes answers early.
+pilot_size = 40
+# Most companies the reviewer is asked to mark.
+marking_ceiling = 500
+# Companies marked a second time, to measure the reviewer's consistency.
+remark_size = 30
+# Days to wait before re-marking, so the first answers are not remembered.
+remark_after_days = 7
+# Yes answers wanted in each pile.
+target_yes_per_pile = 25
+# Fewest yes answers a pile may have.
+floor_yes_per_pile = 15
+
+# Seconds between requests to the same job source.
+request_delay_seconds = 1.0
+# Share of a source's boards that must fail at once to count as an outage.
+outage_share = 0.9
+# Days a page must keep failing before it is set aside.
+dead_after_days = 7
+# Days before a page that was set aside is tried again.
+retry_dead_after_days = 30
+
+# Monthly spending limit in US dollars. Paid calls stop here.
+budget_limit_usd = 70
+# Monthly spending in US dollars at which a warning is shown.
+budget_warning_usd = 50
+# Part of the monthly limit the improvement loop may spend.
+loop_budget_usd = 25
+# Fixed monthly costs with no per-call meter, such as hosting, counted towards the limit.
+fixed_monthly_costs_usd = 0
+# Langfuse units a month after which company traces are thinned.
+langfuse_thin_at_units = 40000
+
+# Probability a company needs in the quick look to be researched.
+quick_look_pass = 0.3
+# Probability a required question needs for a yes.
+required_pass = 0.5
+
+# Largest page the page reader will download, in bytes.
+max_page_bytes = 2000000
+# Seconds the page reader waits for a page.
+page_timeout_seconds = 15
+# Most characters of one job ad passed to a model.
+max_ad_chars = 20000
+# Most characters in one evidence pack.
+max_pack_chars = 60000
+# Most characters in one brief.
+brief_max_chars = 1200
+# Most words in a row a proposed rule may copy from an ad.
+screen_max_copied_words = 8
+# Most words in the reason given for a proposed rule.
+screen_max_why_words = 20
+
+# Model used for research.
+research_model = "claude-sonnet-5-5"
+# Model that writes briefs.
+writer_model = "claude-sonnet-5-5"
+# Model for the quick look. Without a Jev key, Claude Haiku is used.
+quick_look_model = "jev-1.14.0"
+# Model that judges each evidence pack.
+judge_model = "claude-sonnet-5-5"
+
+# Board list files, one per job source, for example greenhouse = "boards/greenhouse.txt".
+[board_lists]
+
+# Prices in US dollars per model, used by the budget meter, for example:
+# [prices.claude-sonnet-5-5]
+# input_per_million_usd = 0
+# output_per_million_usd = 0
+# per_search_usd = 0
+[prices]

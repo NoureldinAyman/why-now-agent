@@ -1,0 +1,13 @@
+"""Where the workspace keeps its documents: a local folder, or AWS later."""
+
+from collections.abc import Iterator
+from typing import Protocol
+
+
+class Store(Protocol):
+    """JSON documents grouped into collections. Keys may contain `/` to group them further."""
+
+    def put(self, collection: str, key: str, doc: dict) -> None: ...
+    def get(self, collection: str, key: str) -> dict | None: ...
+    def list(self, collection: str, prefix: str = "") -> Iterator[tuple[str, dict]]: ...
+    def delete(self, collection: str, key: str) -> None: ...
