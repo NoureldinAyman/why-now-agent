@@ -107,14 +107,31 @@ quick_look_model = "jev-1.14.0"
 quick_look_fallback_model = "claude-haiku-5-5"
 # Model that judges each evidence pack.
 judge_model = "claude-sonnet-5-5"
+# Most tokens one Claude call may write, so a call finishes inside the library's time limit.
+model_max_output_tokens = 16000
 
 # Careers page lists, one JSON list of page names per job source. To start with the example list:
 # greenhouse = "examples/boards.greenhouse.example.json"
 [board_lists]
 
-# Prices in US dollars per model, used by the budget meter, for example:
-# [prices.claude-sonnet-5-5]
-# input_per_million_usd = 0
-# output_per_million_usd = 0
-# per_search_usd = 0
+# Prices in US dollars per model, used by the budget meter. Checked on 6 Nov 2026.
+# A model with no price here is refused, so every call can be costed.
 [prices]
+
+# Claude Sonnet 5.5, per million tokens, plus each web search ($10 per 1,000).
+[prices.claude-sonnet-5-5]
+input_per_million_usd = 2
+output_per_million_usd = 10
+per_search_usd = 0.01
+
+# Claude Haiku 5.5, per million tokens, for prompts up to 100,000 tokens.
+[prices.claude-haiku-5-5]
+input_per_million_usd = 0.1
+output_per_million_usd = 0.5
+per_search_usd = 0
+
+# Jev 1.14.0, per million tokens. Jev charges for input tokens only.
+[prices."jev-1.14.0"]
+input_per_million_usd = 0.042
+output_per_million_usd = 0
+per_search_usd = 0

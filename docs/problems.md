@@ -57,3 +57,9 @@ The check now compares the two paths as text, after making both absolute, withou
 The first real read of 3 Greenhouse careers pages saved 1,418 job ads. A second read the same day also reported 1,418 new ads. The summary counted ads first seen today, and on the same day that is every ad. The saved dates were right, only the count was wrong. It now counts ads that no earlier read had seen, and the second read reports 0 new.
 
 **What it taught:** running the real command twice found what the tests missed, because the tests only ever read once on a given day.
+
+## 6 Nov 2026: The plan asked for something the model no longer allows
+
+The plan said the Claude judge should be made to answer through one forced tool call, a common way to get answers in a fixed shape. Reading the current Claude documentation before writing the code showed that Claude Sonnet 5.5, the judge, rejects forced tool calls with an error. Code written from the plan would have failed on its first real call, after all its tests had passed against a fake.
+
+**What it taught:** a fake only behaves the way we believe the real service does, so check the current documentation before writing against a service, as the project's rules say. The judge now asks for structured output, where the reply must match a JSON schema, which gives the same fixed shape.
