@@ -10,7 +10,7 @@ import pkgutil
 
 import typer
 
-app = typer.Typer(help="Read job ads, judge companies against a profile, and write briefs.")
+app = typer.Typer()
 
 
 @app.callback()

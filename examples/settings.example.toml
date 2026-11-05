@@ -1,7 +1,9 @@
 # Example settings for the Why-Now Agent. Every setting is listed here with its default.
 # Copy this file, change what you need, and pass it to the `why-now` command.
 # Any setting can also be set in the environment with a WHY_NOW_ prefix,
-# for example WHY_NOW_SHORT_LIST_SIZE=5. Lists and tables are written as JSON there.
+# for example WHY_NOW_SHORT_LIST_SIZE=5. Lists and tables are written as JSON there,
+# and replace the whole list or table from this file rather than adding to it.
+# Every WHY_NOW_ variable must be a real setting name, so a misspelt one is refused.
 # The design's "Every number, and why" table says where each number comes from.
 
 # Where the workspace lives: "local" for a folder, "aws" for S3 and DynamoDB.
@@ -93,8 +95,10 @@ screen_max_why_words = 20
 research_model = "claude-sonnet-5-5"
 # Model that writes briefs.
 writer_model = "claude-sonnet-5-5"
-# Model for the quick look. Without a Jev key, Claude Haiku is used.
+# Model for the quick look.
 quick_look_model = "jev-1.14.0"
+# Model for the quick look when there is no Jev key.
+quick_look_fallback_model = "claude-haiku-5-5"
 # Model that judges each evidence pack.
 judge_model = "claude-sonnet-5-5"
 

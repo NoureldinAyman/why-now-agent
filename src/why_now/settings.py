@@ -78,7 +78,8 @@ class Settings(BaseModel):
 
     research_model: str = "claude-sonnet-5-5"
     writer_model: str = "claude-sonnet-5-5"
-    quick_look_model: str = "jev-1.14.0"  # falls back to claude-haiku-5-5 without a Jev key
+    quick_look_model: str = "jev-1.14.0"
+    quick_look_fallback_model: str = "claude-haiku-5-5"  # used when there is no Jev key
     judge_model: str = "claude-sonnet-5-5"
     # Filled with checked prices when the budget meter is built (Task 9).
     prices: dict[str, ModelPrice] = Field(default_factory=dict)

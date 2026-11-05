@@ -8,7 +8,10 @@ from why_now.workspace.base import WorkspaceBase
 
 
 class Workspace(WorkspaceBase):
-    """Add each area's mixin before `WorkspaceBase`, for example `class Workspace(AdsArea, WorkspaceBase)`."""
+    """Add each area's mixin before `WorkspaceBase`.
+
+    For example: `class Workspace(AdsArea, WorkspaceBase)`.
+    """
 
 
 __all__ = ["Workspace"]
