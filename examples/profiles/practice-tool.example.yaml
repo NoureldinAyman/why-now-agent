@@ -1,0 +1,73 @@
+# The main example profile: an invented product, here only to show what a profile looks like.
+# It is a plain file. Delete it, or copy it and write your own, and nothing else changes.
+# This is a first draft for the owner to read and edit. It is not locked yet.
+id: practice-tool
+product_name: Rehearsal Desk
+product_description: >-
+  A practice tool for new sales hires. A new salesperson rehearses real sales conversations
+  against a simulated buyer and gets feedback before talking to real customers.
+users: Sales managers and founders who train new salespeople themselves.
+
+# Whole words or phrases, matched against job ad titles in any letter case.
+search_words:
+  - sales development representative
+  - business development representative
+  - account executive
+  - sales representative
+  - inside sales
+
+# Left empty on purpose: no country or language filter.
+countries: []
+languages: []
+
+# Cheap first pass. Each question is about the company, answered yes or no.
+quick_look_questions:
+  - id: sells_to_businesses
+    text: Does the company sell its product or service to other businesses?
+  - id: has_own_sales_team
+    text: Does the company employ its own salespeople?
+
+# Questions are written to be read literally: one exact condition each.
+fit_questions:
+  # Required questions are true deal-breakers. A "no" to either one rules the company out.
+  - id: hires_for_itself
+    kind: required
+    text: >-
+      Are the salespeople in the job ads hired to work for the company that placed the ads,
+      and not for client companies of a recruitment or staffing agency?
+    yes_means: The company is hiring for its own sales team.
+    no_means: The company is a recruitment or staffing agency hiring for clients.
+  - id: not_a_competitor
+    kind: required
+    text: >-
+      Is the company's main product something other than software or courses that train,
+      coach or let salespeople practise sales conversations?
+    yes_means: The company is not a competitor.
+    no_means: The company sells sales training or practice products, so it is a competitor.
+
+  # Supporting questions move the strength up or down. The overnight loop may change these.
+  - id: several_open_sales_roles
+    kind: supporting
+    text: Do the job ads show more than one open sales role at the same time?
+    yes_means: The sales team is growing, so several people will need training together.
+    no_means: Only one sales role is open.
+  - id: early_career_role
+    kind: supporting
+    text: >-
+      Does at least one job ad ask for a junior, entry-level or early-career salesperson,
+      or say that no sales experience is needed?
+    yes_means: The company expects to train people new to selling.
+    no_means: The company is hiring only experienced salespeople.
+  - id: already_has_training
+    kind: supporting
+    direction: against
+    text: >-
+      Does a job ad say the company has its own sales academy, a sales training team or a
+      structured training programme for new salespeople?
+    yes_means: The company already has training, so it needs the product less.
+    no_means: The ads mention no existing training.
+
+why_now: >-
+  A new ad for a salesperson shows the team is growing, and new hires will need to be
+  trained before they talk to customers.
+public: false
