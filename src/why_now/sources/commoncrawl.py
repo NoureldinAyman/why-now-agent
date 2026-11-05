@@ -66,11 +66,15 @@ def build_board_list(
         raise ValueError(f"unknown job source {source!r}. Known: {', '.join(HOSTS)}")
     fetch = _Fetcher(http, delay_seconds, attempts, sleep)
     index_url = _latest_index(fetch)
-    merged = list(existing)
-    seen = {name.lower() for name in merged}
+    merged: list[str] = []
+    seen: set[str] = set()
+    for name in existing:
+        if name.lower() not in seen:
+            seen.add(name.lower())
+            merged.append(name)
     for host in HOSTS[source]:
         query = f"{index_url}?url={host}/*&output=json&fl=url"
-        pages = int(json.loads(fetch(f"{query}&showNumPages=true"))["pages"])
+        pages = fetch(f"{query}&showNumPages=true", _page_count)
         for page in range(pages):
             for url in fetch(f"{query}&page={page}", _urls):
                 name = board_from_url(url, source)
@@ -78,6 +82,11 @@ def build_board_list(
                     seen.add(name.lower())
                     merged.append(name)
     return merged
+
+
+def _page_count(text: str) -> int:
+    """How many result pages the index has for a host."""
+    return int(json.loads(text)["pages"])
 
 
 def _urls(text: str) -> list[str]:

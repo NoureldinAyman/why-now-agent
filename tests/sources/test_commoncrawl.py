@@ -130,3 +130,8 @@ def test_build_list_reports_a_reply_that_is_always_cut_short():
 
     with pytest.raises(ListBuildFailed, match="cut short"):
         build("lever", httpx.Client(transport=httpx.MockTransport(handle)))
+
+
+def test_names_already_in_the_list_are_not_kept_twice():
+    http = fake_index({"jobs.lever.co": [lines("https://jobs.lever.co/a/1")]})
+    assert build("lever", http, existing=["x", "X", "a"]) == ["x", "a"]

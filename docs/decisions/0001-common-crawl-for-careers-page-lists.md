@@ -4,12 +4,13 @@ Decided 6 Nov 2026 (ticket 06).
 
 ## What Common Crawl's terms allow
 
-I read the terms of use at `https://commoncrawl.org/terms-of-use` on 6 Nov 2026. The page was read through a tool that returns it section by section, so the owner should check the original once before the project is published. The 17 sections say:
+The terms of use at `https://commoncrawl.org/terms-of-use` were read on 6 Nov 2026. The page was read through a tool that returns it section by section, so the owner should check the original once before the project is published. The 17 sections say:
 
 - Using the site, the service or the crawled content means accepting the terms. Common Crawl may change or end the service at any time.
 - It grants a limited, non-exclusive licence to use the service. Uses it does not name are not allowed.
 - Use must be lawful. The crawled content may also carry its owners' own terms. Banned uses include harming or harassing people, breaking others' rights, getting round copy protection, disrupting the service or its servers, spam, pretending to be someone else, disguising where content came from, and collecting personal information to use apart from the content.
 - The service is provided as it is. Common Crawl's liability is capped at 100 US dollars, the user covers Common Crawl against third-party claims, and disputes go to arbitration under California law.
+- Section 3 says Common Crawl recommends consulting legal counsel before any use, including commercial use.
 - The terms say nothing about rate limits, attribution, or the index lookup service specifically.
 
 ## What that means for this project

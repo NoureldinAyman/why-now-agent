@@ -59,7 +59,10 @@ def build_list(
 def _load(path: Path) -> list[str]:
     if not path.is_file():
         return []
-    names = json.loads(path.read_text(encoding="utf-8"))
+    try:
+        names = json.loads(path.read_text(encoding="utf-8"))
+    except ValueError as e:
+        raise typer.BadParameter(f"{path} is not valid JSON: {e}") from e
     if not isinstance(names, list) or not all(isinstance(n, str) for n in names):
         raise typer.BadParameter(f"{path} must be a JSON list of careers page names")
     return names
