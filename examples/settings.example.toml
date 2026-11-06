@@ -81,6 +81,8 @@ langfuse_thin_at_units = 40000
 quick_look_pass = 0.3
 # Probability a required question needs for a yes.
 required_pass = 0.5
+# Gap between the cut-offs tried when choosing one on the practice pile.
+cutoff_step = 0.05
 
 # Largest page the page reader will download, in bytes.
 max_page_bytes = 2000000

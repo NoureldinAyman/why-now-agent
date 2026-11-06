@@ -30,7 +30,7 @@ def test_numbers_added_to_the_design_table_have_its_values():
     assert (s.outage_share, s.retry_dead_after_days) == (0.9, 30)
     assert (s.request_attempts, s.max_retry_wait_seconds, s.source_timeout_seconds) == (3, 60, 30)
     assert s.fixed_monthly_costs_usd == 0
-    assert (s.quick_look_pass, s.required_pass) == (0.3, 0.5)
+    assert (s.quick_look_pass, s.required_pass, s.cutoff_step) == (0.3, 0.5, 0.05)
     assert (s.max_page_bytes, s.page_timeout_seconds) == (2_000_000, 15)
     assert (s.max_ad_chars, s.max_pack_chars, s.brief_max_chars) == (20_000, 60_000, 1_200)
     assert (s.screen_max_copied_words, s.screen_max_why_words) == (8, 20)
