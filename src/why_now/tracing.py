@@ -1,8 +1,9 @@
 """Tracing: a record of what the agent read, asked and answered.
 
 `LocalLogTracer` writes one JSON line per event to a folder in the workspace, one
-file per day. Langfuse is an optional extra, added later behind the same `Tracer`
-interface.
+file per day. `LangfuseTracer` sends the same traces to Langfuse, an optional extra
+behind the same `Tracer` interface. `build_tracer` picks Langfuse only when both
+keys are set and the library can start, and otherwise keeps the local log.
 
 Langfuse's free plan counts traces, steps and scores as units, with a monthly
 limit. `UnitCounter` keeps count per month, and near the `langfuse_thin_at_units`
@@ -13,8 +14,9 @@ way, so the local log shows what Langfuse would have received.
 """
 
 import json
+import logging
 import uuid
-from collections.abc import Callable, Iterator
+from collections.abc import Callable, Iterator, Mapping
 from contextlib import AbstractContextManager, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -27,6 +29,9 @@ from why_now.store import Store
 
 TRY = "try"  # the trace name for one try of the improvement loop, never thinned
 UNITS_COLLECTION = "trace_units"
+LANGFUSE_KEYS = ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY")
+
+log = logging.getLogger(__name__)
 
 Detail = Literal["full", "light"]
 
@@ -69,6 +74,12 @@ class UnitCounter:
     def thin(self) -> bool:
         return self.used() >= self.settings.langfuse_thin_at_units
 
+    def detail_for(self, name: str, detail: Detail) -> Detail:
+        """Company traces become light near the limit; tries never do."""
+        if detail == "full" and name != TRY and self.thin():
+            return "light"
+        return detail
+
     def _month(self) -> str:
         return self.clock().astimezone(UTC).strftime("%Y-%m")
 
@@ -89,8 +100,7 @@ class LocalLogTracer:
         models: dict[str, str],
         detail: Detail = "full",
     ) -> Iterator[TraceHandle]:
-        if detail == "full" and name != TRY and self.counter.thin():
-            detail = "light"
+        detail = self.counter.detail_for(name, detail)
         handle = _LocalHandle(self, uuid.uuid4().hex, detail)
         handle.write(
             "trace",
@@ -134,6 +144,99 @@ class _LocalHandle:
         with path.open("a", encoding="utf-8") as f:
             f.write(json.dumps(line, ensure_ascii=False, default=_jsonable) + "\n")
         self.tracer.counter.add(1)
+
+
+class LangfuseTracer:
+    """Sends traces to Langfuse (SDK v5: `start_as_current_observation`, `score_trace`).
+
+    One trace is a root span named after the trace. Profile, rules version, models and
+    detail go in its metadata. Each step is a child span with its input and output, and
+    each score is a trace-level score. Units are counted as the local log counts them:
+    the trace, each step sent and each score. The client is flushed when a trace ends,
+    because Langfuse sends in the background and the process may exit right after.
+    """
+
+    def __init__(self, client: Any, counter: UnitCounter):
+        self.client = client
+        self.counter = counter
+
+    @contextmanager
+    def trace(
+        self,
+        name: str,
+        *,
+        profile_id: str,
+        rules_version: int | None,
+        models: dict[str, str],
+        detail: Detail = "full",
+    ) -> Iterator[TraceHandle]:
+        detail = self.counter.detail_for(name, detail)
+        metadata = {
+            "profile_id": profile_id,
+            "rules_version": rules_version,
+            "models": models,
+            "detail": detail,
+        }
+        self.counter.add(1)
+        try:
+            with self.client.start_as_current_observation(
+                as_type="span", name=name, metadata=metadata
+            ) as root:
+                handle = _LangfuseHandle(self, root, detail)
+                try:
+                    yield handle
+                except BaseException as e:
+                    root.update(level="ERROR", status_message=repr(e))
+                    raise
+                finally:
+                    if handle.skipped:
+                        root.update(metadata={**metadata, "steps_skipped": handle.skipped})
+        finally:
+            try:
+                self.client.flush()
+            except Exception as e:  # sending must never stop or hide the run's own error
+                log.warning("Langfuse could not send traces (%s).", type(e).__name__)
+
+
+class _LangfuseHandle:
+    def __init__(self, tracer: LangfuseTracer, root: Any, detail: Detail):
+        self.tracer = tracer
+        self.root = root
+        self.detail = detail
+        self.skipped = 0
+
+    def step(self, name: str, input: Any, output: Any) -> None:
+        if self.detail == "light":
+            self.skipped += 1
+            return
+        self.root.start_observation(name=name, as_type="span", input=input, output=output).end()
+        self.tracer.counter.add(1)
+
+    def score(self, name: str, value: float) -> None:
+        self.root.score_trace(name=name, value=value, data_type="NUMERIC")
+        self.tracer.counter.add(1)
+
+
+def _langfuse_client() -> Any:
+    from langfuse import Langfuse  # optional extra; keys and address come from the environment
+
+    return Langfuse()
+
+
+def build_tracer(
+    folder: Path,
+    counter: UnitCounter,
+    clock: Callable[[], datetime],
+    env: Mapping[str, str],
+    make_client: Callable[[], Any] = _langfuse_client,
+) -> Tracer:
+    """Langfuse when both keys are set and it can start, otherwise the local log."""
+    if all(env.get(k, "").strip() for k in LANGFUSE_KEYS):
+        try:
+            return LangfuseTracer(make_client(), counter)
+        except Exception as e:  # missing extra or a bad setup must never stop a run
+            log.warning("Langfuse is not available (%s); using the local log.", type(e).__name__)
+    return LocalLogTracer(folder, counter, clock)
 
 
 def _jsonable(value: Any) -> Any:

@@ -75,3 +75,9 @@ The first real runs of `build-list` failed. Reply 504 (gateway time-out) came ba
 The page reader first relied on Python's `is_global` check to tell public addresses from private ones, and every planned test passed. A review then found that Python 3.13 counts `64:ff9b::7f00:1` and `::7f00:1` as public. Both are IPv6 forms that carry the IPv4 address `127.0.0.1` inside them, and on a network that translates IPv6 to IPv4, a request to the first is passed on to `127.0.0.1`. The reader now takes the IPv4 address out of these forms and checks that instead, with tests for both.
 
 **What it taught:** a library's "is this public" answer follows its own lists, not our threat. The tests should include the tricky forms an attacker would try, not only the usual private ranges.
+
+## 6 Nov 2026: Langfuse sends in the background, so a bad key shows up late
+
+Langfuse's library queues traces and sends them from a background thread, and the setup check only looks that the keys are set. So wrong keys would not raise an error where the trace is made: traces would quietly not arrive. Each trace now ends by asking Langfuse to send what it holds, and a failure there is logged as a warning and never stops the run or hides the run's own error. Metadata values are also limited to 200 characters each, so a very long value would be cut.
+
+**What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.

@@ -10,10 +10,10 @@ from typing import Literal
 from pydantic import BaseModel
 
 from why_now.settings import Settings
+from why_now.tracing import LANGFUSE_KEYS
 
 CLAUDE_KEY = "ANTHROPIC_API_KEY"
 JEV_KEY = "TYPESAFE_API_KEY"
-LANGFUSE_KEYS = ("LANGFUSE_PUBLIC_KEY", "LANGFUSE_SECRET_KEY")
 
 
 class SetupItem(BaseModel):
