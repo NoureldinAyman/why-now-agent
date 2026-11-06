@@ -12,6 +12,12 @@ class WorkspaceBase:
         self.store = store
         self.profile_id = profile_id
 
+    def require_profile(self) -> str:
+        """The profile this workspace was opened for, for areas kept per profile."""
+        if self.profile_id is None:
+            raise ValueError("this workspace was opened without a profile")
+        return self.profile_id
+
     def put_model(self, collection: str, key: str, model: BaseModel) -> None:
         self.store.put(collection, key, model.model_dump(mode="json"))
 
