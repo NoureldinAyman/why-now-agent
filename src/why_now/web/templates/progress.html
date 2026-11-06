@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Progress{% endblock %}
+{% block content %}
+<h1>Progress</h1>
+<ul class="counts">
+  <li>Yes: <span id="count-yes">{{ progress.yes }}</span></li>
+  <li>No: <span id="count-no">{{ progress.no }}</span></li>
+  <li>Can't tell: <span id="count-cant_tell">{{ progress.cant_tell }}</span></li>
+  <li>Left to mark: <span id="count-left">{{ progress.left }}</span></li>
+</ul>
+<p>{{ progress.marked }} marked so far, out of at most {{ ceiling }}. Can't tell answers do not count as yes or no.</p>
+{% endblock %}

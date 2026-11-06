@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Choose a profile{% endblock %}
+{% block content %}
+<h1>Choose a profile to mark</h1>
+<ul>
+{% for p in profiles %}
+  <li><a href="/mark?profile={{ p.id }}">{{ p.product_name }}</a></li>
+{% endfor %}
+</ul>
+{% endblock %}
