@@ -11,7 +11,7 @@ from pydantic import BaseModel
 
 from why_now.ai import BadModelOutput, Models, ResearchStep
 from why_now.ai.budget import Meter
-from why_now.domain import Answer, Claim, Decision, FitQuestion, JobAd
+from why_now.domain import Answer, Claim, Decision, FitQuestion, JobAd, Mark
 from why_now.pipeline.brief import BriefDraft
 from why_now.pipeline.day import run_day
 from why_now.pipeline.reader import PageReader
@@ -328,7 +328,14 @@ def test_decided_company_stays_hidden_for_90_days(make_world):
 def test_marks_do_not_hide_a_company(make_world):
     world = make_world(1)
     # A test case was picked and marked for this company. Marks only record a judgement.
-    world.store.put("marks", f"{world.profile.id}/case-1", {"case_id": "case-1", "answer": "no"})
+    world.workspace.save_mark(
+        Mark(
+            case_id="case-1",
+            answer="no",
+            reason="not a fit",
+            marked_at=datetime.combine(TODAY, time(10), UTC),
+        )
+    )
     assert [e.company_key for e in world.day().short_list] == ["co0"]
 
 
