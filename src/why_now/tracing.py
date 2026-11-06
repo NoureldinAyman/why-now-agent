@@ -74,6 +74,12 @@ class UnitCounter:
     def thin(self) -> bool:
         return self.used() >= self.settings.langfuse_thin_at_units
 
+    def detail_for(self, name: str, detail: Detail) -> Detail:
+        """Company traces become light near the limit; tries never do."""
+        if detail == "full" and name != TRY and self.thin():
+            return "light"
+        return detail
+
     def _month(self) -> str:
         return self.clock().astimezone(UTC).strftime("%Y-%m")
 
@@ -94,8 +100,7 @@ class LocalLogTracer:
         models: dict[str, str],
         detail: Detail = "full",
     ) -> Iterator[TraceHandle]:
-        if detail == "full" and name != TRY and self.counter.thin():
-            detail = "light"
+        detail = self.counter.detail_for(name, detail)
         handle = _LocalHandle(self, uuid.uuid4().hex, detail)
         handle.write(
             "trace",
@@ -165,8 +170,7 @@ class LangfuseTracer:
         models: dict[str, str],
         detail: Detail = "full",
     ) -> Iterator[TraceHandle]:
-        if detail == "full" and name != TRY and self.counter.thin():
-            detail = "light"
+        detail = self.counter.detail_for(name, detail)
         metadata = {
             "profile_id": profile_id,
             "rules_version": rules_version,
@@ -188,7 +192,10 @@ class LangfuseTracer:
                     if handle.skipped:
                         root.update(metadata={**metadata, "steps_skipped": handle.skipped})
         finally:
-            self.client.flush()
+            try:
+                self.client.flush()
+            except Exception as e:  # sending must never stop or hide the run's own error
+                log.warning("Langfuse could not send traces (%s).", type(e).__name__)
 
 
 class _LangfuseHandle:

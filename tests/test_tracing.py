@@ -30,15 +30,13 @@ def events(folder: Path) -> list[dict]:
 
 def test_trace_records_profile_rules_version_and_models(tmp_path, store, settings, clock):
     tracer = LocalLogTracer(tmp_path / "traces", UnitCounter(store, settings, clock), clock)
-    with tracer.trace(
-        "judge", profile_id="p1", rules_version=3, models={"judge": "claude-sonnet-5-5"}
-    ) as t:
+    with tracer.trace("judge", profile_id="p1", rules_version=3, models={"judge": "model-a"}) as t:
         t.step("answer", {"pack": "x"}, {"q1": 0.7})
         t.score("strength", 0.6)
     first, step, score = events(tmp_path / "traces")
     assert first["event"] == "trace" and first["name"] == "judge"
     assert (first["profile_id"], first["rules_version"]) == ("p1", 3)
-    assert first["models"] == {"judge": "claude-sonnet-5-5"}
+    assert first["models"] == {"judge": "model-a"}
     assert (step["event"], step["name"], step["output"]) == ("step", "answer", {"q1": 0.7})
     assert (score["event"], score["value"]) == ("score", 0.6)
     assert step["trace_id"] == score["trace_id"] == first["trace_id"]
@@ -148,9 +146,7 @@ def test_langfuse_trace_maps_names_metadata_steps_and_scores(store, settings, cl
     client = FakeLangfuse()
     counter = UnitCounter(store, settings, clock)
     tracer = LangfuseTracer(client, counter)
-    with tracer.trace(
-        "judge", profile_id="p1", rules_version=3, models={"judge": "claude-sonnet-5-5"}
-    ) as t:
+    with tracer.trace("judge", profile_id="p1", rules_version=3, models={"judge": "model-a"}) as t:
         t.step("answer", {"pack": "x"}, {"q1": 0.7})
         t.score("strength", 0.6)
     root, step = client.observations
@@ -158,7 +154,7 @@ def test_langfuse_trace_maps_names_metadata_steps_and_scores(store, settings, cl
     assert root.kwargs["metadata"] == {
         "profile_id": "p1",
         "rules_version": 3,
-        "models": {"judge": "claude-sonnet-5-5"},
+        "models": {"judge": "model-a"},
         "detail": "full",
     }
     assert (step.name, step.kwargs["input"], step.kwargs["output"]) == (
@@ -233,3 +229,13 @@ def test_build_tracer_falls_back_when_the_client_cannot_start(tmp_path, store, s
         make_client=broken,
     )
     assert isinstance(tracer, LocalLogTracer)
+
+
+def test_a_failing_send_does_not_stop_the_run(store, settings, clock):
+    class Failing(FakeLangfuse):
+        def flush(self):
+            raise ConnectionError("down")
+
+    tracer = LangfuseTracer(Failing(), UnitCounter(store, settings, clock))
+    with tracer.trace("judge", profile_id="p1", rules_version=None, models={}) as t:
+        t.score("s", 1.0)
