@@ -16,7 +16,7 @@ _ids = count()
 def make_company(key: str, text: str = "Join us.", n_ads: int = 1) -> Company:
     ads = [
         JobAd(
-            source="greenhouse",
+            source="example-source",
             board=key,
             ad_id=str(next(_ids)),
             company_name=key.title(),
@@ -131,6 +131,18 @@ def test_a_failure_is_marked_failed_not_dropped(profile, settings, workspace):
     by_key = {r.company_key: r for r in results}
     assert by_key["a"].failed is True and by_key["a"].passed is False
     assert by_key["b"].passed is True
+
+
+def test_one_odd_reply_is_retried_once(profile, settings, workspace):
+    class Flaky(ScriptedAnswerer):
+        def answer(self, state, questions, category):
+            if not self.states:
+                self.states.append(state)
+                raise BadModelOutput("odd")
+            return super().answer(state, questions, category)
+
+    results = run([make_company("a", "0.9")], profile, Flaky(), settings, workspace)
+    assert results[0].passed is True and results[0].failed is False
 
 
 def test_a_spent_budget_stops_the_run(profile, settings, workspace):

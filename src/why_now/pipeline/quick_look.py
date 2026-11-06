@@ -66,7 +66,7 @@ def quick_look(
 
 
 def _state(company: Company, max_ad_chars: int) -> str:
-    # Only the company's relevant ads, each cut short: Jev's documentation warns that
+    # Only the relevant ads, each cut short: the library's documentation warns that
     # irrelevant text costs accuracy, and long ads cost money.
     return "\n\n".join(
         f"{ad.title} ({ad.location})\n{ad.text[:max_ad_chars]}" for ad in company.ads
@@ -90,7 +90,7 @@ def _answers(
             saved[q.id] = p
     if missing:
         texts = {q.id: q.text for q in missing}
-        for a in answerer.answer(state, missing, CATEGORY):
+        for a in _answer_with_retry(answerer, state, missing):
             saved[a.question_id] = a.probability
             workspace.save_quick_answer(
                 company_key, state, texts[a.question_id], answerer.model, a.probability
@@ -105,3 +105,13 @@ def _strength(questions: list[FitQuestion], answers: list[Answer]) -> float:
     p = {a.question_id: a.probability for a in answers}
     values = [p[q.id] if q.direction == "for" else 1 - p[q.id] for q in questions]
     return sum(values) / len(values) if values else 1.0
+
+
+def _answer_with_retry(
+    answerer: Answerer, state: str, questions: list[FitQuestion]
+) -> list[Answer]:
+    # One retry, as in the judge: a single odd reply should not fail a company.
+    try:
+        return answerer.answer(state, questions, CATEGORY)
+    except BadModelOutput:
+        return answerer.answer(state, questions, CATEGORY)
