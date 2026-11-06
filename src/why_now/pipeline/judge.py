@@ -13,6 +13,8 @@ a new or edited question, and a run on the same pack can be repeated for free.
 See docs/decisions/0002.
 """
 
+import math
+
 from why_now.ai import Answerer, BadModelOutput, check_answers
 from why_now.domain import Answer, EvidencePack, FitQuestion, Profile, RulesFile, Verdict
 from why_now.evaluation.score import score
@@ -42,7 +44,9 @@ def choose_cutoff(
     """
     if not rows:
         raise ValueError("no rows to choose a cut-off from")
-    steps = round(1 / settings.cutoff_step)
+    # Rounded, so 0.05 steps land on 0.65 and not 0.6500000000000001. The last point
+    # is 1 even when the step does not divide 1 evenly.
+    steps = math.ceil(round(1 / settings.cutoff_step, 10))
     grid = [min(1.0, round(i * settings.cutoff_step, 10)) for i in range(steps + 1)]
     best, best_f05 = grid[0], -1.0
     for cutoff in grid:
@@ -70,17 +74,22 @@ def answer_questions(
     A missing, out-of-range or refused answer gets one retry. If that fails too,
     `CompanyFailed` is raised and nothing from the failed calls is saved.
     """
-    saved = {q.id: workspace.saved_answer(pack.pack_id, q, answerer.model) for q in questions}
-    unasked = [q for q in questions if saved[q.id] is None]
+    probabilities: dict[str, float] = {}
+    unasked: dict[str, FitQuestion] = {}
+    for q in questions:
+        p = workspace.saved_answer(pack.pack_id, q, answerer.model)
+        if p is None:
+            unasked[q.id] = q
+        else:
+            probabilities[q.id] = p
     if unasked:
-        for answer in _ask_with_one_retry(pack, unasked, answerer, category):
-            question = next(q for q in unasked if q.id == answer.question_id)
+        for answer in _ask_with_one_retry(pack, list(unasked.values()), answerer, category):
+            question = unasked[answer.question_id]
             workspace.save_answer(pack.pack_id, question, answerer.model, answer.probability)
-            saved[answer.question_id] = answer.probability
+            probabilities[question.id] = answer.probability
     return [
-        Answer(question_id=q.id, probability=p, model=answerer.model)
+        Answer(question_id=q.id, probability=probabilities[q.id], model=answerer.model)
         for q in questions
-        if (p := saved[q.id]) is not None
     ]
 
 

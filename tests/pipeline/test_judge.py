@@ -169,9 +169,21 @@ def test_editing_a_question_asks_again(workspace, pack):
     answer_questions(pack, [Q1], counting, workspace, "judge")
     edited = Q1.model_copy(update={"text": "Does it sell mostly to businesses?"})
     answer_questions(pack, [edited], counting, workspace, "judge")
-    criteria = Q1.model_copy(update={"yes_means": "Most of its customers are businesses."})
-    answer_questions(pack, [criteria], counting, workspace, "judge")
-    assert counting.asked == [["q1"], ["q1"], ["q1"]]
+    new_meaning = Q1.model_copy(update={"yes_means": "Most of its customers are businesses."})
+    answer_questions(pack, [new_meaning], counting, workspace, "judge")
+    # The model is shown the id as the question's label, so a new id is a new question.
+    renamed = Q1.model_copy(update={"id": "sells_to_businesses"})
+    answer_questions(pack, [renamed], counting, workspace, "judge")
+    assert counting.asked == [["q1"], ["q1"], ["q1"], ["sells_to_businesses"]]
+
+
+def test_kind_and_direction_can_change_without_asking_again(workspace, pack):
+    counting = CountingAnswerer()
+    answer_questions(pack, [Q1], counting, workspace, "judge")
+    moved = Q1.model_copy(update={"kind": "required", "direction": "against"})
+    got = answer_questions(pack, [moved], counting, workspace, "judge")
+    assert counting.asked == [["q1"]]
+    assert [a.probability for a in got] == [0.7]
 
 
 def test_changing_the_model_asks_again(workspace, pack):
@@ -236,6 +248,13 @@ def test_cutoff_follows_the_step_setting(settings):
     assert choose_cutoff(rows, [SUPPORTING], settings) == 0.35
     coarse = settings.model_copy(update={"cutoff_step": 0.25})
     assert choose_cutoff(rows, [SUPPORTING], coarse) == 0.5
+
+
+def test_cutoff_grid_always_reaches_one(settings):
+    # Only a strength of exactly 1 is a right yes, and 0.3 steps stop at 0.9 before 1.
+    rows = [strength_row(1.0, True), strength_row(0.95, False)]
+    uneven = settings.model_copy(update={"cutoff_step": 0.3})
+    assert choose_cutoff(rows, [SUPPORTING], uneven) == 1
 
 
 def test_cutoff_needs_rows(settings):
