@@ -17,9 +17,11 @@ from why_now.domain import Brief, EvidencePack, Source
 from why_now.settings import Settings
 
 # Curly and other look-alike quotes and dashes become plain ones. NFKC already
-# turns non-breaking spaces into spaces, but leaves these alone.
+# turns non-breaking spaces into spaces, but leaves these alone. Soft hyphens and
+# zero-width characters are invisible in a page, so they are removed.
 _PLAIN = str.maketrans(
     {
+        **dict.fromkeys("­​‌‍⁠﻿", None),
         **dict.fromkeys("\u2018\u2019\u201a\u201b\u2032\u00b4`", "'"),
         **dict.fromkeys("\u201c\u201d\u201e\u201f\u2033\u00ab\u00bb", '"'),
         **dict.fromkeys("\u2010\u2011\u2012\u2013\u2014\u2015\u2212\ufe58\ufe63", "-"),
@@ -29,6 +31,8 @@ _SPACES = re.compile(r"\s+")
 
 
 class FactCheckResult(BaseModel):
+    """Whether the brief passed, and each problem in words the writer can act on."""
+
     ok: bool
     problems: list[str]
 
@@ -58,9 +62,9 @@ def fact_check(brief: Brief, pack: EvidencePack, settings: Settings) -> FactChec
         if not normalise(claim.text) or not normalise(claim.quote):
             problems.append(f"{name} is empty: it needs both text and a quote")
         elif found is None:
-            problems.append(f"no source {claim.source_id!r} in the evidence pack")
+            problems.append(f"{name} names {claim.source_id!r}, which is not in the evidence pack")
         elif not _appears_in(claim.quote, found):
-            problems.append(f"quote not found in {claim.source_id}: {claim.quote!r}")
+            problems.append(f"{name}: quote not found in {claim.source_id}: {claim.quote!r}")
     return FactCheckResult(ok=not problems, problems=problems)
 
 

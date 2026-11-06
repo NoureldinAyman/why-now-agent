@@ -142,3 +142,14 @@ def test_same_input_gives_same_result(pack_with_ad_and_page, settings):
     results = [fact_check(b, pack_with_ad_and_page, settings) for _ in range(3)]
     assert results[0] == results[1] == results[2]
     assert len(results[0].problems) == 2
+
+
+def test_soft_hyphens_and_zero_width_spaces_are_ignored(settings):
+    text = "We use data\u00adbased tools and a\u200b new CRM."
+    pack = pack_of(source(AD_ID, "job_ad", AD_TEXT + "\n" + text))
+    assert fact_check(brief(quote="databased tools and a new crm"), pack, settings).ok
+
+
+def test_each_problem_names_the_claim_to_fix(pack_with_ad, settings):
+    result = fact_check(brief(quote="hiring six sales reps"), pack_with_ad, settings)
+    assert result.problems[0].startswith("claim 1")

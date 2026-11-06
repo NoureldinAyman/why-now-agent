@@ -18,7 +18,7 @@ from why_now.pipeline.judge import pack_state
 from why_now.settings import Settings
 from why_now.tracing import Tracer
 
-BRIEF_CATEGORY = "brief"  # the budget category briefs are charged to
+CATEGORY = "brief"  # the budget category briefs are charged to
 
 BRIEF_SYSTEM = """\
 You write a short brief about one company for a person who sells {product_name}: \
@@ -58,8 +58,6 @@ def write_brief(
     writer: Writer,
     settings: Settings,
     tracer: Tracer,
-    *,
-    category: str = BRIEF_CATEGORY,
 ) -> Brief | None:
     """A brief for `pack` that passes the fact check, or None after a second failure.
 
@@ -80,30 +78,36 @@ def write_brief(
         # The first attempt, then one more if it fails.
         for attempt in (1, 2):
             if problems:
+                # The problems repeat quotes the writer took from job ads and pages, so
+                # they stay in the untrusted text. The instruction to fix them is in
+                # the system prompt.
                 prompt_system = system + RETRY_NOTE
                 untrusted = evidence + "\n\nFact check problems:\n" + _listed(problems)
             else:
                 prompt_system, untrusted = system, evidence
+            brief: Brief | None = None
             try:
                 draft = writer.structured(
-                    system=prompt_system, untrusted=untrusted, schema=BriefDraft, category=category
+                    system=prompt_system,
+                    untrusted=untrusted,
+                    schema=BriefDraft,
+                    category=CATEGORY,
                 )
             except BadModelOutput as e:
                 result = FactCheckResult(
                     ok=False, problems=[f"the writer gave no usable brief: {e}"]
                 )
-                trace.step(f"brief_attempt_{attempt}", {"strength": verdict.strength}, None)
             else:
                 brief = Brief(company_key=pack.company_key, **draft.model_dump())
                 result = fact_check(brief, pack, settings)
-                trace.step(
-                    f"brief_attempt_{attempt}", {"strength": verdict.strength}, brief.model_dump()
-                )
-                if result.ok:
-                    trace.step("fact_check", attempt, result.model_dump())
-                    trace.score("fact_check_passed", 1)
-                    return brief
-            trace.step("fact_check", attempt, result.model_dump())
+            trace.step(
+                f"brief_attempt_{attempt}",
+                {"strength": verdict.strength},
+                {"brief": brief.model_dump() if brief else None, "fact_check": result.model_dump()},
+            )
+            if brief is not None and result.ok:
+                trace.score("fact_check_passed", 1)
+                return brief
             problems = result.problems
         trace.score("fact_check_passed", 0)
         return None
