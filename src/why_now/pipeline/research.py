@@ -18,19 +18,26 @@ See docs/decisions/0003-frozen-evidence-packs.md.
 
 import hashlib
 from datetime import datetime
+from typing import Protocol
 
 from why_now.ai import BadModelOutput, ResearchModel, ResearchStep, mark_untrusted
 from why_now.domain import Company, EvidencePack, JobAd, Profile, Source
-from why_now.pipeline.reader import PageReader, PageRefused, remove_contacts
+from why_now.pipeline.reader import PageRefused, remove_contacts
 from why_now.settings import Settings
 from why_now.tracing import Tracer
+
+
+class PageSource(Protocol):
+    """What research needs from a page reader: read one page, or raise `PageRefused`."""
+
+    def read(self, url: str) -> Source: ...
 
 
 def research_company(
     company: Company,
     profile: Profile,
     model: ResearchModel,
-    reader: PageReader,
+    reader: PageSource,
     settings: Settings,
     tracer: Tracer,
     *,
@@ -134,7 +141,7 @@ def _research_prompt(company: Company, profile: Profile, pack: _PackBuilder, ste
     )
 
 
-def _read(tool_use_id: str, url: str, reader: PageReader, pack: _PackBuilder) -> dict:
+def _read(tool_use_id: str, url: str, reader: PageSource, pack: _PackBuilder) -> dict:
     """Read `url` into the pack, and answer the request with what happened."""
     try:
         page = reader.read(url)

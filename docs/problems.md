@@ -99,3 +99,11 @@ The plan gave `hidden_until(company_key)` and `more_list(today)` no way to know 
 Each daily run test saves many small documents, and the local store writes every one to its own file and flushes it to disk before swapping it in, so a stop never leaves half a document. On Windows, the 25 daily run tests took 72 seconds. They are slow rather than wrong, and only the local store would need to change if it becomes a problem.
 
 **What it taught:** a store built to survive a crash is paid for in every test that uses it.
+
+## 6 Nov 2026: Reading a job ad turns an internal address into "[phone removed]"
+
+While writing the hostile ads, one of them told the reader to fetch the cloud machine's own address, written the usual way with four numbers and dots. Running the ad through the step that removes phone numbers showed that research never sees it: the address has 12 digits in groups, which the phone rule counts as a phone number, so the text becomes `http://[phone removed]/latest/meta-data/`. That is a mild extra protection for the usual spelling only. The same address written as an IPv6 form (`[::ffff:a9fe:a9fe]`) goes through untouched, and it is the page reader's address check, not the phone rule, that refuses it.
+
+The hostile set therefore uses the IPv6 forms and `localhost` for the blocked addresses, so those attacks really reach the model. A test that used the dotted form would have passed without testing anything.
+
+**What it taught:** a defence that works by accident is not a defence. Check what the model really receives, not only what the test fed in.
