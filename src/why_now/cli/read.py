@@ -66,7 +66,7 @@ def read_ads(
             max_retry_wait_seconds=settings.max_retry_wait_seconds,
         )
         sources.append(SOURCES[name](client))
-        names = BoardList(workspace, name, _load_names(path), settings).to_read(today)
+        names = BoardList(workspace, name, load_names(path), settings).to_read(today)
         if sample is not None and sample < len(names):
             names = rng.sample(names, sample)
         boards[name] = BoardList(workspace, name, names, settings)
@@ -99,7 +99,7 @@ def read_ads(
     typer.echo(f"Saved in {settings.workspace_path}.")
 
 
-def _load_names(path: Path) -> list[str]:
+def load_names(path: Path) -> list[str]:
     """A careers page list: a JSON list of page names."""
     names = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(names, list) or not all(isinstance(n, str) for n in names):

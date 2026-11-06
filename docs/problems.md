@@ -82,11 +82,37 @@ Langfuse's library queues traces and sends them from a background thread, and th
 
 **What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.
 
+## 6 Nov 2026: A longer short list still stopped at 12
+
+The first test of the one-run list size asked for 20 companies and got 12. Nothing was broken. The daily limit of 12 researched companies caps the short list, because a company only reaches it after research, and changing the list size for one run does not change that limit. A reviewer who asks for 20 would see 12 and no reason why. The command help and the stage notes now say that the list can only be as long as the research limit allows, and the limit stays a separate setting that is not changed for one run, so a mistyped command cannot spend extra money.
+
+**What it taught:** two settings that look independent can limit each other. Write a test for the pair, not only for each one.
+
+## 6 Nov 2026: The plan's list functions could not work out the hide days
+
+The plan gave `hidden_until(company_key)` and `more_list(today)` no way to know how many days a decision hides a company. That number is a setting, and the workspace does not hold settings. `hidden_until` now takes the hide days as an argument. The lists need no number: a company leaves them when a decision is made on or after the day it was listed.
+
+**What it taught:** a plan written before the code can leave out where a number comes from. Check each signature against the rule that every number is a setting.
+
+## 6 Nov 2026: The daily run tests are slow
+
+Each daily run test saves many small documents, and the local store writes every one to its own file and flushes it to disk before swapping it in, so a stop never leaves half a document. On Windows, the 25 daily run tests took 72 seconds. They are slow rather than wrong, and only the local store would need to change if it becomes a problem.
+
+**What it taught:** a store built to survive a crash is paid for in every test that uses it.
+
 ## 6 Nov 2026: Two workspace areas both defined `_key`
 
 The marks area first named its key helper `_key`, the same as the test cases area. The workspace joins all areas into one class, so the later definition hid the earlier one, and saving a mark failed with a message about the wrong number of arguments. A test caught it the first time a mark was saved. The helper is now `_mark_key`.
 
 **What it taught:** the areas share one name space, so a helper that two areas could want needs a name that says whose it is.
+
+## 6 Nov 2026: Windows sometimes refuses the store's file swap
+
+A daily run test failed about half the time in one session and passed the rest, with no change to the code. The cause was `PermissionError: Access is denied` when the local store swapped a new copy of a document into place, most often the tracing unit counter, which is rewritten for every trace. Something else on the computer briefly held the file. The daily run did what it should: it recorded that one company as failed, tried the next, and carried on. A test that counted exact positions on the list then saw a different list.
+
+The store itself has not been changed. Retrying the swap briefly would be the fix, and it needs a number, so it is left for the owner to decide.
+
+**What it taught:** a failure that comes and goes is the computer, not the logic, but it still shows where a store used from many places needs to be gentler. Read the full error before deciding.
 
 ## 6 Nov 2026: Reading a job ad turns an internal address into "[phone removed]"
 

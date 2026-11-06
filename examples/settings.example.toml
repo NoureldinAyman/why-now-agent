@@ -83,6 +83,8 @@ quick_look_pass = 0.3
 required_pass = 0.5
 # Gap between the cut-offs tried when choosing one on the practice pile.
 cutoff_step = 0.05
+# Strength a company needs for a yes before a cut-off has been chosen on the practice pile.
+default_cutoff = 0.5
 
 # Largest page the page reader will download, in bytes.
 max_page_bytes = 2000000
