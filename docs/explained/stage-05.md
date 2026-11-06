@@ -33,3 +33,18 @@ The decision note `docs/decisions/0002-f05-and-required-against-supporting-quest
 **The hardest question:** "You choose the cut-off on the practice pile and then use the same pile's mistakes to improve the rules. Isn't the practice pile score then meaningless?"
 
 **The honest answer:** yes, as a measure of quality it is. The practice pile is for learning, and its score is expected to look better than the truth. That is why the cut-off and the rules are judged on the check pile, which the loop sees only as a score, and why the final pile, used rarely, is the number that counts.
+
+## Langfuse traces (ticket 19)
+
+**What was built.** Traces can now go to Langfuse, where a person can open a run and see what was read, asked and answered. It is optional: with no Langfuse keys, the project works as before and keeps its local log.
+
+- **The Langfuse tracer** (`src/why_now/tracing.py`, `LangfuseTracer`). It sits behind the same interface as the local log. A trace is one top-level step named after the trace, with the profile, the rules file version, the models and the level of detail as its notes. Each step is a smaller step inside it, with its input and output, and each score is attached to the whole trace. It counts units the same way the local log does, and thins company traces at the same point, so the local log shows what Langfuse would have received.
+- **Choosing the tracer** (`build_tracer`). Langfuse is used only when both keys are set and the library starts. If the library is missing or fails to start, a warning is logged and the local log is used. A run never stops because of tracing set-up.
+- **Sending.** Langfuse sends in the background, so each trace ends by asking it to send what it holds. Otherwise a short run could end before anything left the computer.
+- **How it was written.** Against the current Langfuse documentation and the installed library (version 5.1), whose method names and arguments were checked directly. The tests use a fake Langfuse client, so they need no keys and no network. One further test, marked `live`, sends a single real trace.
+
+**Limits we know about.** A real trace has not yet been viewed in Langfuse: that needs the owner to confirm the key is set, then run `uv run pytest -m live tests/test_tracing_langfuse.py`. Langfuse accepts note values of up to 200 characters each, so very long model names would be cut. Nothing in the pipeline builds its tracer with `build_tracer` yet, since the evaluation ticket is where runs begin; until then the local log is what the tests use. Langfuse's own agent skill, which its pricing page suggests, was not used, because that is a choice for the owner.
+
+**The hardest question:** "If Langfuse is down or the keys are wrong, do you lose the run's record?"
+
+**The honest answer:** not entirely for a missing library or missing keys, because the local log is used instead. But wrong keys are not found until the first send, and Langfuse sends in the background, so those traces would be lost without stopping the run. The setup check only tests that keys are set, not that they work, so a first real trace should be viewed to be sure.
