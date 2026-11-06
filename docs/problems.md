@@ -69,3 +69,9 @@ The plan said the Claude judge should be made to answer through one forced tool 
 The first real runs of `build-list` failed. Reply 504 (gateway time-out) came back for both job sources, and one Greenhouse run crashed with a JSON error because a reply was cut off in the middle of a line. The tests only used a fake index that never did this. A cut-off reply is now treated like a time-out: the command tries again, and after 3 tries it says it could not build the list, writes nothing, and leaves any existing list as it was. Later runs worked for both job sources.
 
 **What it taught:** a public archive is slow and uneven, so a list-building command has to expect failure, and the first live run is part of the testing.
+
+## 6 Nov 2026: Python's own address check let some internal addresses through
+
+The page reader first relied on Python's `is_global` check to tell public addresses from private ones, and every planned test passed. A review then found that Python 3.13 counts `64:ff9b::7f00:1` and `::7f00:1` as public. Both are IPv6 forms that carry the IPv4 address `127.0.0.1` inside them, and on a network that translates IPv6 to IPv4, a request to the first is passed on to `127.0.0.1`. The reader now takes the IPv4 address out of these forms and checks that instead, with tests for both.
+
+**What it taught:** a library's "is this public" answer follows its own lists, not our threat. The tests should include the tricky forms an attacker would try, not only the usual private ranges.

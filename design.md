@@ -442,6 +442,7 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |
 | 2 MB and 15 seconds per page | The page reader, against huge or slow pages | Starting guess |
+| 5 redirects per page | The page reader, against redirect loops and long chains | The robots standard (RFC 9309) asks readers to follow at least 5 redirects for a robots file, and we use the same number for pages |
 | 20,000 characters per ad, 60,000 per evidence pack | The cost of each model call | Starting guess |
 | 1,200 characters per brief | The reviewer's time | Starting guess |
 | 8 copied words, 20 words of reason | Learned rules that copy ad text, or that cannot be explained briefly | Starting guess |

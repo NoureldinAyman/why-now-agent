@@ -36,7 +36,7 @@ RESEARCH_SYSTEM = (
     "pages and read_page to read one. Stop when you have enough. " + UNTRUSTED_NOTE
 )
 # Never searched or read, by the project's data rules.
-BLOCKED_DOMAINS = ["linkedin.com", "lnkd.in"]
+BLOCKED_DOMAINS = ["linkedin.com", "linkedin.cn", "lnkd.in"]
 
 
 class _RawAnswer(BaseModel):
