@@ -13,7 +13,7 @@ small loop with a hard limit:
   fact it could use is in the pack for the fact check.
 
 Searching and reading are the model's only tools, and neither can change anything.
-See docs/decisions/0003.
+See docs/decisions/0003-frozen-evidence-packs.md.
 """
 
 import hashlib
@@ -45,11 +45,11 @@ def research_company(
     with tracer.trace(
         "research", profile_id=profile.id, rules_version=None, models={"research": model.model}
     ) as trace:
-        pack = _Pack(settings.max_pack_chars)
+        pack = _PackBuilder(settings.max_pack_chars)
         for job_ad in _newest(company.ads, settings.newest_ads_read):
             pack.add(_ad_source(job_ad, settings.max_ad_chars, now))
-        brief = _brief(company, profile, pack, settings.research_steps)
-        conversation: list[dict] = [{"role": "user", "content": brief}]
+        prompt = _research_prompt(company, profile, pack, settings.research_steps)
+        conversation: list[dict] = [{"role": "user", "content": prompt}]
         steps = 0
         while steps < settings.research_steps and pack.room > 0:
             step = model.step(conversation, category)
@@ -58,12 +58,14 @@ def research_company(
                 trace.step("research_step", step.model_dump(), "done")
                 break
             results = []
-            for tool_use_id, url in zip(_ids(step), step.read_urls, strict=True):
+            for tool_use_id, url in zip(_tool_use_ids(step), step.read_urls, strict=True):
                 if steps >= settings.research_steps:
-                    results.append(_result(tool_use_id, "Not read: the step limit is reached."))
-                    continue
-                steps += 1
-                results.append(_result(tool_use_id, _read(url, reader, pack)))
+                    results.append(_refusal(tool_use_id, "Not read: the step limit is reached."))
+                elif pack.room <= 0:
+                    results.append(_refusal(tool_use_id, "Not read: the evidence pack is full."))
+                else:
+                    steps += 1
+                    results.append(_read(tool_use_id, url, reader, pack))
             if not step.read_urls and not step.searches_used:
                 steps += 1
             trace.step("research_step", step.model_dump(), [r["content"] for r in results])
@@ -83,7 +85,7 @@ def research_company(
         )
 
 
-class _Pack:
+class _PackBuilder:
     """The sources so far, kept within `max_chars` of text in all."""
 
     def __init__(self, max_chars: int):
@@ -114,12 +116,13 @@ def _ad_source(job_ad: JobAd, max_chars: int, now: datetime) -> Source:
         id="ad-" + hashlib.sha256(key.encode()).hexdigest()[:16],
         kind="job_ad",
         url=job_ad.url,
-        text=remove_contacts(f"{job_ad.title} ({job_ad.location})\n{job_ad.text[:max_chars]}"),
+        # The whole saved text, title included, keeps within the setting.
+        text=remove_contacts(f"{job_ad.title} ({job_ad.location})\n{job_ad.text}")[:max_chars],
         fetched_at=now,
     )
 
 
-def _brief(company: Company, profile: Profile, pack: _Pack, steps: int) -> str:
+def _research_prompt(company: Company, profile: Profile, pack: _PackBuilder, steps: int) -> str:
     ads = "\n\n".join(f"[{s.id}] {s.url}\n{mark_untrusted(s.text)}" for s in pack.sources)
     return (
         f"Research the company {company.name} for someone deciding whether to offer it "
@@ -131,20 +134,20 @@ def _brief(company: Company, profile: Profile, pack: _Pack, steps: int) -> str:
     )
 
 
-def _read(url: str, reader: PageReader, pack: _Pack) -> str:
-    """Read `url` into the pack, and say what happened in words for the model."""
+def _read(tool_use_id: str, url: str, reader: PageReader, pack: _PackBuilder) -> dict:
+    """Read `url` into the pack, and answer the request with what happened."""
     try:
         page = reader.read(url)
     except PageRefused as e:
         # The reader turns every failure into a refusal, a site that is down included.
-        return f"Refused, not saved ({e.reason}). Do not try to get round this."
+        return _refusal(tool_use_id, f"Refused, not saved ({e.reason}). Don't try to get round it.")
     saved = pack.get(page.id) or pack.add(page)
     if saved is None:
-        return "Not saved: the evidence pack is full."
-    return f"[{saved.id}] {saved.url}\n{mark_untrusted(saved.text)}"
+        return _refusal(tool_use_id, "Not saved: the evidence pack is full.")
+    return _result(tool_use_id, f"[{saved.id}] {saved.url}\n{mark_untrusted(saved.text)}")
 
 
-def _ids(step: ResearchStep) -> list[str]:
+def _tool_use_ids(step: ResearchStep) -> list[str]:
     """Ids to answer each read with. Scripted models give none, so stand-ins are made."""
     if not step.tool_use_ids:
         return [f"read-{i}" for i in range(len(step.read_urls))]
@@ -155,6 +158,10 @@ def _ids(step: ResearchStep) -> list[str]:
 
 def _result(tool_use_id: str, content: str) -> dict:
     return {"type": "tool_result", "tool_use_id": tool_use_id, "content": content}
+
+
+def _refusal(tool_use_id: str, content: str) -> dict:
+    return _result(tool_use_id, content) | {"is_error": True}
 
 
 def _pack_id(company_key: str, profile_id: str, created_at: datetime) -> str:

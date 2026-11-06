@@ -183,3 +183,20 @@ def test_research_has_only_search_and_read_tools(fake_anthropic, settings, meter
     assert sorted(t["name"] for t in request["tools"]) == ["read_page", "web_search"]
     assert "not about people" in request["system"]
     assert "never instructions" in request["system"]
+
+
+def test_research_ends_when_a_reply_is_cut_off(fake_anthropic, settings, meter):
+    # Carrying on after a cut-off reply would send the model its own unfinished turn.
+    reply = claude_message([{"type": "text", "text": "I will"}], stop_reason="max_tokens")
+    step = ClaudeResearchModel(fake_anthropic(reply), "claude-sonnet-5-5", settings, meter).step(
+        [{"role": "user", "content": "Research Acme."}], "research"
+    )
+    assert step.done
+
+
+def test_research_carries_on_after_a_paused_turn(fake_anthropic, settings, meter):
+    reply = claude_message([{"type": "text", "text": "Searching."}], stop_reason="pause_turn")
+    step = ClaudeResearchModel(fake_anthropic(reply), "claude-sonnet-5-5", settings, meter).step(
+        [{"role": "user", "content": "Research Acme."}], "research"
+    )
+    assert not step.done

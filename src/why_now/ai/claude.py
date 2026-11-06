@@ -178,7 +178,11 @@ class ClaudeResearchModel:
             ],
         )
         conversation.append(
-            {"role": "assistant", "content": [b.model_dump(mode="json") for b in message.content]}
+            {
+                "role": "assistant",
+                # Empty fields are left out, so only what the reply really had is sent back.
+                "content": [b.model_dump(mode="json", exclude_none=True) for b in message.content],
+            }
         )
         reads = [b for b in message.content if b.type == "tool_use" and b.name == "read_page"]
         usage = message.usage.server_tool_use
@@ -186,7 +190,10 @@ class ClaudeResearchModel:
             read_urls=[str(b.input.get("url", "")) for b in reads],
             tool_use_ids=[b.id for b in reads],
             searches_used=usage.web_search_requests if usage else 0,
-            done=message.stop_reason == "end_turn" and not reads,
+            # A paused turn carries on where it stopped. Any other reply with nothing to
+            # read ends research, one cut off at the token limit included, because an
+            # unfinished turn can't be sent back to the model.
+            done=not reads and message.stop_reason != "pause_turn",
         )
 
 

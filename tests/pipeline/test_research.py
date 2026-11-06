@@ -249,3 +249,22 @@ def test_each_page_result_answers_the_request_that_asked_for_it(research, settin
     results = model.seen[-1][-1]["content"]
     assert [r["tool_use_id"] for r in results] == ["tu_1", "tu_2"]
     assert "Refused" in results[0]["content"] and "Founded 2019." in results[1]["content"]
+
+
+def test_a_saved_ad_is_never_longer_than_the_setting(research):
+    pack = research(company(1, ad0="y" * 100), FakeModel(), max_ad_chars=40)
+    assert len(pack.sources[0].text) == 40
+
+
+def test_reads_after_the_pack_is_full_cost_no_steps(research, settings):
+    pages = {f"acme.test/p{n}": html("Our history. " * 200) for n in range(3)}
+    model = FakeModel(reads(*[f"https://acme.test/p{n}" for n in range(3)]))
+    pack = research(company(1), model, make_reader(settings, pages), max_pack_chars=500)
+    assert pack.research_steps == 1
+    assert [s.kind for s in pack.sources] == ["job_ad", "page"]
+
+
+def test_a_refused_page_is_marked_as_an_error(research):
+    model = FakeModel(reads("https://lnkd.in/x"), reads())
+    research(company(), model)
+    assert model.seen[-1][-1]["content"][0]["is_error"] is True
