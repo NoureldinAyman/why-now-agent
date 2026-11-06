@@ -32,7 +32,8 @@ class MarksArea(WorkspaceBase):
 
     def save_repeat_selection(self, seed: int, case_ids: list[str], at: datetime) -> bool:
         """Record which cases are to be marked again. Returns False, and changes nothing, if a
-        selection is already recorded: the 30 are picked once, so the number stays honest."""
+        selection is already recorded: the repeat companies are picked once, so the count of
+        companies behind the agreement number stays honest."""
         with _SAVE:
             if self.store.get(_REPEATS, self.require_profile()) is not None:
                 return False

@@ -68,6 +68,15 @@ def test_no_company_in_two_piles_and_seed_fixes_the_split(build, settings):
     assert all(x.pile is not None for x in a)
 
 
+def test_two_cases_for_one_company_are_never_both_piled(build, settings):
+    cases, marks = build(300, 100)
+    twin = cases[0].model_copy(update={"case_id": "case-twin"})
+    marks["case-twin"] = marks[cases[0].case_id].model_copy(update={"case_id": "case-twin"})
+    result, report = assign_piles([*cases, twin], marks, 7, settings)
+    piled = [c.company_key for c in result if c.pile is not None]
+    assert len(piled) == len(set(piled)) == sum(report.counts.values())
+
+
 def test_the_split_does_not_depend_on_the_order_cases_are_given_in(build, settings):
     cases, marks = build(300, 100)
     a, _ = assign_piles(cases, marks, 7, settings)

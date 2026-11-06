@@ -8,7 +8,7 @@ from fastapi import APIRouter, Form, HTTPException
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
-from why_now.domain import CaseRecord, Mark
+from why_now.domain import CaseRecord, Mark, Profile
 from why_now.web.routes_marking import (
     Progress,
     Reviewer,
@@ -40,10 +40,7 @@ def next_repeat(request: Request, _: Reviewer, profile: str | None = None) -> Re
     waiting = _waiting(workspace)
     if not waiting:
         return _page(request, "repeat_done.html", profile=chosen)
-    return _show_case(
-        request, workspace, chosen, waiting[0],
-        progress=_progress(workspace), post_to=f"/repeat/{waiting[0].case_id}", repeating=True,
-    )  # fmt: skip
+    return _show_repeat(request, workspace, chosen, waiting[0])
 
 
 @router.post("/repeat/{case_id}", response_class=HTMLResponse)
@@ -67,10 +64,7 @@ def save_repeat(
     reason = reason.strip()
     error = form_error(answer, reason)
     if error is not None:
-        return _show_case(
-            request, workspace, profile, case, error, answer, reason, status=422,
-            progress=_progress(workspace), post_to=f"/repeat/{case.case_id}", repeating=True,
-        )  # fmt: skip
+        return _show_repeat(request, workspace, profile, case, error, answer, reason, 422)
 
     mark = Mark.model_validate(
         {
@@ -83,6 +77,22 @@ def save_repeat(
     )
     workspace.save_mark(mark)  # a second copy of the same form changes nothing
     return RedirectResponse("/repeat" + _profile_query(ctx, profile), status_code=303)
+
+
+def _show_repeat(
+    request: Request,
+    workspace: Workspace,
+    profile: Profile,
+    case: CaseRecord,
+    error: str | None = None,
+    answer: str = "",
+    reason: str = "",
+    status: int = 200,
+) -> Response:
+    return _show_case(
+        request, workspace, profile, case, error, answer, reason, status,
+        progress=_progress(workspace), post_to=f"/repeat/{case.case_id}", repeating=True,
+    )  # fmt: skip
 
 
 def _waiting(workspace: Workspace) -> list[CaseRecord]:

@@ -41,16 +41,23 @@ def assign_piles(
 ) -> tuple[list[CaseRecord], PileReport]:
     """Give each usable case a pile, and return every case, in the order given.
 
-    A usable case has a yes or no mark. When more are marked than the piles hold, the
-    extra are left out at random but in proportion, so the share of yes does not move. When
-    fewer are marked, the piles keep their proportions at a smaller size.
+    A usable case has a yes or no mark, and is the only one piled for its company. When more
+    are marked than the piles hold, the extra are left out at random but in proportion, so the
+    share of yes does not move. When fewer are marked, the piles keep their proportions at a
+    smaller size.
     """
     sizes = {
         "practice": settings.practice_size,
         "check": settings.check_size,
         "final": settings.final_size,
     }
-    usable = [c for c in cases if c.case_id in marks and marks[c.case_id].answer != "cant_tell"]
+    usable: list[CaseRecord] = []
+    companies: set[str] = set()
+    for c in sorted(cases, key=lambda c: c.case_id):  # one case per company, the same one each time
+        answered = c.case_id in marks and marks[c.case_id].answer != "cant_tell"
+        if answered and c.company_key not in companies:
+            companies.add(c.company_key)
+            usable.append(c)
     yes = sorted(c.case_id for c in usable if marks[c.case_id].answer == "yes")
     no = sorted(c.case_id for c in usable if marks[c.case_id].answer == "no")
     rng = random.Random(seed)
