@@ -83,7 +83,7 @@ def answer_questions(
         else:
             probabilities[q.id] = p
     if unasked:
-        for answer in _ask_with_one_retry(pack, list(unasked.values()), answerer, category):
+        for answer in ask_with_one_retry(pack, list(unasked.values()), answerer, category):
             question = unasked[answer.question_id]
             workspace.save_answer(pack.pack_id, question, answerer.model, answer.probability)
             probabilities[question.id] = answer.probability
@@ -93,7 +93,7 @@ def answer_questions(
     ]
 
 
-def _ask_with_one_retry(
+def ask_with_one_retry(
     pack: EvidencePack, questions: list[FitQuestion], answerer: Answerer, category: str
 ) -> list[Answer]:
     problem: BadModelOutput | None = None
