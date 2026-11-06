@@ -47,10 +47,11 @@ def test_read_order_does_not_change_the_pick():
 
 
 def test_only_companies_with_a_recent_relevant_ad_are_eligible(settings):
+    # 14 days counting today: today and the 13 days before it.
     companies = [
         company("fresh", 0),
-        company("edge", 14),
-        company("stale", 15),
+        company("edge", 13),
+        company("stale", 14),
         company("mixed", 40, 3),
     ]
     keys = [c.key for c in eligible_companies(companies, settings, TODAY)]
@@ -59,7 +60,7 @@ def test_only_companies_with_a_recent_relevant_ad_are_eligible(settings):
 
 def test_the_window_is_the_setting(settings):
     narrow = settings.model_copy(update={"new_ad_days": 2})
-    assert [c.key for c in eligible_companies([company("a", 3)], narrow, TODAY)] == []
+    assert [c.key for c in eligible_companies([company("a", 2)], narrow, TODAY)] == []
 
 
 def test_already_picked_companies_are_not_picked_again():

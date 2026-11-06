@@ -15,15 +15,13 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from why_now.ai import ResearchModel
-from why_now.ai.budget import BudgetExceeded
+from why_now.ai.budget import TEST_CASES, BudgetExceeded
 from why_now.domain import CaseRecord, Company, Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.research import research_company
 from why_now.settings import Settings
 from why_now.tracing import Tracer
 from why_now.workspace import Workspace
-
-CATEGORY = "test_cases"  # the budget category one-time test case research charges to
 
 
 @dataclass
@@ -59,7 +57,7 @@ def build_packs(
     workspace.set_one_time_research(True)
     try:
         for i, case in enumerate(cases):
-            if case.pack_id is not None and workspace.load_pack(case.pack_id) is not None:
+            if _has_pack(workspace, case):
                 result.already_built += 1
                 continue
             company = workspace.case_company(case.case_id)
@@ -74,12 +72,12 @@ def build_packs(
                     reader,
                     settings,
                     tracer,
-                    category=CATEGORY,
+                    category=TEST_CASES,
                     now=clock(),
                 )
             except BudgetExceeded as e:
                 result.stopped = f"Stopped: {e}. Packs built so far are saved."
-                result.left = len(cases) - i
+                result.left = sum(not _has_pack(workspace, c) for c in cases[i:])
                 break
             except Exception as e:
                 # Recorded and tried again next run, so one company never stops the build.
@@ -92,6 +90,10 @@ def build_packs(
     finally:
         workspace.set_one_time_research(False)
     return result
+
+
+def _has_pack(workspace: Workspace, case: CaseRecord) -> bool:
+    return case.pack_id is not None and workspace.load_pack(case.pack_id) is not None
 
 
 def _fail(

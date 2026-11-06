@@ -14,12 +14,14 @@ from why_now.settings import Settings
 
 
 def eligible_companies(companies: list[Company], settings: Settings, today: date) -> list[Company]:
-    """Companies with at least one relevant ad published within `new_ad_days` of `today`.
+    """Companies with at least one relevant ad published in the last `new_ad_days` days.
+
+    The days count today, so 14 means today and the 13 days before it.
 
     `companies` come from the search step, so every ad in them is already relevant.
     The publish date is the job source's own, in UTC.
     """
-    oldest = today - timedelta(days=settings.new_ad_days)
+    oldest = today - timedelta(days=settings.new_ad_days - 1)
     return [c for c in companies if any(a.published_at.date() >= oldest for a in c.ads)]
 
 

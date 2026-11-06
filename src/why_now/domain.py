@@ -132,6 +132,15 @@ class CaseRecord(BaseModel):
     check_version: int | None = None
 
 
+class PickRecord(BaseModel):
+    """One random pick of test cases: its seed, what was asked for and what was picked."""
+
+    seed: int
+    n: int
+    picked: list[str]
+    at: datetime
+
+
 class BoardHealth(BaseModel):
     """How reading one careers page has gone lately, so dead pages can be set aside."""
 

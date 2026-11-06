@@ -191,7 +191,7 @@ def test_a_case_keeps_the_seed_and_the_company_it_was_picked_with(workspace, pro
 def test_picks_are_recorded_with_their_seed(workspace):
     workspace.record_pick(seed=42, n=10, picked=["acme"], at=NOW)
     workspace.record_pick(seed=7, n=5, picked=[], at=NOW)
-    assert [(p["seed"], p["n"]) for p in workspace.picks()] == [(42, 10), (7, 5)]
+    assert [(p.seed, p.n) for p in workspace.picks()] == [(42, 10), (7, 5)]
 
 
 def test_cases_and_packs_are_kept_per_profile(store, workspace, profile):
@@ -206,3 +206,34 @@ def test_budget_exceeded_before_the_first_case_builds_nothing(workspace, profile
     picked(workspace, profile, "acme")
     result = build(workspace, profile, CountingModel(on_step=stop), settings, tracer)
     assert result.built == 0 and result.left == 1 and result.stopped is not None
+
+
+def test_cases_left_counts_only_those_still_without_a_pack(workspace, profile, settings, tracer):
+    def stop():
+        raise BudgetExceeded("monthly limit of $70 reached")
+
+    picked(workspace, profile, "acme")
+    build(workspace, profile, CountingModel(), settings, tracer)
+    picked(workspace, profile, "globex")
+    by_key = {c.company_key: c for c in workspace.cases()}
+    result = build_packs(
+        [by_key["globex"], by_key["acme"]],
+        workspace,
+        profile,
+        CountingModel(on_step=stop),
+        unused_reader(settings),
+        settings,
+        tracer,
+        clock=lambda: NOW,
+    )
+    assert result.left == 1
+
+
+def test_one_profile_finishing_does_not_end_another_profiles_pause(store):
+    first, second = Workspace(store, "first"), Workspace(store, "second")
+    first.set_one_time_research(True)
+    second.set_one_time_research(True)
+    first.set_one_time_research(False)
+    assert first.one_time_research_active() and second.one_time_research_active()
+    second.set_one_time_research(False)
+    assert not first.one_time_research_active()

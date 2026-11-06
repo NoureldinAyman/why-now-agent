@@ -54,14 +54,14 @@ def pick_cases_command(
     settings, workspace, profile = _open(profile_file, settings_file)
     companies = search_ads(workspace.all_board_ads(), profile, {})
     eligible = eligible_companies(companies, settings, now().date())
-    already = {c.company_key for c in workspace.cases()}
-    picked = pick_cases(eligible, n, seed, already)
+    picked_before = {c.company_key for c in workspace.cases()}
+    picked = pick_cases(eligible, n, seed, picked_before)
     for company in picked:
         workspace.save_case(new_case(profile.id, company, seed), company)
     workspace.record_pick(seed, n, [c.key for c in picked], now())
     typer.echo(
         f"Picked {len(picked)} of {len(eligible)} companies with a relevant ad in the last "
-        f"{settings.new_ad_days} days, with seed {seed}. {len(already)} were picked before."
+        f"{settings.new_ad_days} days, with seed {seed}. {len(picked_before)} were picked before."
     )
     if len(picked) < n:
         typer.echo(f"Only {len(picked)} could be picked, fewer than the {n} asked for.")

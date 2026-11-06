@@ -71,7 +71,7 @@ def test_pick_then_build_makes_one_frozen_pack_per_case(tmp_path, monkeypatch, m
     assert result.exit_code == 0, result.output
     assert "Picked 2 of 2 companies" in result.output and "seed 42" in result.output
     assert sorted(c.company_key for c in ws.cases()) == ["acme", "globex"]
-    assert ws.picks()[0]["seed"] == 42
+    assert ws.picks()[0].seed == 42
 
     result = runner.invoke(app, ["build-packs", *args])
     assert result.exit_code == 0, result.output
@@ -89,4 +89,4 @@ def test_picking_again_never_repeats_a_company(tmp_path, monkeypatch, make_profi
     result = runner.invoke(app, ["pick-cases", *args, "--n", "5", "--seed", "2"])
     assert "Only 1 could be picked" in result.output
     assert sorted(c.company_key for c in ws.cases()) == ["acme", "globex"]
-    assert [p["seed"] for p in ws.picks()] == [1, 2]
+    assert [p.seed for p in ws.picks()] == [1, 2]

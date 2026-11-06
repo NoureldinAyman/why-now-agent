@@ -1,15 +1,16 @@
 """Test cases, their frozen evidence packs, the picks that made them, and the one-time flag.
 
-Cases, packs, failures and picks are kept per profile. The one-time research
-flag is kept once for the whole workspace, because the budget it protects is shared.
+Cases, packs, failures and picks are kept per profile. Each profile sets its own
+one-time research flag, and daily research pauses while any profile's is set,
+because the budget it protects is shared.
 """
 
 from datetime import datetime
 
-from why_now.domain import CaseRecord, Company, EvidencePack
+from why_now.domain import CaseRecord, Company, EvidencePack, PickRecord
 from why_now.workspace.base import WorkspaceBase
 
-_FLAG = ("flags", "one_time_research")
+_FLAGS = "one_time_research"
 
 
 class CasesArea(WorkspaceBase):
@@ -54,20 +55,22 @@ class CasesArea(WorkspaceBase):
         """Add a pick to the profile's record of picks, so every seed used is kept."""
         key = self.require_profile()
         doc = self.store.get("picks", key) or {"picks": []}
-        doc["picks"].append({"seed": seed, "n": n, "picked": picked, "at": at.isoformat()})
+        doc["picks"].append(
+            PickRecord(seed=seed, n=n, picked=picked, at=at).model_dump(mode="json")
+        )
         self.store.put("picks", key, doc)
 
-    def picks(self) -> list[dict]:
+    def picks(self) -> list[PickRecord]:
         doc = self.store.get("picks", self.require_profile())
-        return [] if doc is None else doc["picks"]
+        return [] if doc is None else [PickRecord.model_validate(p) for p in doc["picks"]]
 
     def one_time_research_active(self) -> bool:
-        """True while one-time research, such as building test case packs, is running."""
-        doc = self.store.get(*_FLAG)
-        return bool(doc and doc["active"])
+        """True while any profile's one-time research, such as building packs, is running."""
+        return any(doc["active"] for _, doc in self.store.list(_FLAGS))
 
     def set_one_time_research(self, active: bool) -> None:
-        self.store.put(*_FLAG, {"active": active})
+        """Set or clear this profile's flag. Other profiles' flags are left as they are."""
+        self.store.put(_FLAGS, self.require_profile(), {"active": active})
 
     def _key(self, name: str) -> str:
         return f"{self.require_profile()}/{name}"

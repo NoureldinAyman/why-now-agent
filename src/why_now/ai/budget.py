@@ -19,6 +19,7 @@ from why_now.store import Store
 
 COLLECTION = "budget"
 LOOP = "loop"  # the category the improvement loop charges to
+TEST_CASES = "test_cases"  # the category one-time test case research charges to
 
 
 class BudgetExceeded(Exception):

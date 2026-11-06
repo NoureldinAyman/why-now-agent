@@ -5,10 +5,10 @@ once in `Workspace` below. Adding a method to an area only touches that area's f
 """
 
 from why_now.workspace.base import WorkspaceBase
+from why_now.workspace.cases import CasesArea
 from why_now.workspace.judge import JudgeArea
 from why_now.workspace.quick_look import QuickLookArea
 from why_now.workspace.read import ReadArea
-from why_now.workspace.testset import CasesArea
 
 
 class Workspace(CasesArea, QuickLookArea, ReadArea, JudgeArea, WorkspaceBase):
