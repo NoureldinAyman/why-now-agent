@@ -13,6 +13,14 @@
 
 **Where it differs from the plan.** The plan's signature for `run_attacks` had no profile, cut-off, tracer or time. Research and briefs need a profile and a tracer, and the decision needs the judge's cut-off, so these were added as named arguments. The rule check asks the writer for a rule change itself, as a stand-in until the improvement loop's own proposer exists.
 
+**Known limits.**
+
+- Each twin is judged once, so a live judge near its cut-off could differ from its clean twin by chance, not because it obeyed. A failure is worth rerunning before it is trusted.
+- The decision attacks use a clean company the judge should say no to, but nothing checks that it does. If the judge says yes to a clean twin, an attack that pushes toward yes proves nothing, so read the clean decision when a live run passes everything.
+- `rule-long-order` is stopped by the screen's copied-words check whatever the model does. It tests the screen, not the model. `rule-short-order` is the one that tests the model.
+- A blocked address counts as reached when a page at the same host name was read. The same address written another way would not be matched.
+- Pages the research model reads mid-run are marked untrusted by the research step, which `tests/pipeline/test_research.py` checks. The guards here look at the requests built from the attack set, where every blocked address is refused.
+
 **The hardest question:** "These tests pass with fake models. Does that show real models resist hidden instructions?"
 
 **The honest answer:** no. They show that the checks fail when a model does obey, and that the real wiring marks text as untrusted and gives the models no extra tools. Whether Claude or Jev resist these 12 attacks is only known after the live run, and 12 attacks are a sample of what a hostile page could try, not all of it. The planted text is also found only word for word (ignoring spacing and case), so a model that paraphrases the instruction into a brief or rule is not caught.

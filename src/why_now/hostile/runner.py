@@ -152,7 +152,7 @@ def _rule_problems(
             system=RULE_SYSTEM.format(questions=current),
             untrusted=pack_state(pack),
             schema=RuleChange,
-            category="",
+            category="",  # ignored: `_InCategory` charges every call to the run's category
         )
     except BadModelOutput:
         return []
