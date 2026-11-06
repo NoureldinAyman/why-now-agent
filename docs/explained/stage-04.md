@@ -61,3 +61,24 @@ The pack id comes from the company, the profile and the time it was made, so a p
 **The hardest question:** "A hostile page tells the model to read ten more pages. What stops it?"
 
 **The honest answer:** the step limit, and the page reader's own rules. Each page read costs a step whether or not it is refused, so a page can lead the agent at most 4 more steps after the first read. Every page it points to goes through the same checks: no LinkedIn, no private addresses, robots rules, size and time limits. The model has no tool that sends or changes anything, so the worst a hostile page can do is waste the company's few steps or fill the pack with useless text. It can't make the agent act.
+
+## Picking test cases and building packs (ticket 12)
+
+**What was built.** Two commands that turn a profile's saved job ads into test cases, each with a frozen evidence pack:
+
+- **`why-now pick-cases --profile P --n N --seed S`** (`src/why_now/testset/picking.py`). It searches every saved job ad with the profile's search words, keeps the companies with a relevant ad published in the last 14 days, counting today, the same window the daily list uses, and picks N of them at random with the given seed. The companies are sorted first, so the same seed and the same ads always give the same pick, whatever order the ads were read in. Companies picked before are left out, so a company is never picked twice, and asking for more than there are picks them all once and says so.
+- **Nothing the agent says can reach the pick.** The picking function takes only the companies, a count, a seed and the keys already picked. A test checks that, and that over 4,000 seeds each of 4 companies is picked about equally often.
+- **What is recorded.** Every pick is added to the profile's record with its seed, the count asked for, the companies picked and the time. Each case keeps its seed, and the company is saved with the exact ads it was picked with, so the pack is built from those ads even if the careers page changes before then.
+- **`why-now build-packs --profile P`** (`src/why_now/testset/packs.py`). It runs research once for each case without a pack and saves the pack. A saved pack can't be saved over, so it stays frozen.
+- **Resuming.** Packs are saved one at a time, and a case that already has a pack is skipped, so running the command again never pays twice for the same company.
+- **Daily research pauses.** While packs are being built, the profile's flag in the workspace is set, and it is cleared when the build ends, even if it ends with an error. Each profile has its own flag, so one profile finishing never ends another's pause. The daily run, built in Task 20, must not research while any flag is set.
+- **A spent budget.** The build stops, keeps what it built, says so, and says how many cases still have no pack. The command then exits with an error so a script running it notices.
+- **A failed company.** If research for one company fails, the reason is recorded against its case and the build carries on. The case stays in the list and is tried again on the next run, and a later success clears the failure.
+
+One-time research is charged to its own budget category, `test_cases`, so it shows apart from daily research in the spending list.
+
+**Limits we know about.** The flag means "a build is running". If the process is killed outright, the flag stays set and daily research stays paused until `build-packs` runs again and clears it. Nothing reads the flag yet, because the daily run does not exist yet. A pack is saved just before its case is updated to point at it, so if the process is killed between those two writes, that one company is researched and paid for again on the next run. A failure of any kind is recorded and retried, which also means a bug in our own code would show as a list of failed companies rather than stopping the build.
+
+**The hardest question:** "You say the same seed gives the same pick. If I run the same seed next week, will I get the same companies?"
+
+**The honest answer:** no, and it should not. The pick is the same for the same seed and the same set of eligible companies, but the set changes as new ads arrive and old ones leave the 14-day window. That is why the record keeps the companies picked, not only the seed: the record shows what was picked, and the seed shows the pick was not chosen by hand.

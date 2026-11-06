@@ -126,10 +126,19 @@ class CaseRecord(BaseModel):
     case_id: str
     profile_id: str
     company_key: str
-    pack_id: str
+    pack_id: str | None = None  # None until its evidence pack is built
     seed: int
     pile: Literal["practice", "check", "final", "unsplit"] | None = None
     check_version: int | None = None
+
+
+class PickRecord(BaseModel):
+    """One random pick of test cases: its seed, what was asked for and what was picked."""
+
+    seed: int
+    n: int
+    picked: list[str]
+    at: datetime
 
 
 class BoardHealth(BaseModel):
