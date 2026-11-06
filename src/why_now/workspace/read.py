@@ -19,6 +19,12 @@ class ReadArea(WorkspaceBase):
         doc = {"ads": [a.model_dump(mode="json") for a in ads]}
         return self._put_if_changed("board_ads", _board_key(source, board), doc)
 
+    def all_board_ads(self) -> list[JobAd]:
+        """Every job ad saved at the last good read of every careers page."""
+        return [
+            JobAd.model_validate(a) for _, doc in self.store.list("board_ads") for a in doc["ads"]
+        ]
+
     def board_health(self, source: str) -> dict[str, BoardHealth]:
         doc = self.store.get("board_health", source)
         return {} if doc is None else _HEALTH.validate_python(doc)
