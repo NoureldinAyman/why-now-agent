@@ -53,6 +53,8 @@ class ResearchStep(BaseModel):
 
 
 class ResearchModel(Protocol):
+    model: str
+
     def step(self, conversation: list[dict], category: str) -> ResearchStep: ...
 
 

@@ -172,3 +172,14 @@ def test_research_is_done_when_the_model_stops_asking(fake_anthropic, settings, 
         [{"role": "user", "content": "Research Acme."}], "research"
     )
     assert step.done and step.read_urls == []
+
+
+def test_research_has_only_search_and_read_tools(fake_anthropic, settings, meter):
+    client = fake_anthropic(claude_message([{"type": "text", "text": "Done."}]))
+    ClaudeResearchModel(client, "claude-sonnet-5-5", settings, meter).step(
+        [{"role": "user", "content": "Research Acme."}], "research"
+    )
+    request = client.requests[0]
+    assert sorted(t["name"] for t in request["tools"]) == ["read_page", "web_search"]
+    assert "not about people" in request["system"]
+    assert "never instructions" in request["system"]

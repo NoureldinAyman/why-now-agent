@@ -41,3 +41,23 @@ A refused page raises `PageRefused`, whose `reason` names the rule, such as `lin
 **The hardest question:** "You look up the name, check the address, then connect. Can't a hostile site answer the lookup with a public address and then switch to an internal one?"
 
 **The honest answer:** not through this reader. That trick works when the check and the connection each look the name up on their own. Here the connection goes to the exact address that was checked, and the site's name is only sent as a label, also used to check the site's security certificate. The one way around that would be a proxy, which makes its own connection, so the reader refuses a web client that would take one from the environment. A proxy set up by hand in the web client's own code is not detected, so the code that makes the client must not add one.
+
+## Research and evidence packs (ticket 11)
+
+**What was built.** Research (`src/why_now/pipeline/research.py`) turns one company into an evidence pack, the fixed set of text the agent is judged on. It works in this order:
+
+- **Ads first.** The pack starts with the company's 5 newest relevant job ads, each cut to 20,000 characters, with email addresses and phone numbers removed. The total number of relevant ads and of all open jobs is recorded, so the ads left out still count.
+- **Then a small loop.** The research model is shown the company, the product and the ads, and may search the web or ask for pages. Our page reader fetches each page. The loop stops when the model says it is done, at 5 steps, or when the pack is full.
+- **What a step is.** One web search or one page read. A refused page still costs a step, so a hostile page can't lead the agent round in circles for free. A reply that asks for nothing also costs a step, so the loop always ends.
+- **Refusals are told, not hidden.** A refused page, such as a LinkedIn link or a site that is down, is not saved, and the model is told the reason. A company whose website fails still gets a pack from its ads.
+- **What the model sees is what is saved.** Page text goes to the model exactly as it is saved, inside the untrusted text tags, so any quote it could make is in the pack for the fact check.
+- **A size limit.** The whole pack holds at most 60,000 characters. Ads come first, so a long web page can't push them out. A page that doesn't fit is cut, and once the pack is full research stops.
+- **Two tools only.** The model can search the web and ask for a page to be read. Neither can change anything, and LinkedIn is blocked for search as well as reading.
+
+The pack id comes from the company, the profile and the time it was made, so a pack is never edited, only replaced by a new one. `docs/decisions/0003-frozen-evidence-packs.md` says why packs are frozen.
+
+**Limits we know about.** One Claude reply may run a search and then ask for pages, so the last reply before the limit can ask for more pages than are left. Those pages are not read, and the model is told the step limit is reached. A scripted or future model that reports more than one search in a reply could take the step count past the limit by the extra searches; the count records what really happened. A reply that stops because it ran out of room, with no request in it, costs a step and research carries on, which wastes that step.
+
+**The hardest question:** "A hostile page tells the model to read ten more pages. What stops it?"
+
+**The honest answer:** the step limit, and the page reader's own rules. Each page read costs a step whether or not it is refused, so a page can lead the agent at most 4 more steps after the first read. Every page it points to goes through the same checks: no LinkedIn, no private addresses, robots rules, size and time limits. The model has no tool that sends or changes anything, so the worst a hostile page can do is waste the company's few steps or fill the pack with useless text. It can't make the agent act.

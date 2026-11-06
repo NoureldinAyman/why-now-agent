@@ -54,6 +54,8 @@ class ScriptedWriter:
 
 
 class ScriptedResearch:
+    model = SCRIPTED
+
     def __init__(self, script: Script):
         self.steps = list(script.research)
 

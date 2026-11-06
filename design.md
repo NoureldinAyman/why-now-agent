@@ -316,7 +316,7 @@ Measured on 4 to 5 Nov 2026, from a random sample of 200 companies per job sourc
 - The agent has two tools, searching the web and reading a page. Neither can change anything.
 - Search uses Claude's web search tool. Pages are read by our own reader, so the exact text is saved for the fact check.
 - Evidence comes only from pages our reader saved. A search snippet alone can't support a fact.
-- About 5 steps per company.
+- About 5 steps per company. A step is one web search or one page read, refused pages included. A reply that does neither still counts as a step, so research always ends. See `docs/decisions/0003-frozen-evidence-packs.md`.
 - The reader:
   - Follows each site's robots rules.
   - Refuses LinkedIn.
