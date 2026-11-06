@@ -61,15 +61,15 @@ def screen_change(
     if len(_words(q.why)) > settings.screen_max_why_words:
         return fail(f"the why clause is over {settings.screen_max_why_words} words")
 
-    n = settings.screen_max_copied_words
+    run_len = settings.screen_max_copied_words
     ad_runs: set[tuple[str, ...]] = set()
     for ad in ad_texts:
-        w = _words(ad)
-        ad_runs.update(tuple(w[i : i + n]) for i in range(len(w) - n + 1))
-    for t in [*_wording(q), q.why]:
-        w = _words(t)
-        if any(tuple(w[i : i + n]) in ad_runs for i in range(len(w) - n + 1)):
-            return fail(f"copies {n} or more words in a row from an ad")
+        ad_words = _words(ad)
+        ad_runs.update(tuple(ad_words[i : i + run_len]) for i in range(len(ad_words) - run_len + 1))
+    for t in texts:
+        words = _words(t)
+        if any(tuple(words[i : i + run_len]) in ad_runs for i in range(len(words) - run_len + 1)):
+            return fail(f"copies {run_len} or more words in a row from an ad")
     return ScreenResult(ok=True, problem=None)
 
 
