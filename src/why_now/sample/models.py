@@ -42,6 +42,8 @@ class ScriptedAnswerer:
 
 
 class ScriptedWriter:
+    model = SCRIPTED
+
     def __init__(self, script: Script):
         self.script = script
 
