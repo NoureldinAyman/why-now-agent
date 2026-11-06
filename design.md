@@ -443,6 +443,7 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | $0 fixed monthly costs | Counting AWS and Langfuse, which have no per-call meter, towards the $70 limit | Set by each person to their own expected bill |
 | 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |
+| 0.5 cut-off before any is chosen | The daily list working before anyone has marked a test case | Even odds. Replaced by the cut-off chosen on the practice pile once there is one |
 | Cut-offs tried 0.05 apart | Against a cut-off fitted too closely to the practice pile | Starting guess. Finer steps let the cut-off fall between two single companies, which fits luck on the practice pile rather than a pattern |
 | 2 MB and 15 seconds per page | The page reader, against huge or slow pages | Starting guess |
 | 5 redirects per page | The page reader, against redirect loops and long chains | The robots standard (RFC 9309) asks readers to follow at least 5 redirects for a robots file, and we use the same number for pages |

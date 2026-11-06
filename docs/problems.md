@@ -81,3 +81,21 @@ The page reader first relied on Python's `is_global` check to tell public addres
 Langfuse's library queues traces and sends them from a background thread, and the setup check only looks that the keys are set. So wrong keys would not raise an error where the trace is made: traces would quietly not arrive. Each trace now ends by asking Langfuse to send what it holds, and a failure there is logged as a warning and never stops the run or hides the run's own error. Metadata values are also limited to 200 characters each, so a very long value would be cut.
 
 **What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.
+
+## 6 Nov 2026: A longer short list still stopped at 12
+
+The first test of the one-run list size asked for 20 companies and got 12. Nothing was broken. The daily limit of 12 researched companies caps the short list, because a company only reaches it after research, and changing the list size for one run does not change that limit. A reviewer who asks for 20 would see 12 and no reason why. The command help and the stage notes now say that the list can only be as long as the research limit allows, and the limit stays a separate setting that is not changed for one run, so a mistyped command cannot spend extra money.
+
+**What it taught:** two settings that look independent can limit each other. Write a test for the pair, not only for each one.
+
+## 6 Nov 2026: The plan's list functions could not work out the hide days
+
+The plan gave `hidden_until(company_key)` and `more_list(today)` no way to know how many days a decision hides a company. That number is a setting, and the workspace does not hold settings. `hidden_until` now takes the hide days as an argument. The lists need no number: a company leaves them when a decision is made on or after the day it was listed.
+
+**What it taught:** a plan written before the code can leave out where a number comes from. Check each signature against the rule that every number is a setting.
+
+## 6 Nov 2026: The daily run tests are slow
+
+Each daily run test saves many small documents, and the local store writes every one to its own file and flushes it to disk before swapping it in, so a stop never leaves half a document. On Windows, the 25 daily run tests took 72 seconds. They are slow rather than wrong, and only the local store would need to change if it becomes a problem.
+
+**What it taught:** a store built to survive a crash is paid for in every test that uses it.

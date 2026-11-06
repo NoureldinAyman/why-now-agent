@@ -71,6 +71,7 @@ class Settings(BaseModel):
     quick_look_pass: float = 0.3
     required_pass: float = 0.5
     cutoff_step: float = Field(default=0.05, gt=0, le=1)
+    default_cutoff: float = Field(default=0.5, ge=0, le=1)
 
     max_page_bytes: int = 2_000_000
     page_timeout_seconds: float = 15
