@@ -82,6 +82,12 @@ Langfuse's library queues traces and sends them from a background thread, and th
 
 **What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.
 
+## 6 Nov 2026: Two workspace areas both defined `_key`
+
+The marks area first named its key helper `_key`, the same as the test cases area. The workspace joins all areas into one class, so the later definition hid the earlier one, and saving a mark failed with a message about the wrong number of arguments. A test caught it the first time a mark was saved. The helper is now `_mark_key`.
+
+**What it taught:** the areas share one name space, so a helper that two areas could want needs a name that says whose it is.
+
 ## 6 Nov 2026: Reading a job ad turns an internal address into "[phone removed]"
 
 While writing the hostile ads, one of them told the reader to fetch the cloud machine's own address, written the usual way with four numbers and dots. Running the ad through the step that removes phone numbers showed that research never sees it: the address has 12 digits in groups, which the phone rule counts as a phone number, so the text becomes `http://[phone removed]/latest/meta-data/`. That is a mild extra protection for the usual spelling only. The same address written as an IPv6 form (`[::ffff:a9fe:a9fe]`) goes through untouched, and it is the page reader's address check, not the phone rule, that refuses it.

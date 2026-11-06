@@ -82,3 +82,25 @@ One-time research is charged to its own budget category, `test_cases`, so it sho
 **The hardest question:** "You say the same seed gives the same pick. If I run the same seed next week, will I get the same companies?"
 
 **The honest answer:** no, and it should not. The pick is the same for the same seed and the same set of eligible companies, but the set changes as new ads arrive and old ones leave the 14-day window. That is why the record keeps the companies picked, not only the seed: the record shows what was picked, and the seed shows the pick was not chosen by hand.
+
+## Marking page (ticket 13)
+
+**What was built.** A private web page where the reviewer marks test cases. Run it with `why-now serve --profile P`, then open the address it prints.
+
+- **What the page shows.** One company at a time: its name, its evidence pack (every job ad and web page in it, in full), how many relevant ads and open jobs it has, and a short reminder of the product and what a yes means. Under that is the form: yes, no or can't tell, and a plain text box for the reason.
+- **No agent answer in reach.** The page reads only the case, its frozen pack and the reviewer's own marks. It never opens the quick look answers, the judge's answers or any score. A test saves a quick look answer for the very company on screen and checks that no trace of it appears.
+- **A reason is required.** An empty or blank reason is refused, and the page comes back with the case still waiting, the chosen answer kept and a plain message. The reason box is an ordinary text box with no script, so a phone's voice typing works.
+- **One mark per case and round.** Saving a mark that already exists changes nothing and still moves on, so a double click, a reload of the form or two tabs save one mark. The first answer stays. The check and the save are done under a lock, so two copies sent at the same moment cannot both get through.
+- **Order.** The next company is the first one with a pack and no mark, in the order of its case id. The ids are hashes, so the order has no pattern for the reviewer to be led by.
+- **Can't tell.** It is saved, and the case is done. The progress page counts it apart from yes and no, so it is never counted as either. Replacing a company the reviewer could not judge is a picking matter and is not done here.
+- **Progress and resuming.** Marks are saved in the workspace one by one, so after a restart the page carries on from the next company with no mark. `/mark/progress` shows yes, no, can't tell, how many are left, and the ceiling from the settings.
+- **Hostile text.** Pages are built on the server with every value escaped, so HTML or script in an ad shows as plain text. As a second wall, every page says it loads nothing but its own style sheet and runs no script.
+- **Form token.** Each browser gets a random token in a cookie that scripts cannot read and that is not sent on requests from other sites, and the form carries the same token. A save without the matching token is refused with 403, so another website cannot make the reviewer's browser save a mark.
+- **Login.** The app asks an `Authenticator` who is using it, and refuses anyone it does not name. `LocalAuth` is for the reviewer's own machine: it lets in only requests that come from this machine and are addressed to a local name. `create_app` refuses `LocalAuth` when the setting says the app is deployed, so the weak login can never be switched on by mistake in the cloud. The real login comes with the AWS tasks.
+- **Where it listens.** `why-now serve` listens on `127.0.0.1` only, so other machines on the network cannot reach it. It does not fix a port in code: it leaves that to the web server's own default and prints the address.
+
+**Limits we know about.** The lock that stops a double save covers one process, which is how the page runs. Two separate processes sharing one workspace folder could still both save. The page was checked by tests and not yet by eye on a phone: the layout is one column that fits any width, but the first real marking session is the real check. Marks do not record who marked, because there is one reviewer and `LocalAuth` has one user.
+
+**The hardest question:** "The page only listens on your own machine and checks the sender's address. Why also check the name in the address bar and add a form token?"
+
+**The honest answer:** because the browser is on your machine too. A web page you visit can make your browser send requests to `127.0.0.1`, and a request from your browser looks like a request from you. The token stops such a page from saving marks: it cannot read our cookie or our form. The name check stops a page that tricks the browser into treating its own name as `127.0.0.1` and so reads our pages as if they were its own. Neither is needed if you trust every site you visit, and both are cheap, so they are on.

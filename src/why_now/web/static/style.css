@@ -1,0 +1,21 @@
+:root { color-scheme: light dark; --max: 46rem; --gap: 1rem; }
+* { box-sizing: border-box; }
+body { margin: 0; font: 1rem/1.5 system-ui, sans-serif; }
+header, main { max-width: var(--max); margin: 0 auto; padding: 0 var(--gap); }
+nav { display: flex; gap: var(--gap); padding: var(--gap) 0; }
+h1 { font-size: 1.5rem; margin: 1rem 0 0.25rem; }
+h2 { font-size: 1rem; margin: 0 0 0.25rem; }
+.counter, .facts, .url { opacity: 0.75; font-size: 0.9rem; }
+.url { overflow-wrap: anywhere; margin: 0 0 0.5rem; }
+.about, .source { border: 1px solid; border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.5rem; padding: var(--gap); margin: var(--gap) 0; }
+.text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.mark-form { margin: 1.5rem 0 3rem; display: grid; gap: 0.75rem; }
+fieldset { border: 0; padding: 0; margin: 0; display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; }
+legend { font-weight: 600; margin-bottom: 0.5rem; }
+fieldset label { display: flex; align-items: center; gap: 0.5rem; min-height: 2.75rem; }
+textarea { width: 100%; font: inherit; padding: 0.5rem; }
+button { font: inherit; min-height: 2.75rem; padding: 0 1.25rem; }
+.error { color: #b00020; font-weight: 600; }
+@media (prefers-color-scheme: dark) { .error { color: #ff8a80; } }
+.counts { padding-left: 1.25rem; }

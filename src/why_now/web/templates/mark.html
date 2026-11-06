@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Mark a company{% endblock %}
+{% block content %}
+<p class="counter">{{ progress.left }} left to mark. {{ progress.marked }} marked so far.</p>
+
+<section class="about">
+  <h2>What you are marking for</h2>
+  <p><strong>{{ profile.product_name }}</strong>: {{ profile.product_description }}</p>
+  <p>Used by: {{ profile.users }}</p>
+  <p>Mark <strong>yes</strong> if the founder would want to look at this company this week, based only on the evidence below. Mark <strong>can't tell</strong> if the evidence is too thin to say.</p>
+</section>
+
+<h1>{{ pack.company_name }}</h1>
+<p class="facts">{{ pack.relevant_ad_count }} relevant job ads. {{ pack.total_open_jobs }} open jobs in all.</p>
+
+{% for source in sources %}
+<article class="source">
+  <h2>{{ source.kind }}</h2>
+  <p class="url">{% if source.href %}<a href="{{ source.href }}" rel="noopener noreferrer">{{ source.url }}</a>{% else %}{{ source.url }}{% endif %}</p>
+  <div class="text">{{ source.text }}</div>
+</article>
+{% endfor %}
+
+<form method="post" action="/mark/{{ case.case_id }}" class="mark-form">
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <fieldset>
+    <legend>Your answer</legend>
+    <label><input type="radio" name="answer" value="yes" required{% if answer == "yes" %} checked{% endif %}> Yes</label>
+    <label><input type="radio" name="answer" value="no"{% if answer == "no" %} checked{% endif %}> No</label>
+    <label><input type="radio" name="answer" value="cant_tell"{% if answer == "cant_tell" %} checked{% endif %}> Can't tell</label>
+  </fieldset>
+  <label for="reason">Why? A sentence is enough. You can dictate it.</label>
+  <textarea id="reason" name="reason" rows="4" required>{{ reason }}</textarea>
+  <button type="submit">Save and go to the next company</button>
+</form>
+{% endblock %}
