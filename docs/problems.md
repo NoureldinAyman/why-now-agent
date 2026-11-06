@@ -63,3 +63,9 @@ The first real read of 3 Greenhouse careers pages saved 1,418 job ads. A second 
 The plan said the Claude judge should be made to answer through one forced tool call, a common way to get answers in a fixed shape. Reading the current Claude documentation before writing the code showed that Claude Sonnet 5.5, the judge, rejects forced tool calls with an error. Code written from the plan would have failed on its first real call, after all its tests had passed against a fake.
 
 **What it taught:** a fake only behaves the way we believe the real service does, so check the current documentation before writing against a service, as the project's rules say. The judge now asks for structured output, where the reply must match a JSON schema, which gives the same fixed shape.
+
+## 6 Nov 2026: Common Crawl's index fails often, and one failure looked like a bug
+
+The first real runs of `build-list` failed. Reply 504 (gateway time-out) came back for both job sources, and one Greenhouse run crashed with a JSON error because a reply was cut off in the middle of a line. The tests only used a fake index that never did this. A cut-off reply is now treated like a time-out: the command tries again, and after 3 tries it says it could not build the list, writes nothing, and leaves any existing list as it was. Later runs worked for both job sources.
+
+**What it taught:** a public archive is slow and uneven, so a list-building command has to expect failure, and the first live run is part of the testing.

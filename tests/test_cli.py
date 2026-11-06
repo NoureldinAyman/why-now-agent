@@ -2,10 +2,12 @@ import json
 from pathlib import Path
 
 import httpx
+from commoncrawl_fake import fake_index, lines
 from typer.testing import CliRunner
 
 from why_now.cli import app
 from why_now.cli import read as read_command
+from why_now.cli import sources as sources_command
 from why_now.store.local import LocalStore
 from why_now.workspace import Workspace
 
@@ -79,3 +81,36 @@ def test_read_explains_a_missing_board_list(tmp_path):
     result = CliRunner().invoke(app, ["read", "--settings", str(settings)])
     assert result.exit_code != 0
     assert "board_lists" in result.output
+
+
+def test_build_list_writes_a_merged_list_without_duplicates(tmp_path, monkeypatch):
+    http = fake_index(
+        {"jobs.lever.co": [lines("https://jobs.lever.co/a/1", "https://jobs.lever.co/b/2")]}
+    )
+    monkeypatch.setattr(sources_command, "make_http", lambda settings: http)
+    out = tmp_path / "lever.json"
+    out.write_text(json.dumps(["b", "c"]))
+    settings = tmp_path / "settings.toml"
+    settings.write_text("request_delay_seconds = 0\n")
+    result = CliRunner().invoke(
+        app, ["build-list", "--source", "lever", "--out", str(out), "--settings", str(settings)]
+    )
+    assert result.exit_code == 0, result.output
+    assert json.loads(out.read_text()) == ["b", "c", "a"]
+    assert "1 new" in result.output and "3 careers pages" in result.output
+
+
+def test_build_list_reports_failure_plainly_and_keeps_the_old_list(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        sources_command, "make_http", lambda settings: fake_index({}, fail_with=504)
+    )
+    out = tmp_path / "lever.json"
+    out.write_text(json.dumps(["b"]))
+    settings = tmp_path / "settings.toml"
+    settings.write_text("request_delay_seconds = 0\n")
+    result = CliRunner().invoke(
+        app, ["build-list", "--source", "lever", "--out", str(out), "--settings", str(settings)]
+    )
+    assert result.exit_code != 0
+    assert "504" in result.output and "supply your own" in result.output
+    assert json.loads(out.read_text()) == ["b"]
