@@ -15,6 +15,7 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from why_now.domain import CaseRecord, Mark, Profile, Source
 from why_now.web.app import AppContext
+from why_now.web.auth import SignInPages
 from why_now.workspace import Workspace
 
 router = APIRouter()
@@ -25,8 +26,13 @@ ANSWERS: Final = get_args(Mark.model_fields["answer"].annotation)
 
 
 def signed_in(request: Request) -> str:
-    user = request.app.state.auth.current_user(request)
+    auth = request.app.state.auth
+    user = auth.current_user(request)
     if user is None:
+        # A page visit goes to the sign-in page. A sent form is refused, not redirected,
+        # so its contents are never carried through a sign-in.
+        if request.method == "GET" and isinstance(auth, SignInPages):
+            raise HTTPException(status_code=303, headers={"Location": auth.login_path})
         raise HTTPException(status_code=401, detail="Not signed in")
     return user
 

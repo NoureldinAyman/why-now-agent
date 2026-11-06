@@ -121,3 +121,9 @@ While writing the hostile ads, one of them told the reader to fetch the cloud ma
 The hostile set therefore uses the IPv6 forms and `localhost` for the blocked addresses, so those attacks really reach the model. A test that used the dotted form would have passed without testing anything.
 
 **What it taught:** a defence that works by accident is not a defence. Check what the model really receives, not only what the test fed in.
+
+## 6 Nov 2026: An unused network client made a login test take 7 seconds
+
+One login test took over 7 seconds while the others took a fraction of a second. It only checked that a forged session cookie is refused, and it never called Cognito. The time went into setting up a network client when the login was created. Timed alone on this computer, making the first client took 1.7 seconds and the next 0.7, and more while other tests were running. The client is now made the first time it is needed, and the test takes under a second. On Lambda this also shortens every start, since most requests only read the session cookie.
+
+**What it taught:** slow set-up hides in constructors. Make expensive things when they are first used, and read the slowest tests list, not only the total.

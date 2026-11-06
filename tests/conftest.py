@@ -1,5 +1,5 @@
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from typing import Any
 
 import pytest
@@ -40,3 +40,15 @@ def make_profile() -> Callable[..., Profile]:
         return Profile.model_validate(values | overrides)
 
     return make
+
+
+@pytest.fixture
+def moto_aws(monkeypatch) -> Iterator[None]:
+    """A stand-in AWS with fake keys. See `aws_fake.py`."""
+    from aws_fake import REGION, fake_aws
+
+    for name in ("AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN"):
+        monkeypatch.setenv(name, "testing")
+    monkeypatch.setenv("AWS_DEFAULT_REGION", REGION)
+    with fake_aws():
+        yield

@@ -39,7 +39,7 @@ def test_serve_listens_on_this_machine_only(tmp_path, monkeypatch, make_profile)
     assert page.get("/mark").status_code == 200  # the app it serves lets this machine in
 
 
-def test_serve_refuses_to_start_when_deployed(tmp_path, monkeypatch, make_profile):
+def test_serve_on_aws_refuses_to_start_without_its_aws_names(tmp_path, monkeypatch, make_profile):
     class NoServer:
         def __init__(self, config):
             raise AssertionError("the server must not be built")
@@ -47,4 +47,12 @@ def test_serve_refuses_to_start_when_deployed(tmp_path, monkeypatch, make_profil
     monkeypatch.setattr(serve_command.uvicorn, "Server", NoServer)
     result = CliRunner().invoke(app, serve_args(tmp_path, make_profile, deployment="aws"))
     assert result.exit_code != 0
-    assert "deployed" in result.output
+    assert "aws_region must be set" in result.output
+
+
+def test_serve_needs_a_profile(tmp_path):
+    settings_file = tmp_path / "settings.toml"
+    settings_file.write_text("")
+    result = CliRunner().invoke(app, ["serve", "--settings", str(settings_file)])
+    assert result.exit_code != 0
+    assert "daily_profiles" in result.output

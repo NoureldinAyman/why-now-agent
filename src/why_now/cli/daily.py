@@ -13,6 +13,7 @@ from why_now.cli import app
 from why_now.cli import read as read_command
 from why_now.cli.testset import make_reader
 from why_now.day_result import DayResult
+from why_now.deployment import open_store
 from why_now.pipeline.day import run_day
 from why_now.profile import ProfileError, load_profile
 from why_now.run_context import RunContext
@@ -20,7 +21,6 @@ from why_now.settings import Settings, load_settings
 from why_now.sources.boards import BoardList
 from why_now.sources.polite import PoliteClient
 from why_now.sources.registry import SOURCES
-from why_now.store.local import LocalStore
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
 
@@ -74,7 +74,7 @@ def daily(
         for name, value in (("short_list_size", short_list_size), ("new_ad_days", new_ad_days))
         if value is not None
     }
-    store = LocalStore(settings.workspace_path)
+    store = open_store(settings)
     meter = Meter(store, settings, now)
     http = read_command.make_http(settings)
     today = now().date()

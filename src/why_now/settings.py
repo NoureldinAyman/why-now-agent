@@ -82,6 +82,19 @@ class Settings(BaseModel):
     screen_max_copied_words: int = 8
     screen_max_why_words: int = 20
 
+    # Only used when `deployment = "aws"`. The names come from the AWS setup.
+    aws_region: str = ""
+    aws_bucket: str = ""
+    aws_table: str = ""
+    aws_parameter_prefix: str = "/why-now"  # where secrets are kept in Parameter Store
+    aws_inline_max_bytes: int = 350_000
+    cognito_domain: str = ""  # the login page's address, such as https://name.auth.<region>...
+    cognito_user_pool_id: str = ""
+    cognito_client_id: str = ""  # read from Parameter Store when left empty
+    session_hours: int = 12
+    login_minutes: int = 10
+    session_secret_min_chars: int = 32
+
     research_model: str = "claude-sonnet-5-5"
     writer_model: str = "claude-sonnet-5-5"
     quick_look_model: str = "jev-1.14.0"

@@ -10,12 +10,12 @@ import httpx
 import typer
 
 from why_now.cli import app
+from why_now.deployment import open_store
 from why_now.pipeline.read import BoardProgress, read_all
 from why_now.settings import Settings, load_settings
 from why_now.sources.boards import BoardList
 from why_now.sources.polite import PoliteClient
 from why_now.sources.registry import SOURCES
-from why_now.store.local import LocalStore
 from why_now.workspace import Workspace
 
 DEFAULT_SETTINGS = Path("settings.toml")
@@ -53,7 +53,7 @@ def read_ads(
             param_hint="board_lists",
         )
 
-    workspace = Workspace(LocalStore(settings.workspace_path))
+    workspace = Workspace(open_store(settings))
     today = datetime.now(UTC).date()
     rng = random.Random(seed)
     http = make_http(settings)

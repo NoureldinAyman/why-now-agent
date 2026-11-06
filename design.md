@@ -445,12 +445,16 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |
 | 0.5 cut-off before any is chosen | The daily list working before anyone has marked a test case | Even odds. Replaced by the cut-off chosen on the practice pile once there is one |
 | Cut-offs tried 0.05 apart | Against a cut-off fitted too closely to the practice pile | Starting guess. Finer steps let the cut-off fall between two single companies, which fits luck on the practice pile rather than a pattern |
-| 2 MB and 15 seconds per page | The page reader, against huge or slow pages | Starting guess |
+| 2 MB and 15 seconds per page | The page reader, against huge or slow pages. The 15 seconds also limits each call the login makes to Cognito | Starting guess |
 | 5 redirects per page | The page reader, against redirect loops and long chains | The robots standard (RFC 9309) asks readers to follow at least 5 redirects for a robots file, and we use the same number for pages |
 | 20,000 characters per ad, 60,000 per evidence pack | The cost of each model call | Starting guess |
 | 1,200 characters per brief | The reviewer's time | Starting guess |
 | 8 copied words, 20 words of reason | Learned rules that copy ad text, or that cannot be explained briefly | Starting guess |
 | 16,000 tokens written per Claude call at most | A call finishing inside the Claude library's time limit | The library's guidance for calls that are not streamed. Calls are charged for what they use, not for this ceiling |
+| Documents over 350 KB kept in S3, not DynamoDB | A record being refused | DynamoDB refuses records over 400 KB, and this leaves room for the record's own names |
+| Signed in for 12 hours | Someone else using a forgotten open session | Starting guess. One working day, so the reviewer signs in about once a day |
+| 10 minutes to finish signing in | A stolen half-finished sign-in being used later | Starting guess. Long enough to type a password and a code |
+| Session secret of 32 characters at least | Someone guessing the secret and making their own session cookie | 32 random characters are far too many to guess |
 | Model prices | Charging each call at its real cost | Anthropic's and TypeSafe's published prices, checked on 6 Nov 2026. A model with no price is refused |
 
 ### Records
