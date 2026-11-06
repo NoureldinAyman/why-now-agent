@@ -1,5 +1,20 @@
 # Stage 5: Quick look, judge and score
 
+## Quick look
+
+The quick look is the cheap first read of each company's relevant job ads. For every company it asks the profile's quick look questions, takes the mean chance of fit (the answer for a "for" question, one minus the answer for an "against" question), drops companies below the `quick_look_pass` setting, and orders the rest strongest first.
+
+- **Generous on purpose.** The cut-off is low (0.3), because this step only decides what gets researched. A company wrongly dropped is never seen again; a company wrongly passed costs one research run.
+- **Saved per model version.** Each answer is saved under the company, its ad text, the question text and the model. A later run reuses it, and a new model version, an edited question or a changed ad asks again. This is what lets the improvement loop rerun only the judge.
+- **Failure is visible.** If a model gives an unusable answer, the company is marked failed, passes nothing, and is listed last. It is not dropped. A spent budget is different: it stops the whole run.
+- **Long ads are cut.** Each ad is cut to `max_ad_chars` before a model sees it, and only the company's relevant ads are sent.
+- **One light trace per run,** with a step per company, because the quick look covers many companies.
+- **Works with no key for the preferred answerer,** because it uses whichever answerer it is given, which is the cheap default model when there is no key.
+
+**The hardest question:** "Why drop companies on a cheap model's guess?"
+
+**The honest answer:** the cut-off is a starting guess, set low so that few good companies are lost. Whether it loses good companies is measured later, because every test case also has an evidence pack even when the quick look would have dropped it, so the quick look can be scored alone.
+
 ## Score and judge (ticket 17)
 
 **What was built.** The two parts that decide and measure: the judge, which turns a model's answers into yes or no, and the score, which compares those with the reviewer's marks.
@@ -13,7 +28,7 @@
 
 The decision note `docs/decisions/0002-f05-and-required-against-supporting-questions.md` says why F0.5, and why there are two kinds of question.
 
-**Limits we know about.** The judge is not yet run on real evidence packs, which come with research in ticket 11, so no score exists yet. Claude's probability is its own estimate, so a cut-off chosen for one model is not reused for another. Claude answers all the new questions for a company in one call, so a saved answer was given next to other questions than the ones it is reused with. Whether that changes Claude's answers is not measured. Saved answers are never removed, so the workspace grows with every new question and model; each answer is a small file. `CompanyFailed` is raised here, and recording the company as failed is the caller's job, which arrives with the quick look and evaluation tickets.
+**Limits we know about.** The judge is not yet run on real evidence packs, which come with research in ticket 11, so no score exists yet. Claude's probability is its own estimate, so a cut-off chosen for one model is not reused for another. Claude answers all the new questions for a company in one call, so a saved answer was given next to other questions than the ones it is reused with. Whether that changes Claude's answers is not measured. Saved answers are never removed, so the workspace grows with every new question and model; each answer is a small file. `CompanyFailed` is raised here, and recording the company as failed is the caller's job, which arrives with the evaluation ticket. The quick look keeps its own saved answers and retry, because it reads job ads rather than an evidence pack.
 
 **The hardest question:** "You choose the cut-off on the practice pile and then use the same pile's mistakes to improve the rules. Isn't the practice pile score then meaningless?"
 
