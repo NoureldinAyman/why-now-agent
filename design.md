@@ -329,7 +329,8 @@ Measured on 4 to 5 Nov 2026, from a random sample of 200 companies per job sourc
 
 - A brief is a list of claims, each with a quote and a source in the evidence pack.
 - The script confirms each quote appears in that source, ignoring differences in spacing and letter case, and that the why-now quote comes from a job ad.
-- It also limits length and rejects empty briefs.
+- It also ignores typographic differences: Unicode normalisation (NFKC), and curly quotes and dash styles treated as plain ones. Words must still match, and a quote must start and end on whole words, so it can't cut a word in two.
+- It also limits length, counting every claim's text and quote, and rejects empty briefs and claims with no text or no quote.
 - It involves no AI, so the same input always gets the same result.
 
 ### Hidden instructions

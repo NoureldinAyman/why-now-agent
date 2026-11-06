@@ -34,6 +34,8 @@ class Answerer(Protocol):
 
 
 class Writer(Protocol):
+    model: str
+
     def structured[M: BaseModel](
         self, *, system: str, untrusted: str, schema: type[M], category: str
     ) -> M: ...
