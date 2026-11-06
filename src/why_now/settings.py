@@ -73,6 +73,7 @@ class Settings(BaseModel):
 
     max_page_bytes: int = 2_000_000
     page_timeout_seconds: float = 15
+    max_redirects: int = 5
     max_ad_chars: int = 20_000
     max_pack_chars: int = 60_000
     brief_max_chars: int = 1_200

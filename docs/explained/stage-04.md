@@ -20,3 +20,24 @@
 **The hardest question:** "The model reports its own token use, and you charge from that. What if your charges and the provider's bill disagree?"
 
 **The honest answer:** they can. The meter uses the same token counts the provider bills by, and prices checked on 6 Nov 2026, but a price change, or a cost the meter does not see, such as a failed call that raised an error before replying, would make them drift. That is why the design also asks the owner to set a spending limit with each provider. The meter's month total should be compared with the real bills once there are some, and the prices updated when they change.
+
+## Safe page reader (ticket 10)
+
+**What was built.** The page reader (`src/why_now/pipeline/reader.py`) fetches one web page that research asks for and keeps only its plain text. A link can come from a hostile page, so it checks every address before fetching it:
+
+- **Only web addresses.** `http` and `https` are read. `file`, `ftp` and the rest are refused.
+- **No LinkedIn.** LinkedIn, its country versions such as `uk.linkedin.com`, its China site and its `lnkd.in` short links are refused before any request is made.
+- **No private addresses.** The name is looked up first. If any address it gives is private or internal, such as `127.0.0.1`, `10.0.0.5` or `169.254.169.254` (where a cloud machine keeps its secrets), the page is refused. IPv6 addresses that carry an IPv4 address inside them are judged by the IPv4 address they carry. The request then goes to the address that was checked, with the site's name sent alongside it, so the name can't be looked up a second time and point somewhere else. Each connection is closed after one request, so it can't be reused for a different site on the same address without that site's certificate being checked.
+- **No proxy.** The reader refuses a web client that would take a proxy from the environment, because a proxy decides for itself where a request goes.
+- **Redirects checked hop by hop.** Redirects are followed by hand, at most 5, and every hop goes through the same checks, robots rules included.
+- **Robots rules.** Each site's robots file is read once and followed. As the robots standard says, a missing file allows everything, and a file that fails to load allows nothing. A failure is not kept, so the next page from that site tries the file again.
+- **Size, time and type.** Only web pages and plain text are read, so PDFs and images are refused. A page over 2 MB is refused while it arrives, and the whole read, redirects included, has 15 seconds.
+- **No contact details.** Email addresses and phone numbers are replaced with `[email removed]` and `[phone removed]`. Years, dates, money and staff counts stay.
+
+A refused page raises `PageRefused`, whose `reason` names the rule, such as `linkedin`, `private_address` or `robots`. The redirect limit is a new setting, with a line in the design's numbers table.
+
+**Limits we know about.** A phone number is recognised by a leading `+`, or by at least 10 digits in groups. A short local number written without a country code, such as 555-1234, is missed, and a long run of plain numbers separated only by spaces could be removed by mistake. Pages that build their text with JavaScript give little or no text, because the reader does not run scripts. The robots rules are kept for the life of one reader, so a change to a robots file during a run is seen on the next run. The 15 seconds is checked between steps, not enforced from outside: looking up a name has no time limit of its own, and a server that sends a page very slowly, a little at a time, can stretch one read past 15 seconds before it is stopped.
+
+**The hardest question:** "You look up the name, check the address, then connect. Can't a hostile site answer the lookup with a public address and then switch to an internal one?"
+
+**The honest answer:** not through this reader. That trick works when the check and the connection each look the name up on their own. Here the connection goes to the exact address that was checked, and the site's name is only sent as a label, also used to check the site's security certificate. The one way around that would be a proxy, which makes its own connection, so the reader refuses a web client that would take one from the environment. A proxy set up by hand in the web client's own code is not detected, so the code that makes the client must not add one.

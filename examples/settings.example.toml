@@ -86,6 +86,8 @@ required_pass = 0.5
 max_page_bytes = 2000000
 # Seconds the page reader waits for a page.
 page_timeout_seconds = 15
+# Most redirects the page reader follows for one page.
+max_redirects = 5
 # Most characters of one job ad passed to a model.
 max_ad_chars = 20000
 # Most characters in one evidence pack.
