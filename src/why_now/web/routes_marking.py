@@ -5,6 +5,7 @@ pack and the reviewer's own marks, so there is no agent answer in reach to leak.
 """
 
 import secrets
+from collections import Counter
 from dataclasses import dataclass
 from typing import Annotated, Final, get_args
 
@@ -129,9 +130,13 @@ def _choose_profile(ctx: AppContext, requested: str | None) -> Profile | None:
     return None
 
 
+def _profile_query(ctx: AppContext, profile: Profile) -> str:
+    """The part of a link that names the profile. Only needed when there are several."""
+    return "" if len(ctx.profiles) == 1 else f"?profile={profile.id}"
+
+
 def _mark_url(ctx: AppContext, profile: Profile) -> str:
-    """Where to go to mark the next company. The profile is named only when there are several."""
-    return "/mark" if len(ctx.profiles) == 1 else f"/mark?profile={profile.id}"
+    return "/mark" + _profile_query(ctx, profile)
 
 
 def _find_case(ctx: AppContext, case_id: str) -> tuple[Workspace, Profile, CaseRecord] | None:
@@ -151,11 +156,11 @@ def _waiting(workspace: Workspace) -> list[CaseRecord]:
 
 
 def _progress(workspace: Workspace) -> Progress:
-    marks = workspace.marks(ROUND)
+    given = Counter(m.answer for m in workspace.marks(ROUND))
     return Progress(
-        yes=sum(m.answer == "yes" for m in marks),
-        no=sum(m.answer == "no" for m in marks),
-        cant_tell=sum(m.answer == "cant_tell" for m in marks),
+        yes=given["yes"],
+        no=given["no"],
+        cant_tell=given["cant_tell"],
         left=len(_waiting(workspace)),
     )
 
@@ -173,7 +178,7 @@ def _show_case(
     pack = workspace.load_pack(case.pack_id) if case.pack_id else None
     if pack is None:
         raise HTTPException(status_code=404, detail="This case has no evidence pack yet")
-    token = request.cookies.get(TOKEN_NAME) or secrets.token_urlsafe(32)
+    token = request.cookies.get(TOKEN_NAME) or secrets.token_urlsafe()
     response = _page(
         request,
         "mark.html",
@@ -210,11 +215,16 @@ def _source_view(source: Source) -> dict[str, object]:
     }
 
 
-def _page(request: Request, template: str, status: int = 200, **values: object) -> Response:
-    ctx = _ctx(request)
-    profile = values.get("profile")
-    many = len(ctx.profiles) > 1 and isinstance(profile, Profile)
-    suffix = f"?profile={profile.id}" if isinstance(profile, Profile) and many else ""
+def _page(
+    request: Request,
+    template: str,
+    status: int = 200,
+    profile: Profile | None = None,
+    **values: object,
+) -> Response:
+    suffix = "" if profile is None else _profile_query(_ctx(request), profile)
     links = {"mark_link": "/mark" + suffix, "progress_link": "/mark/progress" + suffix}
-    html = request.app.state.templates.get_template(template).render(**links, **values)
+    html = request.app.state.templates.get_template(template).render(
+        profile=profile, **links, **values
+    )
     return HTMLResponse(html, status_code=status)

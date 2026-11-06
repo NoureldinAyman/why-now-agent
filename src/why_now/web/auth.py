@@ -1,4 +1,4 @@
-"""Who is using the app. Login for the deployed app comes in Task 25."""
+"""Who is using the app. The login for the deployed app is a separate Authenticator."""
 
 from ipaddress import IPv4Address, IPv6Address, ip_address
 from typing import Protocol

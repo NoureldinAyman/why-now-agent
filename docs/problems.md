@@ -81,3 +81,9 @@ The page reader first relied on Python's `is_global` check to tell public addres
 Langfuse's library queues traces and sends them from a background thread, and the setup check only looks that the keys are set. So wrong keys would not raise an error where the trace is made: traces would quietly not arrive. Each trace now ends by asking Langfuse to send what it holds, and a failure there is logged as a warning and never stops the run or hides the run's own error. Metadata values are also limited to 200 characters each, so a very long value would be cut.
 
 **What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.
+
+## 6 Nov 2026: Two workspace areas both defined `_key`
+
+The marks area first named its key helper `_key`, the same as the test cases area. The workspace joins all areas into one class, so the later definition hid the earlier one, and saving a mark failed with a message about the wrong number of arguments. A test caught it the first time a mark was saved. The helper is now `_mark_key`.
+
+**What it taught:** the areas share one name space, so a helper that two areas could want needs a name that says whose it is.

@@ -8,7 +8,7 @@ from why_now.cli import app
 from why_now.cli import serve as serve_command
 
 
-def setup(tmp_path, make_profile, deployment: str = "local"):
+def serve_args(tmp_path, make_profile, deployment: str = "local"):
     profile = make_profile()
     profile_file = tmp_path / "profile.yaml"
     profile_file.write_text(yaml.safe_dump(profile.model_dump(mode="json")), encoding="utf-8")
@@ -31,7 +31,7 @@ def test_serve_listens_on_this_machine_only(tmp_path, monkeypatch, make_profile)
             started["ran"] = True
 
     monkeypatch.setattr(serve_command.uvicorn, "Server", FakeServer)
-    result = CliRunner().invoke(app, setup(tmp_path, make_profile))
+    result = CliRunner().invoke(app, serve_args(tmp_path, make_profile))
     assert result.exit_code == 0, result.output
     assert started["ran"] and started["host"] == "127.0.0.1"
     assert "http://127.0.0.1" in result.output
@@ -40,12 +40,11 @@ def test_serve_listens_on_this_machine_only(tmp_path, monkeypatch, make_profile)
 
 
 def test_serve_refuses_to_start_when_deployed(tmp_path, monkeypatch, make_profile):
-
     class NoServer:
         def __init__(self, config):
             raise AssertionError("the server must not be built")
 
     monkeypatch.setattr(serve_command.uvicorn, "Server", NoServer)
-    result = CliRunner().invoke(app, setup(tmp_path, make_profile, deployment="aws"))
+    result = CliRunner().invoke(app, serve_args(tmp_path, make_profile, deployment="aws"))
     assert result.exit_code != 0
     assert "deployed" in result.output
