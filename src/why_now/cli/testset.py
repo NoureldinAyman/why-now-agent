@@ -51,7 +51,7 @@ def pick_cases_command(
     settings_file: SettingsOption = None,
 ) -> None:
     """Pick companies at random from everyone with a relevant ad in the window."""
-    settings, workspace, profile = _open(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_file, settings_file)
     companies = search_ads(workspace.all_board_ads(), profile, {})
     eligible = eligible_companies(companies, settings, now().date())
     picked_before = {c.company_key for c in workspace.cases()}
@@ -70,7 +70,7 @@ def pick_cases_command(
 @app.command("build-packs")
 def build_packs_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Research each picked company once and save its frozen evidence pack."""
-    settings, workspace, profile = _open(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_file, settings_file)
     store = workspace.store
     cases = workspace.cases()
     if not cases:
@@ -102,7 +102,9 @@ def build_packs_command(profile_file: ProfileOption, settings_file: SettingsOpti
         raise typer.Exit(1)
 
 
-def _open(profile_file: Path, settings_file: Path | None) -> tuple[Settings, Workspace, Profile]:
+def open_workspace(
+    profile_file: Path, settings_file: Path | None
+) -> tuple[Settings, Workspace, Profile]:
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
     settings = load_settings(settings_file)

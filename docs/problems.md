@@ -81,3 +81,11 @@ The page reader first relied on Python's `is_global` check to tell public addres
 Langfuse's library queues traces and sends them from a background thread, and the setup check only looks that the keys are set. So wrong keys would not raise an error where the trace is made: traces would quietly not arrive. Each trace now ends by asking Langfuse to send what it holds, and a failure there is logged as a warning and never stops the run or hides the run's own error. Metadata values are also limited to 200 characters each, so a very long value would be cut.
 
 **What it taught:** a "keys are set" check is not a "keys work" check. The first real trace has to be looked at in Langfuse.
+
+## 6 Nov 2026: Reading a job ad turns an internal address into "[phone removed]"
+
+While writing the hostile ads, one of them told the reader to fetch the cloud machine's own address, written the usual way with four numbers and dots. Running the ad through the step that removes phone numbers showed that research never sees it: the address has 12 digits in groups, which the phone rule counts as a phone number, so the text becomes `http://[phone removed]/latest/meta-data/`. That is a mild extra protection for the usual spelling only. The same address written as an IPv6 form (`[::ffff:a9fe:a9fe]`) goes through untouched, and it is the page reader's address check, not the phone rule, that refuses it.
+
+The hostile set therefore uses the IPv6 forms and `localhost` for the blocked addresses, so those attacks really reach the model. A test that used the dotted form would have passed without testing anything.
+
+**What it taught:** a defence that works by accident is not a defence. Check what the model really receives, not only what the test fed in.
