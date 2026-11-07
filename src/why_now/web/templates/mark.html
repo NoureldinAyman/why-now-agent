@@ -3,6 +3,7 @@
 {% block content %}
 <p class="counter">{{ progress.left }} left to mark. {{ progress.marked }} marked so far.</p>
 
+{% if repeating %}<p class="counter">Second look. Answer from the evidence alone, as if you had not seen this company before.</p>{% endif %}
 <section class="about">
   <h2>What you are marking for</h2>
   <p><strong>{{ profile.product_name }}</strong>: {{ profile.product_description }}</p>
@@ -21,7 +22,7 @@
 </article>
 {% endfor %}
 
-<form method="post" action="/mark/{{ case.case_id }}" class="mark-form">
+<form method="post" action="{{ post_to }}" class="mark-form">
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <input type="hidden" name="form_token" value="{{ form_token }}">
   <fieldset>

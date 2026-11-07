@@ -121,3 +121,15 @@ While writing the hostile ads, one of them told the reader to fetch the cloud ma
 The hostile set therefore uses the IPv6 forms and `localhost` for the blocked addresses, so those attacks really reach the model. A test that used the dotted form would have passed without testing anything.
 
 **What it taught:** a defence that works by accident is not a defence. Check what the model really receives, not only what the test fed in.
+
+## 6 Nov 2026: The plan's piles interface had nowhere to keep two things
+
+The plan lists the functions for piles and repeat marking, but not where the frozen flag lives or where the 30 picked companies are written down. Both are needed: the split must be refused after the loop starts, and the repeat page must show only the picked companies. The flag is a small workspace area with the names the improvement loop task already expects (`loop_started`, `set_loop_started`), and the picked companies are kept beside the marks.
+
+**What it taught:** an interface list is not finished until every function's inputs and outputs have a home. Ask where each fact is stored.
+
+## 6 Nov 2026: Splitting 300 cases in a test takes minutes
+
+The first piles tests saved 300 cases and 300 marks into a real workspace folder for several tests, and 18 tests took 146 seconds, because the local store flushes every document to disk. The tests that save to a workspace now use small piles (12, 6 and 6) through the same settings, and run in 9 seconds. The tests of the split itself still use the real sizes, because they never touch the disk.
+
+**What it taught:** a test of logic should not pay for storage, and a test of storage does not need full size.
