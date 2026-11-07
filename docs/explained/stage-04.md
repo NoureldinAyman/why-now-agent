@@ -104,3 +104,21 @@ One-time research is charged to its own budget category, `test_cases`, so it sho
 **The hardest question:** "The page only listens on your own machine and checks the sender's address. Why also check the name in the address bar and add a form token?"
 
 **The honest answer:** because the browser is on your machine too. A web page you visit can make your browser send requests to `127.0.0.1`, and a request from your browser looks like a request from you. The token stops such a page from saving marks: it cannot read our cookie or our form. The name check stops a page that tricks the browser into treating its own name as `127.0.0.1` and so reads our pages as if they were its own. Neither is needed if you trust every site you visit, and both are cheap, so they are on.
+
+## Piles and repeat marking (ticket 14)
+
+**What was built.** Four commands and one more page that come after the reviewer has marked the test cases.
+
+- **`why-now yes-share --profile P`.** Counts yes, no and can't tell, and shows the share of yes among yes and no answers next to the share needed for the aim: `target_yes_per_pile` out of a pile of `check_size`.
+- **`why-now split-piles --profile P --seed S`** (`src/why_now/testset/piles.py`). It gives every company with a yes or no mark to one pile: practice 150, check 75, final 75. Yes and no answers are shuffled apart with the seed and dealt out in step, so check and final differ by at most one yes. A can't-tell, or a company not marked yet, is in no pile. The command prints each pile's size and yes count, and names any pile with fewer yes answers than the aim. Running it again with the same seed changes nothing.
+- **Frozen once the loop starts.** The workspace holds a flag per profile. Once it is set the split is refused and nothing is changed. The improvement loop, built later, sets it when it first runs.
+- **Refreshing the check pile.** The function moves the old check companies to practice, makes newly marked companies the check pile and gives it the next version number. It refuses a company that is already in a pile, and never touches the final pile. The command that calls it comes with the improvement loop.
+- **`why-now repeat-marks --profile P --seed S`** (`src/why_now/testset/repeat.py`). Picks 30 companies at random from the yes and no first marks that are at least 7 days old, and records them. It picks once: a second run says so. If fewer than 30 are old enough, it picks nothing and says how many are.
+- **The repeat page, `/repeat`.** The same page as first-round marking, with the same form token and reason rule, but only for the picked companies. It never reads first-round marks, so the first answer and reason cannot show, and no answer is pre-selected. Repeat marks are saved as their own round, so the first mark is untouched.
+- **`why-now agreement --profile P`.** Shows how many of the compared companies got the same answer twice, with the count. A can't-tell in either round is left out. With nothing to compare it says so and stops, rather than showing 0%.
+
+**Limits we know about.** The repeat pick is blind to the first answer, except that can't-tell answers are left out because there is nothing to compare. The freeze is a flag in the workspace. It stops the commands, not someone editing the workspace by hand. With 30 companies the agreement is rough: one answer changing moves it by about 3 points, and a few changing move it by 10 or more.
+
+**The hardest question:** "You split by shuffling yes and no apart. Isn't that less random than a plain shuffle?"
+
+**The honest answer:** yes, a little, and on purpose. A plain shuffle of 300 companies with 100 yes answers could give the check pile 18 yes and the final pile 32, and then the two piles would not be comparable. Which companies land in which pile is still random, and the seed is recorded. What is fixed is only how many yes answers each pile gets.

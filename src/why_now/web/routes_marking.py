@@ -90,9 +90,7 @@ def save_mark(
     reason: Annotated[str, Form()] = "",
     form_token: Annotated[str, Form()] = "",
 ) -> Response:
-    expected = request.cookies.get(TOKEN_NAME, "")
-    if not expected or not secrets.compare_digest(form_token.encode(), expected.encode()):
-        raise HTTPException(status_code=403, detail="The form has expired. Go back and reload it.")
+    check_form_token(request, form_token)
     ctx = _ctx(request)
     found = _find_case(ctx, case_id)
     if found is None:
@@ -100,11 +98,7 @@ def save_mark(
     workspace, profile, case = found
 
     reason = reason.strip()
-    error = None
-    if answer not in ANSWERS:
-        error = "Choose yes, no or can't tell."
-    elif not reason:
-        error = "Give a reason, even a short one."
+    error = form_error(answer, reason)
     if error is not None:
         return _show_case(request, workspace, profile, case, error, answer, reason, status=422)
 
@@ -119,6 +113,22 @@ def save_mark(
     )
     workspace.save_mark(mark)  # a second copy of the same form changes nothing
     return RedirectResponse(_mark_url(ctx, profile), status_code=303)
+
+
+def check_form_token(request: Request, form_token: str) -> None:
+    """Refuse a save whose form token does not match the browser's cookie."""
+    expected = request.cookies.get(TOKEN_NAME, "")
+    if not expected or not secrets.compare_digest(form_token.encode(), expected.encode()):
+        raise HTTPException(status_code=403, detail="The form has expired. Go back and reload it.")
+
+
+def form_error(answer: str, reason: str) -> str | None:
+    """What is wrong with a submitted answer and reason, or None if both are fine."""
+    if answer not in ANSWERS:
+        return "Choose yes, no or can't tell."
+    if not reason:
+        return "Give a reason, even a short one."
+    return None
 
 
 def _ctx(request: Request) -> AppContext:
@@ -180,6 +190,9 @@ def _show_case(
     answer: str = "",
     reason: str = "",
     status: int = 200,
+    progress: Progress | None = None,
+    post_to: str | None = None,
+    repeating: bool = False,
 ) -> Response:
     pack = workspace.load_pack(case.pack_id) if case.pack_id else None
     if pack is None:
@@ -193,7 +206,9 @@ def _show_case(
         case=case,
         pack=pack,
         sources=[_source_view(s) for s in pack.sources],
-        progress=_progress(workspace),
+        progress=progress or _progress(workspace),
+        post_to=post_to or f"/mark/{case.case_id}",
+        repeating=repeating,
         form_token=token,
         error=error,
         answer=answer,
@@ -229,7 +244,11 @@ def _page(
     **values: object,
 ) -> Response:
     suffix = "" if profile is None else _profile_query(_ctx(request), profile)
-    links = {"mark_link": "/mark" + suffix, "progress_link": "/mark/progress" + suffix}
+    links = {
+        "mark_link": "/mark" + suffix,
+        "progress_link": "/mark/progress" + suffix,
+        "repeat_link": "/repeat" + suffix,
+    }
     html = request.app.state.templates.get_template(template).render(
         profile=profile, **links, **values
     )
