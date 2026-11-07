@@ -15,7 +15,7 @@ from why_now.ai.budget import Meter
 from why_now.domain import Profile
 from why_now.settings import Settings
 from why_now.store import Store
-from why_now.web.auth import Authenticator, LocalAuth
+from why_now.web.auth import Authenticator, LocalAuth, SignInPages
 
 HERE = Path(__file__).parent
 
@@ -52,6 +52,8 @@ def create_app(ctx: AppContext, auth: Authenticator) -> FastAPI:
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
     app.include_router(routes_marking.router)
     app.include_router(routes_repeat.router)
+    if isinstance(auth, SignInPages):
+        app.include_router(auth.router)
 
     @app.middleware("http")
     async def private_headers(request: Request, call_next: Callable) -> Response:

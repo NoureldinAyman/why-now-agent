@@ -6,6 +6,8 @@ import tempfile
 from collections.abc import Iterator
 from pathlib import Path
 
+from why_now.store import split_name
+
 SUFFIX = ".json"
 
 
@@ -54,45 +56,18 @@ class LocalStore:
         self._path(collection, key).unlink(missing_ok=True)
 
     def _folder(self, collection: str) -> Path:
-        return self._inside(self.root.joinpath(*_parts(collection)), collection)
+        return self._inside(self.root.joinpath(*split_name(collection)), collection)
 
     def _path(self, collection: str, key: str) -> Path:
-        parts = _parts(key)
+        parts = split_name(key)
         folder = self._folder(collection).joinpath(*parts[:-1])
         return self._inside(folder / (parts[-1] + SUFFIX), key)
 
     def _inside(self, path: Path, name: str) -> Path:
         # Compared as text, after making both absolute. Asking the disk instead
         # (`Path.resolve`) can give different answers on Windows while another
-        # thread is creating folders, which refused safe names. `_parts` already
+        # thread is creating folders, which refused safe names. `split_name` already
         # refuses `..` and separators, so this is a second guard.
         if not Path(os.path.abspath(path)).is_relative_to(os.path.abspath(self.root)):
             raise ValueError(f"name leaves the workspace: {name!r}")
         return path
-
-
-# Characters Windows does not allow in file names, plus the folder separator `\`.
-_BAD_CHARS = set('<>:"|?*\\') | {chr(c) for c in range(32)}
-# Names Windows reserves for devices, with or without an extension.
-_RESERVED = {"CON", "PRN", "AUX", "NUL"} | {f"{d}{n}" for d in ("COM", "LPT") for n in range(1, 10)}
-
-
-def _parts(name: str) -> list[str]:
-    """Split a `/`-separated name, refusing any part that is not a safe file name everywhere.
-
-    Refused: empty parts, parts starting with `.` (so `..` and the store's own
-    temporary files), trailing dots or spaces, characters Windows forbids, and
-    Windows device names such as `con`. Keys built from company names must be
-    made safe before they reach the store.
-    """
-    parts = name.split("/")
-    for part in parts:
-        if (
-            not part
-            or part.startswith(".")
-            or part.endswith((".", " "))
-            or _BAD_CHARS & set(part)
-            or part.split(".")[0].upper() in _RESERVED
-        ):
-            raise ValueError(f"name not allowed in the workspace: {name!r}")
-    return parts

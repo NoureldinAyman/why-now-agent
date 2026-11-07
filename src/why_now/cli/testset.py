@@ -11,12 +11,12 @@ import typer
 from why_now.ai import ResearchModel, build_models
 from why_now.ai.budget import Meter
 from why_now.cli import app
+from why_now.deployment import open_store
 from why_now.domain import Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.search import search_ads
 from why_now.profile import ProfileError, load_profile
 from why_now.settings import Settings, load_settings
-from why_now.store.local import LocalStore
 from why_now.testset.packs import build_packs, new_case
 from why_now.testset.picking import eligible_companies, pick_cases
 from why_now.tracing import UnitCounter, build_tracer
@@ -112,4 +112,4 @@ def open_workspace(
         profile = load_profile(profile_file)
     except ProfileError as e:
         raise typer.BadParameter(str(e), param_hint="--profile") from e
-    return settings, Workspace(LocalStore(settings.workspace_path), profile.id), profile
+    return settings, Workspace(open_store(settings), profile.id), profile

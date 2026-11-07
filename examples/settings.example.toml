@@ -103,6 +103,31 @@ screen_max_copied_words = 8
 # Most words in the reason given for a proposed rule.
 screen_max_why_words = 20
 
+# The settings below are only used when deployment = "aws". Names come from the AWS setup.
+# Secrets are never set here: they come from the environment or from Parameter Store.
+# AWS region, such as "eu-central-1".
+aws_region = ""
+# S3 bucket for job ads, evidence packs and other large documents.
+aws_bucket = ""
+# DynamoDB table for every other record.
+aws_table = ""
+# Where secrets live in Parameter Store, such as /why-now/session-secret.
+aws_parameter_prefix = "/why-now"
+# Documents larger than this many bytes go to S3, under DynamoDB's 400 KB record limit.
+aws_inline_max_bytes = 350000
+# Address of the Cognito sign-in page, such as "https://<name>.auth.<region>.amazoncognito.com".
+cognito_domain = ""
+# Cognito user pool, such as "eu-central-1_AbCdEf123".
+cognito_user_pool_id = ""
+# Cognito login client. Left empty, it is read from Parameter Store at start-up.
+cognito_client_id = ""
+# Hours a sign-in lasts before signing in again.
+session_hours = 12
+# Minutes allowed to finish signing in on Cognito's page.
+login_minutes = 10
+# Fewest characters the session secret may have.
+session_secret_min_chars = 32
+
 # Model used for research.
 research_model = "claude-sonnet-5-5"
 # Model that writes briefs.

@@ -1,8 +1,9 @@
 """Who is using the app. The login for the deployed app is a separate Authenticator."""
 
 from ipaddress import IPv4Address, IPv6Address, ip_address
-from typing import Protocol
+from typing import Protocol, runtime_checkable
 
+from fastapi import APIRouter
 from starlette.requests import Request
 
 LOCAL_USER = "local"
@@ -13,6 +14,14 @@ class Authenticator(Protocol):
     def current_user(self, request: Request) -> str | None:
         """The name of the signed-in reviewer, or None if this request may not use the app."""
         ...
+
+
+@runtime_checkable
+class SignInPages(Protocol):
+    """An Authenticator with its own sign-in pages. Signed-out page visits are sent there."""
+
+    login_path: str
+    router: APIRouter
 
 
 class LocalAuth:

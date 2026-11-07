@@ -55,7 +55,8 @@ def test_deleting_the_example_profiles_breaks_nothing(tmp_path):
     shutil.copytree(ROOT / "src", copy / "src", ignore=skip)
     shutil.copytree(ROOT / "tests", copy / "tests", ignore=skip)
     shutil.copytree(ROOT / "examples", copy / "examples", ignore=skip)
-    for name in ("pyproject.toml", "README.md"):
+    shutil.copytree(ROOT / "infra", copy / "infra", ignore=skip)
+    for name in ("pyproject.toml", "README.md", ".dockerignore"):
         shutil.copy(ROOT / name, copy / name)
     assert not (copy / "examples" / "profiles").exists()
     env = os.environ | {"PYTHONPATH": str(copy / "src"), "PYTHONDONTWRITEBYTECODE": "1"}

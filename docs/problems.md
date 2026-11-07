@@ -133,3 +133,9 @@ The plan lists the functions for piles and repeat marking, but not where the fro
 The first piles tests saved 300 cases and 300 marks into a real workspace folder for several tests, and 18 tests took 146 seconds, because the local store flushes every document to disk. The tests that save to a workspace now use small piles (12, 6 and 6) through the same settings, and run in 9 seconds. The tests of the split itself still use the real sizes, because they never touch the disk.
 
 **What it taught:** a test of logic should not pay for storage, and a test of storage does not need full size.
+
+## 6 Nov 2026: An unused network client made a login test take 7 seconds
+
+One login test took over 7 seconds while the others took a fraction of a second. It only checked that a forged session cookie is refused, and it never called Cognito. The time went into setting up a network client when the login was created. Timed alone on this computer, making the first client took 1.7 seconds and the next 0.7, and more while other tests were running. The client is now made the first time it is needed, and the test takes under a second. On Lambda this also shortens every start, since most requests only read the session cookie.
+
+**What it taught:** slow set-up hides in constructors. Make expensive things when they are first used, and read the slowest tests list, not only the total.
