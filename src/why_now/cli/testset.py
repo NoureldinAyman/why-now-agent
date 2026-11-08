@@ -57,7 +57,7 @@ def pick_cases_command(
     picked_before = {c.company_key for c in workspace.cases()}
     picked = pick_cases(eligible, n, seed, picked_before)
     for company in picked:
-        workspace.save_case(new_case(profile.id, company, seed), company)
+        workspace.save_case(new_case(profile.id, company, seed, settings), company)
     workspace.record_pick(seed, n, [c.key for c in picked], now())
     typer.echo(
         f"Picked {len(picked)} of {len(eligible)} companies with a relevant ad in the last "

@@ -1,5 +1,4 @@
 from collections import Counter
-from collections.abc import Callable
 from datetime import UTC, datetime
 
 import pytest
@@ -7,22 +6,16 @@ import pytest
 from why_now.domain import CaseRecord, Mark
 from why_now.settings import Settings
 from why_now.testset.piles import (
-    PilesFrozen,
-    assign_piles,
-    refresh_check_pile,
-    split_piles,
+    PileCounts,
+    PileReport,
+    loop_ready,
+    pile_for,
+    pile_report,
     yes_share,
 )
 from why_now.workspace import Workspace
 
 NOW = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
-
-
-def case(n: int) -> CaseRecord:
-    return CaseRecord(
-        case_id=f"case-{n:04d}", profile_id="p", company_key=f"company-{n:04d}", seed=1,
-        pack_id=f"pack-{n:04d}",
-    )  # fmt: skip
 
 
 def mark(n: int, answer: str) -> Mark:
@@ -31,125 +24,24 @@ def mark(n: int, answer: str) -> Mark:
     )
 
 
-type Build = Callable[[int, int, int], tuple[list[CaseRecord], dict[str, Mark]]]
+def test_the_same_seed_and_key_always_give_the_same_pile(settings):
+    piles = [pile_for(7, f"company-{i}", settings) for i in range(200)]
+    assert piles == [pile_for(7, f"company-{i}", settings) for i in range(200)]
+    assert piles != [pile_for(8, f"company-{i}", settings) for i in range(200)]
 
 
-@pytest.fixture
-def build() -> Build:
-    """Cases 0..n-1 where the first `yes` are yes, the next `cant` can't tell, the rest no."""
-
-    def make(n: int, yes: int, cant: int = 0):
-        cases = [case(i) for i in range(n)]
-        answers = ["yes"] * yes + ["cant_tell"] * cant
-        answers += ["no"] * (n - len(answers))
-        # Spread the answers out so the order of the cases says nothing about them.
-        marks = {f"case-{i:04d}": mark(i, answers[(i * 37) % n]) for i in range(n)}
-        return cases, marks
-
-    return make
+def test_over_many_keys_the_shares_match_150_75_75(settings):
+    counts = Counter(pile_for(7, f"company-{i}", settings) for i in range(10_000))
+    assert set(counts) == {"practice", "check", "final"}
+    assert counts["practice"] / 10_000 == pytest.approx(0.50, abs=0.02)
+    assert counts["check"] / 10_000 == pytest.approx(0.25, abs=0.02)
+    assert counts["final"] / 10_000 == pytest.approx(0.25, abs=0.02)
 
 
-def piled(result: list[CaseRecord]) -> dict[str, list[CaseRecord]]:
-    out: dict[str, list[CaseRecord]] = {}
-    for c in result:
-        if c.pile is not None:
-            out.setdefault(c.pile, []).append(c)
-    return out
-
-
-def test_no_company_in_two_piles_and_seed_fixes_the_split(build, settings):
-    cases, marks = build(300, 100)
-    a, _ = assign_piles(cases, marks, 7, settings)
-    b, _ = assign_piles(cases, marks, 7, settings)
-    c, _ = assign_piles(cases, marks, 8, settings)
-    assert a == b
-    assert a != c
-    assert len({x.company_key for x in a}) == len(a)
-    assert all(x.pile is not None for x in a)
-
-
-def test_two_cases_for_one_company_are_never_both_piled(build, settings):
-    cases, marks = build(300, 100)
-    twin = cases[0].model_copy(update={"case_id": "case-twin"})
-    marks["case-twin"] = marks[cases[0].case_id].model_copy(update={"case_id": "case-twin"})
-    result, report = assign_piles([*cases, twin], marks, 7, settings)
-    piled = [c.company_key for c in result if c.pile is not None]
-    assert len(piled) == len(set(piled)) == sum(report.counts.values())
-
-
-def test_the_split_does_not_depend_on_the_order_cases_are_given_in(build, settings):
-    cases, marks = build(300, 100)
-    a, _ = assign_piles(cases, marks, 7, settings)
-    b, _ = assign_piles(list(reversed(cases)), marks, 7, settings)
-    assert {x.case_id: x.pile for x in a} == {x.case_id: x.pile for x in b}
-
-
-def test_sizes_are_150_75_75_and_yes_answers_are_spread_evenly(build, settings):
-    cases, marks = build(300, 100)
-    _, r = assign_piles(cases, marks, 7, settings)
-    assert r.counts == {"practice": 150, "check": 75, "final": 75}
-    assert r.yes_counts == {"practice": 50, "check": 25, "final": 25}
-    assert r.short_piles == []
-    assert r.yes_share == pytest.approx(1 / 3)
-
-
-def test_yes_counts_of_check_and_final_differ_by_at_most_one(build, settings):
-    cases, marks = build(300, 91)  # does not divide evenly
-    _, r = assign_piles(cases, marks, 7, settings)
-    assert abs(r.yes_counts["check"] - r.yes_counts["final"]) <= 1
-    assert sum(r.yes_counts.values()) == 91
-
-
-def test_cant_tell_and_unmarked_cases_are_left_out_of_every_pile(build, settings):
-    cases, marks = build(310, 100, cant=10)
-    cases.append(case(999))  # never marked
-    result, r = assign_piles(cases, marks, 7, settings)
-    left_out = {c.case_id for c in result if c.pile is None}
-    cant = {k for k, m in marks.items() if m.answer == "cant_tell"}
-    assert cant <= left_out
-    assert "case-0999" in left_out
-    assert sum(r.counts.values()) == 300
-    assert r.yes_share == pytest.approx(100 / 300)
-
-
-def test_extra_marked_cases_are_dropped_without_changing_the_yes_share(build, settings):
-    cases, marks = build(400, 120)  # 100 more than the piles hold, 30 percent yes
-    _, r = assign_piles(cases, marks, 7, settings)
-    assert sum(r.counts.values()) == 300
-    assert sum(r.yes_counts.values()) == 90
-
-
-def test_fewer_marked_cases_than_the_piles_hold_still_fill_in_proportion(build, settings):
-    cases, marks = build(120, 40)
-    _, r = assign_piles(cases, marks, 7, settings)
-    assert r.counts == {"practice": 60, "check": 30, "final": 30}
-    assert sum(r.yes_counts.values()) == 40
-
-
-def test_short_piles_are_reported(build, settings):
-    cases, marks = build(300, 30)  # 30 yes answers cannot give 25 each to check and final
-    _, r = assign_piles(cases, marks, 7, settings)
-    assert r.short_piles == ["check", "final"]
-
-
-def test_a_lower_aim_in_the_settings_ends_the_shortfall(build, settings: Settings):
-    cases, marks = build(300, 60)  # 15 yes each in check and final
-    assert assign_piles(cases, marks, 7, settings)[1].short_piles == ["check", "final"]
-    lowered = settings.model_copy(update={"target_yes_per_pile": 15})
-    assert assign_piles(cases, marks, 7, lowered)[1].short_piles == []
-
-
-def test_check_cases_get_version_one_and_others_none(build, settings):
-    cases, marks = build(300, 100)
-    result, _ = assign_piles(cases, marks, 7, settings)
-    for c in result:
-        assert c.check_version == (1 if c.pile == "check" else None)
-
-
-def test_the_input_cases_are_not_changed(build, settings):
-    cases, marks = build(300, 100)
-    assign_piles(cases, marks, 7, settings)
-    assert all(c.pile is None for c in cases)
+def test_the_ratio_follows_the_settings(settings: Settings):
+    even = settings.model_copy(update={"practice_size": 1, "check_size": 1, "final_size": 1})
+    counts = Counter(pile_for(3, f"company-{i}", even) for i in range(10_000))
+    assert all(c / 10_000 == pytest.approx(1 / 3, abs=0.02) for c in counts.values())
 
 
 def test_yes_share_leaves_out_cant_tell():
@@ -164,74 +56,92 @@ def workspace(store) -> Workspace:
     return Workspace(store, "p")
 
 
-def fill(workspace: Workspace, n: int, yes: int) -> None:
-    for i in range(n):
-        workspace.save_case(case(i))
-        workspace.save_mark(mark(i, "yes" if (i * 37) % n < yes else "no"))
+def picked(workspace: Workspace, n: int, seed: int, settings: Settings) -> list[CaseRecord]:
+    """Pick companies 0..n-1 with `seed`, the way the pick does: the pile is set at once."""
+    cases = [
+        CaseRecord(
+            case_id=f"case-{i:04d}",
+            profile_id="p",
+            company_key=f"company-{i:04d}",
+            seed=seed,
+            pile=pile_for(seed, f"company-{i:04d}", settings),
+        )  # fmt: skip
+        for i in range(n)
+    ]
+    for c in cases:
+        workspace.save_case(c)
+    return cases
 
 
-@pytest.fixture
-def small(settings: Settings) -> Settings:
-    """Small piles, because every saved case is flushed to disk and 300 of them are slow."""
-    return settings.model_copy(
-        update={"practice_size": 12, "check_size": 6, "final_size": 6, "target_yes_per_pile": 2}
+def test_the_report_counts_a_worked_example(workspace):
+    for i, pile in enumerate(["check", "check", "check", "final", "practice"]):
+        workspace.save_case(
+            CaseRecord.model_validate(
+                {
+                    "case_id": f"case-{i:04d}",
+                    "profile_id": "p",
+                    "company_key": f"k{i}",
+                    "seed": 1,
+                    "pile": pile,
+                }
+            )  # fmt: skip
+        )
+    workspace.save_case(CaseRecord(case_id="case-0009", profile_id="p", company_key="k9", seed=1))
+    for i, answer in enumerate(["yes", "yes", "cant_tell", "no"]):
+        workspace.save_mark(mark(i, answer))
+
+    report = pile_report(workspace)
+
+    assert report.piles["check"].model_dump() == {
+        "cases": 3, "marked": 3, "yes": 2, "no": 0, "cant_tell": 1
+    }  # fmt: skip
+    assert report.piles["final"].model_dump() == {
+        "cases": 1, "marked": 1, "yes": 0, "no": 1, "cant_tell": 0
+    }  # fmt: skip
+    assert report.piles["practice"].model_dump() == {
+        "cases": 1, "marked": 0, "yes": 0, "no": 0, "cant_tell": 0
+    }  # fmt: skip
+    assert report.no_pile == 1
+
+
+def test_repeat_marks_are_not_counted_twice(workspace):
+    workspace.save_case(
+        CaseRecord(case_id="case-0000", profile_id="p", company_key="k", seed=1, pile="check")
     )
+    workspace.save_mark(mark(0, "yes"))
+    workspace.save_mark(mark(0, "no").model_copy(update={"round": "repeat"}))
+    assert pile_report(workspace).piles["check"].model_dump() == {
+        "cases": 1, "marked": 1, "yes": 1, "no": 0, "cant_tell": 0
+    }  # fmt: skip
 
 
-def test_split_piles_saves_the_piles_and_reports(workspace, small):
-    fill(workspace, 24, 9)
-    report = split_piles(workspace, 7, small)
-    assert report.counts == {"practice": 12, "check": 6, "final": 6}
-    saved = Counter(c.pile for c in workspace.cases())
-    assert saved == {"practice": 12, "check": 6, "final": 6}
-
-
-def test_splitting_again_with_the_same_seed_changes_nothing(workspace, small):
-    fill(workspace, 24, 9)
-    split_piles(workspace, 7, small)
+def test_no_mark_marking_order_or_cant_tell_moves_a_company(workspace, settings):
+    cases = picked(workspace, 30, 11, settings)
     before = {c.case_id: c.pile for c in workspace.cases()}
-    split_piles(workspace, 7, small)
-    assert {c.case_id: c.pile for c in workspace.cases()} == before
+    for i in reversed(range(30)):  # marked in reverse, with every kind of answer
+        workspace.save_mark(mark(i, ["cant_tell", "yes", "no"][i % 3]))
+    after = {c.case_id: c.pile for c in workspace.cases()}
+    assert after == before == {c.case_id: pile_for(11, c.company_key, settings) for c in cases}
 
 
-def test_splitting_is_refused_once_the_loop_has_started(workspace, small):
-    fill(workspace, 24, 9)
-    split_piles(workspace, 7, small)
-    before = {c.case_id: c.pile for c in workspace.cases()}
-    workspace.set_loop_started()
-    with pytest.raises(PilesFrozen):
-        split_piles(workspace, 8, small)
-    assert {c.case_id: c.pile for c in workspace.cases()} == before
+def test_a_saved_case_cannot_change_pile(workspace, settings):
+    case = picked(workspace, 1, 3, settings)[0]
+    other = next(p for p in ("practice", "check", "final") if p != case.pile)
+    with pytest.raises(ValueError, match="never changes pile"):
+        workspace.save_case(case.model_copy(update={"pile": other}))
+    workspace.save_case(case.model_copy(update={"pack_id": "pack-1"}))  # other fields may change
+    assert workspace.cases()[0].pile == case.pile
 
 
-def test_the_loop_has_not_started_in_a_new_workspace(workspace):
-    assert workspace.loop_started() is False
+def report_with_check_yes(yes: int) -> PileReport:
+    empty = PileCounts(cases=0, marked=0, yes=0, no=0, cant_tell=0)
+    check = PileCounts(cases=yes, marked=yes, yes=yes, no=0, cant_tell=0)
+    return PileReport(piles={"practice": empty, "check": check, "final": empty}, no_pile=0)
 
 
-def test_refresh_moves_old_check_cases_to_practice_and_bumps_the_version(workspace, small):
-    fill(workspace, 24, 9)
-    split_piles(workspace, 7, small)
-    old_check = {c.case_id for c in workspace.cases() if c.pile == "check"}
-    old_final = {c.case_id for c in workspace.cases() if c.pile == "final"}
-    new_cases = [case(1000 + i) for i in range(6)]
-
-    version = refresh_check_pile(workspace, new_cases)
-
-    assert version == 2
-    by_id = {c.case_id: c for c in workspace.cases()}
-    assert all(by_id[i].pile == "practice" and by_id[i].check_version is None for i in old_check)
-    assert all(by_id[i].pile == "final" for i in old_final)
-    fresh = [c for c in by_id.values() if c.pile == "check"]
-    assert len(fresh) == 6 and {c.check_version for c in fresh} == {2}
-    assert {c.case_id for c in fresh} == {c.case_id for c in new_cases}
-    assert refresh_check_pile(workspace, [case(2000 + i) for i in range(2)]) == 3
-
-
-def test_refresh_refuses_a_company_already_in_a_pile(workspace, small):
-    fill(workspace, 24, 9)
-    split_piles(workspace, 7, small)
-    already = next(c for c in workspace.cases() if c.pile == "final")
-    twin = already.model_copy(update={"case_id": "case-twin", "pile": None})
-    with pytest.raises(ValueError, match="already in a pile"):
-        refresh_check_pile(workspace, [twin])
-    assert "case-twin" not in {c.case_id for c in workspace.cases()}
+def test_the_loop_is_ready_only_once_check_has_enough_yes_answers(settings: Settings):
+    assert settings.floor_yes_per_pile == 15
+    assert loop_ready(report_with_check_yes(14), settings) is False
+    assert loop_ready(report_with_check_yes(15), settings) is True
+    lower = settings.model_copy(update={"floor_yes_per_pile": 3})
+    assert loop_ready(report_with_check_yes(3), lower) is True

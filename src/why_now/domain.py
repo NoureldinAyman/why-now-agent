@@ -128,8 +128,7 @@ class CaseRecord(BaseModel):
     company_key: str
     pack_id: str | None = None  # None until its evidence pack is built
     seed: int
-    pile: Literal["practice", "check", "final", "unsplit"] | None = None
-    check_version: int | None = None
+    pile: Literal["practice", "check", "final", "unsplit"] | None = None  # set at the pick
 
 
 class PickRecord(BaseModel):

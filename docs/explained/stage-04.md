@@ -110,9 +110,9 @@ One-time research is charged to its own budget category, `test_cases`, so it sho
 **What was built.** Four commands and one more page that come after the reviewer has marked the test cases.
 
 - **`why-now yes-share --profile P`.** Counts yes, no and can't tell, and shows the share of yes among yes and no answers next to the share needed for the aim: `target_yes_per_pile` out of a pile of `check_size`.
-- **`why-now split-piles --profile P --seed S`** (`src/why_now/testset/piles.py`). It gives every company with a yes or no mark to one pile: practice 150, check 75, final 75. Yes and no answers are shuffled apart with the seed and dealt out in step, so check and final differ by at most one yes. A can't-tell, or a company not marked yet, is in no pile. The command prints each pile's size and yes count, and names any pile with fewer yes answers than the aim. Running it again with the same seed changes nothing.
-- **Frozen once the loop starts.** The workspace holds a flag per profile. Once it is set the split is refused and nothing is changed. The improvement loop, built later, sets it when it first runs.
-- **Refreshing the check pile.** The function moves the old check companies to practice, makes newly marked companies the check pile and gives it the next version number. It refuses a company that is already in a pile, and never touches the final pile. The command that calls it comes with the improvement loop.
+- **`why-now split-piles --profile P --seed S`** (removed by ticket 43, below) (`src/why_now/testset/piles.py`). It gives every company with a yes or no mark to one pile: practice 150, check 75, final 75. Yes and no answers are shuffled apart with the seed and dealt out in step, so check and final differ by at most one yes. A can't-tell, or a company not marked yet, is in no pile. The command prints each pile's size and yes count, and names any pile with fewer yes answers than the aim. Running it again with the same seed changes nothing.
+- **Frozen once the loop starts** (removed by ticket 43, below). The workspace holds a flag per profile. Once it is set the split is refused and nothing is changed. The improvement loop, built later, sets it when it first runs.
+- **Refreshing the check pile** (removed by ticket 43, below). The function moves the old check companies to practice, makes newly marked companies the check pile and gives it the next version number. It refuses a company that is already in a pile, and never touches the final pile. The command that calls it comes with the improvement loop.
 - **`why-now repeat-marks --profile P --seed S`** (`src/why_now/testset/repeat.py`). Picks 30 companies at random from the yes and no first marks that are at least 7 days old, and records them. It picks once: a second run says so. If fewer than 30 are old enough, it picks nothing and says how many are.
 - **The repeat page, `/repeat`.** The same page as first-round marking, with the same form token and reason rule, but only for the picked companies. It never reads first-round marks, so the first answer and reason cannot show, and no answer is pre-selected. Repeat marks are saved as their own round, so the first mark is untouched.
 - **`why-now agreement --profile P`.** Shows how many of the compared companies got the same answer twice, with the count. A can't-tell in either round is left out. With nothing to compare it says so and stops, rather than showing 0%.
@@ -122,3 +122,21 @@ One-time research is charged to its own budget category, `test_cases`, so it sho
 **The hardest question:** "You split by shuffling yes and no apart. Isn't that less random than a plain shuffle?"
 
 **The honest answer:** yes, a little, and on purpose. A plain shuffle of 300 companies with 100 yes answers could give the check pile 18 yes and the final pile 32, and then the two piles would not be comparable. Which companies land in which pile is still random, and the seed is recorded. What is fixed is only how many yes answers each pile gets.
+
+## Piles fill as companies are marked (ticket 43)
+
+**What was built.** Each company's pile is now decided the moment it is picked, so the piles fill together while the reviewer marks, in sittings of any size. The one-time split, the frozen flag and the check pile refresh are gone.
+
+- **`pile_for(seed, company_key, settings)`** (`src/why_now/testset/piles.py`). It takes a SHA-256 hash of the pick's seed and the company's key, turns the first 8 bytes into a number, and takes it modulo 300, the sum of the three pile sizes. Below 150 is practice, the next 75 check, the last 75 final. The sizes come from the settings, so the ratio follows them.
+- **Set at the pick.** `why-now pick-cases` saves each new case with its pile already on it. The reviewer never sees it.
+- **A case never changes pile.** Saving a case whose pile differs from the saved one is refused. Other fields, such as the pack, can still be added.
+- **`why-now piles --profile P`.** For each pile it prints the companies, how many are marked, and the yes, no and can't tell answers, from first marks only. It then says whether the improvement loop can start: it can once the check pile holds at least `floor_yes_per_pile` yes answers, 15 by default.
+- **Repeat marking is unchanged.** `yes-share`, `repeat-marks`, `agreement` and the `/repeat` page work as before.
+
+**Example.** Pick 20 companies with seed 7. Each one's pile is fixed now, about half in practice and a quarter in each of check and final. Mark 6 of them today and 14 next week, in any order, with a few can't tells: not one company moves. `why-now piles` shows the counts growing, and says "Not ready" until the check pile reaches 15 yes answers.
+
+**Limits we know about.** A hash can't know the answer in advance, so yes answers are not dealt out evenly: check and final can hold different numbers of yes answers, and every score shows its real counts. Cases saved before this change have no pile and are counted apart; the workspace held no real marks, so none were moved.
+
+**The hardest question:** "With a hash, the check pile could end up with far fewer yes answers than the final pile. Isn't the old even split better?"
+
+**The honest answer:** for one fixed set of 300 companies, yes, the old split made check and final more alike. But it needed all the marking done before anything could be measured, and the reviewer marks in occasional sittings. The hash gives up the even deal of yes answers in return for numbers that come as soon as there are enough, and for a pile that no mark, order or can't tell can change. The loop waits for 15 yes answers in check, and the final pile still guards against a check pile that happens to be easy.

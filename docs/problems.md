@@ -145,3 +145,9 @@ One login test took over 7 seconds while the others took a fraction of a second.
 The old test of `choose_cutoff` used five rows and expected 0.65. Under F1 the best cut-off on those rows is 0.25, because letting in one wrong yes to catch the third right company is now a good trade. The test was not wrong, it was measuring the old weighting. It now runs those rows with `score_beta` 0.5 to keep the old numbers, and a new test uses rows where F1 and F0.5 pick different cut-offs (0.45 and 0.65), worked out by hand, so the test fails if the setting is ignored.
 
 **What it taught:** a test that only has one right answer for the old setting cannot show that a new setting is used. Add a case where the settings disagree.
+
+## 9 Nov 2026: "A company never changes pile" was only a promise
+
+Moving to piles set at the pick, the design says a company never changes pile, but nothing in the code stopped it. Any later step that saved a case with a different pile, by mistake or by a bad merge of two copies, would have moved it without a sound, and the scores would quietly mix piles. The workspace now refuses to save a case whose pile differs from the saved one, and a test checks it. With the frozen flag gone, the small workspace area that held it had nothing left, so it was removed rather than kept empty.
+
+**What it taught:** a rule in the design that the code could break is worth one check where the data is saved, not only in the step that sets it.
