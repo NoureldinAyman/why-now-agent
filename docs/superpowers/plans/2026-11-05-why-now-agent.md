@@ -46,6 +46,117 @@ These fill gaps in `design.md` and follow its intent. Add each to the design's t
 - **Language and country filters** use the job source's own fields. An ad with no language field is kept.
 - **Fixed monthly costs.** AWS and Langfuse have no per-call meter, so the owner sets an expected monthly figure that counts towards the $70 limit.
 
+## Revision of 8 Nov 2026
+
+`design.md` was revised on 8 Nov 2026, after 22 tickets were built. This section overrides any task below where they disagree. Read the design's "Revision of 8 Nov 2026" first. Ticket numbers here are GitHub ticket titles; the plan's own task numbers are given in brackets where they differ.
+
+### What changes in work already built
+
+- **Score.** `ScoreResult.f05` becomes `ScoreResult.f` plus `beta`. `score(rows, beta)` takes `settings.score_beta`, default 1. `choose_cutoff` and `decide_keep` use `.f`.
+- **Saved answers.** `workspace/judge.py` `_answer_key` and `pipeline/quick_look.py` `_key` include effort and a prompt version. The cut-off key becomes per model and effort. No old answers are moved: the workspace holds no real marks yet.
+- **Piles.** `testset/piles.py` `split_piles`, `PilesFrozen` and `refresh_check_pile` are replaced by a pile decided at pick time. `yes_share`, `pick_repeats` and the repeat page stay.
+- **Marking page.** It shows a card built from the pack, takes one-tap answers and accepts a reason chip in place of text (`form_error` changes to match).
+
+### Task R1 (ticket 41): F1 score
+
+**Files:** modify `evaluation/score.py`, `pipeline/judge.py`, `improve/keep.py`, `settings.py`, `examples/settings.example.toml`. Tests: `tests/evaluation/test_score.py`, `tests/improve/test_keep.py`, `tests/pipeline/test_judge.py`.
+
+```python
+class ScoreResult(BaseModel):
+    tp: int; fp: int; fn: int; tn: int; n: int
+    precision: float; recall: float; f: float; beta: float
+def score(rows: list[tuple[bool, bool]], beta: float) -> ScoreResult: ...
+```
+
+Tests: worked examples for beta 1 done by hand; beta 0.5 still gives the old numbers; saying no to everything scores 0; `decide_keep` compares `.f`; refusing two results with different beta in one keep decision.
+
+### Task R2 (ticket 42): Effort per job, and versioned saved answers
+
+**Files:** modify `settings.py`, `ai/__init__.py`, `ai/claude.py`, `workspace/judge.py`, `workspace/quick_look.py`, `pipeline/quick_look.py`, `pipeline/judge.py`, `tracing.py`. Tests alongside.
+
+- Settings: `quick_look_effort = "low"`, `research_effort = "medium"`, `judge_effort = "medium"`, `writer_effort = "medium"`, `proposer_effort = "high"`. Each a line in the design's numbers table (already added).
+- `ClaudeCaller` sends `output_config={"effort": ...}` for its job. Check the current `anthropic` documentation with the claude-api skill first.
+- Each system prompt gets a constant version, such as `ANSWER_PROMPT_VERSION = 1`. A model's `answer_key` is `f"{model}@{effort}#p{prompt_version}"` (Jev has no effort: `f"{model}#p{prompt_version}"`). Saved answers and cut-offs use it.
+- Traces record effort and prompt version per model.
+
+Tests: the request carries the job's effort; changing the effort or the prompt version asks again; the same values reuse the saved answer; a cut-off saved for one effort is not used for another.
+
+### Task R3 (ticket 43): Piles fill as companies are marked
+
+**Files:** modify `testset/piles.py`, `testset/picking.py`, `workspace/cases.py`, `workspace/piles.py`, `domain.py` (`CaseRecord.pile`), `cli/piles.py`. Tests: `tests/testset/test_piles.py`.
+
+```python
+def pile_for(seed: int, company_key: str, settings: Settings) -> Literal["practice", "check", "final"]: ...
+def pile_report(workspace: Workspace) -> PileReport: ...  # per pile: cases, marked, yes, no, can't tell
+def loop_ready(report: PileReport, settings: Settings) -> bool: ...  # check yes >= floor_yes_per_pile
+```
+
+- `pile_for` hashes the seed and key, and maps the result to piles in the ratio `practice_size : check_size : final_size`. The pile is stored on the case when it is picked.
+- `why-now piles --profile P` prints the report. `split-piles` is removed.
+- Remove the frozen flag. Keep `yes-share`, `repeat-marks` and `agreement`.
+
+Tests: the same seed and key always give the same pile; over 10,000 keys the shares match the ratio within 2 points; the pile does not depend on marks, marking order or can't-tell answers; a company is in one pile only; `loop_ready` is false below the floor.
+
+### Task R4 (ticket 44): Prepare and quick marking
+
+**Files:** modify `testset/packs.py`, `cli/testset.py`, `web/routes_marking.py`, `web/routes_repeat.py`, templates, `domain.py` (`Mark.chips`, `Mark.seen_on_list`), `settings.py` (`prepare_batch = 20`, `reason_chips`). Tests alongside.
+
+```python
+def prepare(ctx: RunContext, profile: Profile, n: int, seed: int) -> BuildResult: ...  # pick n, decide piles, research each
+def card(case: CaseRecord, pack: EvidencePack) -> Card: ...  # built by code from the pack only
+```
+
+- `why-now prepare --profile P --n 20` and a "Prepare" button on the marking page (on one's own computer).
+- The card: company name, relevant job titles with counts, open jobs, newest ad date, the first 400 characters of the first non-ad source in the pack. The full pack opens below it.
+- One-tap yes, no, can't tell. A reason is one or more chips or a sentence; at least one is required. The chips are a setting with generic defaults (recruitment agency, competitor, not hiring the right people, too big, too small, good timing).
+- A mark records `seen_on_list` when the company was on a short list or more list before it was marked.
+- The repeat page uses the same card, and the marking page shows a nudge when a repeat round is possible.
+
+Tests: the card shows nothing outside the pack and no agent answer; a chip alone is a valid reason; nothing at all is refused; `seen_on_list` is set for a listed company; prepare stops cleanly at the budget and reruns pay for nothing twice.
+
+### Task R5 (ticket 45, owner builds with Claude): Draft a profile
+
+**Files:** create `src/why_now/drafting.py`, `cli/profile.py`; modify `profile.py`, `domain.py` (`quick_look_questions` optional, `Profile.version`). Tests alongside.
+
+```python
+def draft_profile(description: str, writer: Writer) -> Profile: ...
+def quick_look_questions(profile: Profile) -> list[FitQuestion]: ...  # the profile's, or required ones plus one built from who uses the product
+def preview(workspace: Workspace, profile: Profile) -> Preview: ...  # search on the last saved read, no paid calls
+```
+
+- `why-now draft-profile --out PATH` asks for a description, drafts, and writes YAML that `load_profile` accepts. The draft must name no product in code, and its questions follow the existing rules (one condition each).
+- A profile's version is a hash of what it says. Scores record it. After the first mark, the web form warns that saving starts a new version.
+
+Tests: a scripted writer's draft loads; a missing quick look list gives the derived one; preview makes no paid call; editing the profile changes its version.
+
+### Task R6 (ticket 46): Control pages
+
+**Files:** modify `web/app.py`, create `web/routes_control.py`, templates; modify `settings.py` (a description for every setting). Tests alongside.
+
+- "Run now" (on one's own computer only) starts `why-now daily` as a separate process on the last saved read or a sample, and the page shows whether it is running and its last result.
+- A setup status page from `check_setup`.
+- A read-only settings page showing each setting, its value and its reason. A test fails if a setting has no description.
+- A profile form over `draft_profile` and `preview`.
+- "Improve now" appears once the improvement run exists.
+
+Tests: run now is refused on AWS; the settings page lists every setting with a description; the pages escape every value and need the login.
+
+### Changes to existing tickets
+
+- **Ticket 15, owner:** draft the profile with R5, accept it, then prepare and mark the first 40. Blocked by R4 and R5.
+- **Ticket 16, owner:** keep marking in sittings until `loop_ready`. The repeat round is optional.
+- **Ticket 20 [Task 18], owner builds with Claude:** `compare_judges` compares only Jev and Sonnet at `judge_effort`. Add `consistency(run, answerer, packs, asks=5)`, which asks without saved answers and reports the spread per question. Fixed answer levels are tried only if the spread is large, and kept only if it falls. `short_list_precision(workspace)` is reported apart from pile scores. `PileResult` records pile size, beta, profile version and model keys. `check_version` is removed. Tuning reads the practice pile only.
+- **Ticket 24 [Task 21]:** decisions use the same reason chips. The page shows short-list precision with its count, apart from scores.
+- **Ticket 29 [Task 24], owner builds with Claude:** the proposer also reads reasons for correct yeses from the practice pile and daily decisions. `tries_per_run = 3`. After `tries_per_check_pile` tries, wait for `check_growth_for_more_tries = 25` new check companies. Not ready until `loop_ready`. `improve --profile P` is "Improve now". No `refresh-check` command, and no frozen flag.
+- **New ticket 47, owner:** hands-on with what exists (sample run, a small real read, the marking page, a small paid daily run).
+- **New ticket 48, owner:** build the whole AWS setup by hand, guided, and run the app on it. Ticket 32 then writes it as code, and ticket 33 deploys from the code and deletes the hand-made parts.
+- **Ticket 38 [Task 30]:** one small label always visible at the top, modern design, using the project's design skill.
+- **Ticket 39 [Task 31]:** the README describes the web path for non-coders: enter keys once, then use the browser.
+
+### How each ticket ends
+
+Each pull request has a "Try it yourself" section: 2 to 3 commands or clicks, what you should see, and the cost, free or an estimate. At the end, the session explains to the owner in plain words what was built, how it works and why, with a small example.
+
 ## How Work Runs
 
 - **Tickets are the unit of work.** GitHub issues, listed in `AGENTS.md`'s tracker notes, each name the plan tasks they cover. This plan keeps the exact names, signatures and tests.

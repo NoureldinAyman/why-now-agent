@@ -95,7 +95,7 @@ The test cases that decide whether a rule change is kept. The agent sees only th
 _Avoid_: Validation set, dev set
 
 **Final pile**:
-Locked test cases, opened only at big milestones. Only these give the numbers quoted as results.
+Test cases opened only at big milestones. Only these give the numbers quoted as results.
 _Avoid_: Test set, held-out set
 
 **Try**:
@@ -103,5 +103,17 @@ One attempt to improve: a single change to the rules file, measured on the check
 _Avoid_: Experiment, iteration, run
 
 **Score**:
-F0.5, one number combining how often the agent's yes was right (precision) and how many of the reviewer's yes companies it found (recall), with more weight on the first. It measures agreement with the reviewer, not whether a company would buy.
+F1, one number combining how often the agent's yes was right (precision) and how many of the reviewer's yes companies it found (recall), weighing both equally. It measures agreement with the reviewer, not whether a company would buy.
 _Avoid_: Accuracy, quality
+
+**Short-list precision**:
+The share of companies shown on short lists that the reviewer approved. It comes free from daily decisions, but those companies were chosen by the agent, so it is always shown apart from the score.
+_Avoid_: Precision (on its own), hit rate
+
+**Prepare**:
+To pick companies at random for marking and research each one into a frozen evidence pack, so they are ready to mark. Each company's pile is decided at this moment.
+_Avoid_: Sample, queue, fetch
+
+**Effort**:
+A setting on Claude models that controls how much the model thinks before answering, and so what a call costs. Each job has its own.
+_Avoid_: Thinking budget, reasoning level

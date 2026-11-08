@@ -1,6 +1,6 @@
 # Why-Now Agent: Design
 
-Status: approved 5 Nov 2026. Words with a special meaning here are defined in `GLOSSARY.md`.
+Status: approved 5 Nov 2026, revised 8 Nov 2026. "Revision of 8 Nov 2026" at the end lists what changed and why. Words with a special meaning here are defined in `GLOSSARY.md`.
 
 ## Problem Statement
 
@@ -16,7 +16,7 @@ An agent that does one job. Each day it reads new public job ads and produces a 
 
 What the agent looks for lives entirely in a profile, which is a file. To look for something else, you write a new profile and change no code.
 
-The agent improves its own rules file overnight using the reasons people gave. It keeps a change only if it measurably does better on companies it has never read. Every try is recorded and the score history is public, including the changes it threw away.
+The agent improves its own rules file using the reasons people gave, on a schedule or when asked. It keeps a change only if it measurably does better on companies it has never read. Every try is recorded and the score history is public, including the changes it threw away.
 
 It never contacts anyone. It doesn't find people, write emails or send messages. An approval only records a decision.
 
@@ -34,6 +34,8 @@ Both are ordinary example files that the code knows nothing about. See "Profiles
 
 ## How one day works
 
+A day's run can be scheduled, which is the normal use, or started at any time with "Run now". The project must work well for someone who uses it in occasional sittings, so nothing depends on it running every day. A full read takes hours, so a run started on demand uses the last saved read, or reads a sample of careers pages.
+
 1. **Read.** Fetch job ads from the job sources politely. Save a private copy of each new ad.
 2. **Search.** Keep ads whose titles match the search words in the profile. Group them by company.
 3. **Find what's new.** Keep a company if it has a relevant ad that we hadn't seen before and that its job source says was published in the last 14 days. Skip companies with a decision in the last 90 days.
@@ -43,14 +45,14 @@ Both are ordinary example files that the code knows nothing about. See "Profiles
 7. **Write the brief.** For each yes, Claude writes a short brief made of claims. Each claim carries a quote and the source of that quote.
 8. **Fact check.** A script confirms that every quote appears in the saved evidence pack and that the why-now quote comes from a job ad. A brief that fails gets one more attempt. If it fails again, the company is dropped and the failure is recorded.
 9. **Show.** Up to 10 companies go on the short list, strongest first. Other companies that passed the quick look go on the more list, with no research and no brief.
-10. **Decide.** The reviewer approves or rejects with a reason, on a private web page.
+10. **Decide.** The reviewer approves or rejects on a private web page, with a reason picked from short choices, plus an optional sentence.
 
 "No clear reason" is a normal answer. A day can produce fewer than 10 companies.
 
 ## How the agent improves
 
-1. **When.** As part of the scheduled night run, after the daily list. Nobody is waiting then, and the computer is already on. If there are no mistakes it hasn't tried to learn from, it does nothing, because a try with no new evidence would only wear out the check pile. The first runs use mistakes from the practice pile.
-2. **Learn.** The agent reads mistakes from the practice pile and from recent decisions, including the reviewer's reasons, and proposes one change to the rules file: add, edit or remove one fit question. It looks at both sources because daily decisions mostly reveal wrong yeses, since the reviewer rarely sees the companies the agent rejected. The practice pile is where it finds the good companies it wrongly said no to. It also sees how each fit question was answered on each mistake, so it can tell which question went wrong. Each learned fit question is saved with one short clause saying why it exists.
+1. **When.** As part of the scheduled night run, after the daily list, or when the reviewer presses "Improve now". If there are no mistakes it hasn't tried to learn from, it does nothing, because a try with no new evidence would only wear out the check pile. One run makes at most 3 tries, so a run started on demand ends quickly and can't use up the check pile in one go. The first runs use mistakes from the practice pile.
+2. **Learn.** The agent reads mistakes from the practice pile and from recent decisions, including the reviewer's reasons, and proposes one change to the rules file: add, edit or remove one fit question. It looks at both sources because daily decisions mostly reveal wrong yeses, since the reviewer rarely sees the companies the agent rejected. The practice pile is where it finds the good companies it wrongly said no to. It also sees how each fit question was answered on each mistake, so it can tell which question went wrong. It also reads the reviewer's reasons for companies it got right with a yes, so it can propose questions that count for a company, not only against. All of this comes from the practice pile and daily decisions only. Nothing from the check or final piles, right or wrong, ever reaches it. Each learned fit question is saved with one short clause saying why it exists.
 3. **Screen.** A script rejects the change if it names a company, copies long text from an ad, or is longer than one sentence plus its why clause. The length limit keeps each fit question to one clear judgement. The rules file has no size limit of its own, because the keep rule already stops it growing unless a new question really helps.
 4. **Measure.** The agent is rerun on the practice pile and the check pile.
 5. **Keep or discard.** Keep the change only if all of these hold:
@@ -84,12 +86,16 @@ We borrow three ideas: lessons must be general rules with a short reason and not
 
 ### What the score means
 
-The score is F0.5. It combines two measures:
+The score is F1. It combines two measures:
 
 - **Precision:** of the companies the agent said yes to, how many the reviewer also said yes to.
 - **Recall:** of the companies the reviewer said yes to, how many the agent found.
 
-F0.5 counts precision more heavily, because wasting a founder's time is worse than missing a company. An agent that says no to everything scores zero, and an agent that says yes to only one safe company also scores poorly. Precision and recall are always shown next to the score.
+F1 weighs them equally. The short list's limit of 10 already protects the reviewer's time, so wrong yeses cost a few minutes at most. A wrong no is the harder mistake to notice: a company judged no appears on neither list and comes back only with a new ad, while a wrong yes is seen and corrected. An agent that says no to everything scores zero, and an agent that says yes to only one safe company also scores poorly. Precision and recall are always shown next to the score.
+
+The weighting is a setting (`score_beta`, 1 for F1), the same for every profile, and fixed before marking starts, because changing it after seeing scores would be a way to tune the score itself. See `docs/decisions/0006-f1-replaces-f05.md`.
+
+**Short-list precision.** The reviewer's daily decisions give a second number for free: of the companies shown on short lists, the share the reviewer approved. Those companies were chosen by the agent and judged from briefs, not from a random pick, so this number is always shown apart from the pile scores, with its count, and never joined with them.
 
 **The limit we state openly:** nobody is ever contacted, so the score measures agreement with the reviewer's judgement of the profile. It doesn't show that any company would buy.
 
@@ -108,37 +114,43 @@ The score doesn't cover two things, and we say so openly:
 
 ### How test cases are made
 
-1. **Lock the profile.** It is locked before any marking starts. If it changes later, the affected companies are marked again.
-2. **Pick at random.** Companies are picked at random from everyone with a relevant ad from the last 14 days, the same rule the daily list uses, so the test matches the real job. They aren't picked from what the agent chose, because otherwise the test could never reveal good companies the agent wrongly skipped. The random seed is recorded.
-3. **Freeze an evidence pack.** The research step runs once for each company, and the result never changes. Websites change, and a test has to stay the same over time.
-4. **Mark without seeing the agent's answer.** The reviewer sees only the evidence pack and answers yes, no or can't tell, with a reason. A "can't tell" doesn't count, and another company takes its place. Marks don't hide a company from daily lists. Only daily decisions do that.
-5. **Measure the reviewer.** About a week later, the reviewer marks 30 random companies again without seeing the first answers. How often the two answers agree is a real number that shows about how high any agent could score.
+Marking happens in sittings of any size, whenever the reviewer has time.
+
+1. **Lock the profile.** It is locked at the first mark. A later edit starts a new profile version. Marks are kept, because a mark is about the company and not about the questions, but scores from different profile versions are never joined as one line. If what counts as a yes changes, the affected companies are marked again.
+2. **Prepare companies.** "Prepare 20" picks companies at random from everyone with a relevant ad from the last 14 days, the same rule the daily list uses, so the test matches the real job, and researches each one. They aren't picked from what the agent chose, because otherwise the test could never reveal good companies the agent wrongly skipped. Preparing costs money and is charged to the test case budget. The random seed is recorded.
+3. **Decide the pile at once.** When a company is picked, its pile is worked out from the seed and the company's key by a fixed calculation (a hash), in the ratio 150 to 75 to 75. The reviewer is never shown it. Nothing the reviewer does, including the order of marking or a can't tell, can move a company between piles.
+4. **Freeze an evidence pack.** The research step runs once for each company, and the result never changes. Websites change, and a test has to stay the same over time.
+5. **Mark without seeing the agent's answer.** The reviewer sees a short card built by code from the evidence pack alone: the company, its job titles and how many, the date of the newest ad, and the start of any company page in the pack. The full pack is one tap away. The answer is one tap, yes, no or can't tell, and the reason is picked from short choices plus an optional sentence. A "can't tell" doesn't count. If the reviewer had already seen the company on a daily list, the mark records that. The company is kept, because dropping it would bias the random pick. Marks don't hide a company from daily lists. Only daily decisions do that.
+6. **Measure the reviewer.** Once 30 first marks are at least 7 days old, the marking page suggests a repeat round: those 30 companies, marked again on the same card without the first answers. How often the two answers agree is a real number that shows about how high any agent could score. It is optional. If it is never done, the score page says the ceiling was not measured.
 
 **What a yes means:** "the founder would want to look at this company this week, based on this evidence." A company that has been hiring for years can still be a yes if the evidence supports it. That is the reviewer's judgement, guided by the profile.
 
 **If too few companies are a yes.** The aim is about 25 yes answers in each of the check and final piles, which needs about 1 company in 3 to be a yes. The real share isn't known yet, so:
 
-1. Mark 40 random companies first to measure it.
-2. If the share is low, narrow the search words in the profile before locking it, and start again with a new random sample.
-3. Mark at most 500 companies in total.
+1. The first 40 marks measure it.
+2. If the share is low, narrow the search words in the profile, which starts a new profile version, and prepare a new random sample.
+3. Mark at most 500 companies in total, over as many sittings as needed.
 4. If that still falls short, lower the aim to 15 yes answers per pile and say publicly that the numbers are rougher.
 
 Companies are never picked because they look likely to be a yes. The test would stop being random and could no longer reveal good companies the agent misses.
 
 ### The three piles
 
-| Pile | Companies | Used for |
+| Pile | Aim | Used for |
 |---|---|---|
-| Practice | 150 | The loop reads its mistakes here |
+| Practice | 150 | The loop reads its mistakes here, and cut-offs and tuning are chosen here |
 | Check | 75 | Decides keep or discard. The loop sees only the score |
-| Final | 75 | Locked. Opened only at big milestones. Only these numbers are quoted as results |
+| Final | 75 | Opened only at big milestones. Only these numbers are quoted as results |
 
-- Each company appears in only one pile. The split is random, with yes and no answers shared evenly across the piles, and frozen once the loop starts.
-- A check pile that is measured again and again slowly wears out, even though the loop never reads it. This is why a final pile exists.
+- The piles fill together as the reviewer marks, because each company's pile is decided when it is picked. The sizes are the aim, not a requirement, and every number shows the real counts. Yes answers are not dealt out evenly, so check and final can hold different numbers of yes answers.
+- Each company appears in only one pile and never moves.
+- The loop can start once the check pile has at least 15 yes answers. Until then the daily list uses the default cut-off. See `docs/decisions/0007-piles-fill-as-companies-are-marked.md`.
+- Each try compares the rules before and after the change on the check pile as it stands when the try starts, with one cut-off chosen on the practice pile as it stands then. Saved answers make the "before" score almost free.
+- Each score records how many companies its pile held. Scores taken on different pile sizes are labelled and never joined as one line.
+- A check pile that is measured again and again slowly wears out, even though the loop never reads it. This is why a final pile exists. After 50 tries, further tries wait until at least 25 new companies have joined the check pile.
 - The final pile is opened at three moments only: the first reading, after the loop has made real changes, and when numbers are about to be published. Every opening is logged and made public, and any extra opening records its reason.
 - A company in the check or final pile can still appear in a daily list. Its decision is recorded, but the loop never reads it.
-
-**Refreshing the check pile.** After about 50 tries, the check pile gets newly marked companies, and its old companies move to the practice pile. Each version of the check pile has a label, and the current rules are scored on the new version straight away. Scores from different versions are never joined as one line, because they aren't comparable.
+- Tuning by a person follows the same rule as the loop: prompts, effort and other settings are tuned on the practice pile only. Watching check pile scores while tuning would make the person an unrecorded improvement loop.
 
 **What goes public.** Only final pile numbers are quoted as results. The README links to them and holds no run data of its own. The public score page also shows check pile scores, labelled as working numbers, because they are the record of what the loop did. The model comparison is published with the same label.
 
@@ -162,7 +174,7 @@ Judging models are also compared directly. See "AI models" below.
 2. As a reviewer, I want a separate more list, so that I can look further when I have time without being asked to decide.
 3. As a reviewer, I want each brief to quote its sources with links, so that I can check any fact in seconds.
 4. As a reviewer, I want the why-now reason to come from a job ad, so that I know why this company is appearing now.
-5. As a reviewer, I want to approve or reject with a reason I can dictate, so that decisions are quick and the agent can learn from them.
+5. As a reviewer, I want to approve or reject with a reason I pick from short choices or dictate, so that decisions are quick and the agent can learn from them.
 6. As a reviewer, I want a company to stay hidden for 90 days after a decision, so that I don't review it repeatedly.
 7. As a reviewer, I want a company with five similar ads to appear once, so that I judge the company and not each ad.
 8. As a reviewer, I want a day with few good companies to show few, so that the agent isn't padding the list.
@@ -174,13 +186,13 @@ Judging models are also compared directly. See "AI models" below.
 11. As a reviewer, I want to mark test cases without seeing the agent's answer, so that my marking can't be influenced.
 12. As a reviewer, I want to mark from the same evidence pack the agent uses, so that the comparison is fair.
 13. As a reviewer, I want a "can't tell" answer, so that I'm not forced to guess.
-14. As a reviewer, I want to mark in short sittings and resume later, so that 300 companies is manageable.
-15. As a reviewer, I want to re-mark 30 companies a week later without seeing my old answers, so that we know how consistent I am.
+14. As a reviewer, I want to prepare and mark companies in sittings of any size, each in seconds from a short card, so that 300 companies is manageable.
+15. As a reviewer, I want the option to re-mark 30 companies at least a week later without seeing my old answers, so that we know how consistent I am.
 16. As a reviewer, I want to approve rule changes before they go public, so that nothing leaves the system unseen.
 
 ### Profile author
 
-17. As a profile author, I want to add a new product by writing one file, so that no code has to change.
+17. As a profile author, I want to add a new product by describing it in a few sentences and checking a drafted profile, so that no code has to change and I don't have to write questions from scratch.
 18. As a profile author, I want a clear error when a profile is incomplete, so that I don't waste a run.
 19. As a profile author, I want each profile to have its own rules file, test cases and scores, so that products never mix.
 20. As a profile author, I want a new profile to be private by default, so that nothing is published by accident.
@@ -228,6 +240,8 @@ Judging models are also compared directly. See "AI models" below.
 50. As someone who cloned the repo, I want the AWS setup to use my own account and settings, so that I deploy my own private copy.
 51. As someone who cloned the repo, I want public results off by default, so that nothing of mine is published unless I choose it.
 52. As someone who cloned the repo, I want every limit to be a setting, so that I can choose my own budget and list size.
+53. As someone who uses the project now and then, I want to run it, prepare companies to mark and improve the rules whenever I choose, so that it works without running every day.
+54. As someone who doesn't write code, I want to do everything after entering my keys from the web page, so that I never need the terminal.
 
 ## Implementation Decisions
 
@@ -239,10 +253,11 @@ Judging models are also compared directly. See "AI models" below.
   - The product and who uses it.
   - The search words.
   - The countries and languages to include.
-  - Quick look questions.
+  - Quick look questions, which are optional. If they are left out, the quick look uses the required questions plus one question built from who uses the product.
   - Starting fit questions, marked as either required or supporting.
   - What a good why-now reason looks like.
   - A `public` setting, which is off by default.
+- **Drafting a profile.** The person describes the product in a few sentences, and a model drafts the whole profile: search words, fit questions, which are required or supporting and for or against, and what a good why-now reason looks like. The person edits it and accepts it, on the web page or as the file. A preview shows the companies the last saved read would give. A person approves every required question, because the loop can never change them.
 - The two invented products ship only as example files. Deleting them breaks nothing, and the test suite uses throwaway profiles it creates itself.
 - Each profile has its own rules file, test cases, scores and traces. These live in the workspace and not in the repo. A new profile's rules file starts empty.
 - Which profiles run daily is a setting. Only the main example runs daily. The second runs on demand and has no loop.
@@ -294,22 +309,24 @@ Measured on 4 to 5 Nov 2026, from a random sample of 200 companies per job sourc
 
 ### AI models
 
-| Job | Model | Why |
-|---|---|---|
-| Quick look | Jev (TypeSafe), or Claude Haiku 5.5 if there is no Jev access | It answers fixed questions with a probability, which also gives us an order |
-| Research | Claude Sonnet 5.5 | Needs tools |
-| Judge | Decided by a measured test: Jev against Claude Sonnet 5.5 | See below |
-| Write the brief | Claude Sonnet 5.5 | Needs to write text |
-| Propose rule changes | Claude Sonnet 5.5 | Needs to write text |
+| Job | Model | Effort | Why |
+|---|---|---|---|
+| Quick look | Jev (TypeSafe), or Claude Haiku 5.5 if there is no Jev access | Low (Haiku) | It answers fixed questions with a probability, which also gives us an order. Simple questions about many companies, so cost matters most |
+| Research | Claude Sonnet 5.5 | Medium | Needs tools. Medium is the usual starting point for several steps of tool use, and the step limit caps it anyway |
+| Judge | Decided by a measured test: Jev against Claude Sonnet 5.5 | Medium (Sonnet) | See below |
+| Write the brief | Claude Sonnet 5.5 | Medium | Writes from quotes it is given, and the fact check catches mistakes |
+| Propose rule changes | Claude Sonnet 5.5 | High | Few calls, and the hardest reasoning: working out why a question went wrong |
 
 - **Fit questions work with both judges.** Each is one yes/no question, which is how Jev's documentation recommends working and which Claude can answer as structured output. Both judges return one answer and one probability per question. Claude's probability is its own estimate, so it is less trustworthy than a trained one, and the comparison will show whether that matters.
 - **How answers combine.** Code combines answers the same way for both judges. A company is a yes if every required question passes and its strength reaches a fixed cut-off. Strength comes from the supporting questions, each of which counts for or against: it is the average of the probability of yes for "for" questions and of no for "against" ones, or 1 when there are none. A required "against" question passes when no is at least as likely as the required setting.
-- **Answers are saved per question.** A saved answer is kept by evidence pack, question and model. Only what the model is shown counts as the question: its id, its text and what yes and no mean. So a try pays only for a new or edited question, a new model is asked again, and a run on the same packs can be repeated for free. A missing, out-of-range or refused answer gets one retry, then the company is recorded as failed, never counted as a no.
+- **Effort.** Claude models take an effort setting, which controls how much the model thinks before answering and so what it costs. Each job has a fixed effort, as a setting, shown in the table. Without one, Sonnet 5.5 runs at high and Haiku 5.5 at medium. Effort is tuned on the practice pile only.
+- **Answers are saved per question.** A saved answer is kept by evidence pack, question, model, effort and prompt version, so a changed prompt or effort is asked again rather than mixed with old answers. Only what the model is shown counts as the question: its id, its text and what yes and no mean. So a try pays only for a new or edited question, a new model is asked again, and a run on the same packs can be repeated for free. A missing, out-of-range or refused answer gets one retry, then the company is recorded as failed, never counted as a no.
 - **Why this matters for the loop.** A required question can only turn a yes into a no. A supporting question can move a company either way, so the loop can fix both wrong yeses and wrong no's. Profiles keep required questions to true deal-breakers, because the loop can't change them.
-- **The comparison.** Both judges run on the same check pile, before the loop starts, and the higher score wins. The result is published, whichever way it goes. The loop then runs with the winner. If there is no Jev access, the comparison is Claude Haiku 5.5 against Claude Sonnet 5.5.
+- **The comparison.** Only two judge setups are compared: Jev, and Claude Sonnet 5.5 at medium effort. Comparing many setups on the check pile and keeping the best would fit the score to that pile. Both run on the same check pile, before the loop starts, and the higher score wins. The result is published, whichever way it goes. The loop then runs with the winner. If there is no Jev access, the comparison is Claude Haiku 5.5 against Claude Sonnet 5.5.
 - **Fixed thresholds.** The cut-off points for combining answers are set using the practice pile only, and are recorded for each judge model. The cut-off is the point with the best score, trying points 0.05 apart and taking the lowest on a tie.
+- **Consistent answers.** Claude's sampling temperature, the setting that makes answers more or less random, can't be changed on these models, and the API gives no token probabilities, so Claude's probability is a number it writes. Saved answers make a repeat identical, so only first answers can vary. To see how much they vary, the same questions are asked 5 times on 20 practice packs, without saved answers, for Claude and Jev alike. If Claude's answers vary much, it answers in five fixed levels that code turns into numbers, and the levels are kept only if the variation falls. Jev keeps its own probability, because it comes from the model itself.
 - **Version locking.** Every model version is locked and recorded with each score. The `jev-latest` and `jev-preview` names are never used, because Jev's documentation warns their answers can change without any code change. A model name without a full version, or without a price, is refused.
-- **Why Jev is treated with care.** Jev's main selling points are speed and cost. Speed doesn't matter in an overnight run. Its large claimed gains come from its maker's own tests. Its documentation says it reads literally and struggles with several steps of reasoning, and that irrelevant text lowers its accuracy. What interests us is that it returns probabilities and can only answer from fixed options, which limits what a hostile ad can make it output.
+- **Why Jev is treated with care.** Jev's main selling points are speed and cost. Speed doesn't matter in a run nobody waits for. Its large claimed gains come from its maker's own tests. Its documentation says it reads literally and struggles with several steps of reasoning, and that irrelevant text lowers its accuracy. What interests us is that it returns probabilities and can only answer from fixed options, which limits what a hostile ad can make it output.
 
 ### Research limits
 
@@ -344,9 +361,9 @@ Job ads and web pages may contain text aimed at AI, such as "ignore your rules a
 
 ### Review page and public pages
 
-- **Review page, behind login:** short list, more list, decisions with reasons, marking without the agent's answer, the re-marking test, rule approvals, the history of tries, and spending.
+- **Review page, behind login:** the place a person does everything after setup, so nobody needs the terminal: drafting a profile, preparing and marking companies, "Run now" and "Improve now" (on one's own computer), the short list and more list, decisions with reasons, the re-marking round, rule approvals as soon as they appear, the history of tries, spending, a read-only settings page showing each number with its reason, and a setup status page saying what is missing and how to fix it. Keys stay in the environment file or Parameter Store, and schedules are set in the AWS setup, not on the page. The terminal stays for developers.
 - **Public score page, no login, off by default:** final pile results, working scores over time with kept and rejected tries, final pile openings, the number of companies behind each number, and the statement of what the score means. Only profiles marked public appear, and no company names appear. Before there is data, it says so.
-- **Public simulation page, no login:** one invented company followed through every step, where visitors can click approve or reject. It is clearly labelled as a simulation. It makes no AI calls, saves nothing and shows no scores, so real numbers appear only on the score page. It is built after the real agent works, so it copies something real.
+- **Public simulation page, no login:** one invented company followed through every step, where visitors can click approve or reject. It carries one small label, always visible at the top while scrolling, saying it is a demo with invented companies, so a screenshot can't lose it. It should look modern and fit the project. It makes no AI calls, saves nothing and shows no scores, so real numbers appear only on the score page. It is built after the real agent works, so it copies something real.
 
 ### Hosting on AWS
 
@@ -359,6 +376,7 @@ Job ads and web pages may contain text aimed at AI, such as "ignore your rules a
 | Secrets | AWS Parameter Store | Secrets stay out of the code |
 | Setup | AWS CDK in Python | Rebuildable with one command |
 
+- **Built by hand first.** The owner builds the AWS parts by hand, guided, to learn each service, and runs the app against them. Then the AWS setup as code builds everything, and the hand-made parts are deleted. No real data lives on AWS before that, so nothing is lost. People who clone the project use the code.
 - There is no custom domain at first. The free AWS web address is used.
 - No always-on servers and no paid network gateway. AWS App Runner is closed to new customers and was not an option.
 - The same code runs locally with a local store while building, and AWS comes later in the build order.
@@ -371,7 +389,7 @@ Limits, covering AI calls, AWS and Langfuse together:
 - A hard limit of $70 a month, with a warning at $50.
 - All AI calls go through one place that records their cost. At the limit, paid calls stop. The daily read still runs, and the page says what was skipped.
 - Research is limited to about 12 companies a day and the loop to about $25 a month. Both are worked out from the $70 limit, so that the loop can't spend the money research needs.
-- The first test case research happens before the daily run starts, so the two costs don't fall in the same month. Later one-time research, such as for a check pile refresh or the second profile, counts towards the same limit, and daily research is paused while it runs.
+- Preparing companies for marking is research too. It is charged to its own category, counts towards the same limit, and daily research is paused while it runs.
 - These limits are reviewed once real costs are measured.
 - The account owner also sets a spending limit with each provider. Warnings appear on the review page. Any AWS billing alert goes only to the owner's own address, set by the owner.
 
@@ -382,7 +400,7 @@ Limits, covering AI calls, AWS and Langfuse together:
 - **Traced lightly:** the quick look gets one trace per run with totals, because it covers many companies.
 - A local counter tracks units used. Near 40,000, tracing is thinned, and tries are kept in full.
 - Our own store holds the test cases, decisions and score history. Langfuse holds copies for viewing and comparing, so nothing important is lost when history leaves its 30-day view.
-- Each run's trace records the profile, the rules file version and the model versions.
+- Each run's trace records the profile and its version, the rules file version, and the model versions with their effort and prompt versions.
 
 ### The repo, the workspace and public results
 
@@ -422,12 +440,19 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | About 12 researched a day | The budget | Worked out from the $70 limit, then redone from measured cost |
 | About 5 research steps | Cost, and how far a hostile page can lead the agent | Starting guess, checked in traces for companies that reach the limit |
 | 2 more companies right to keep a change | Against keeping changes that were luck | A judgement, not proof. A formal test would need about 6 companies better and none worse, which almost no single change could reach. The final pile is what confirms real gains |
-| 50 tries per check pile | Against wearing out the check pile | Starting guess. It is lowered if final pile scores fall behind check pile scores |
-| 150, 75 and 75 companies | Measurement quality within the reviewer's time | About 5 to 10 hours of marking. Practice is largest because the loop needs examples to learn from. Check and final are equal so their numbers are about as reliable |
+| 50 tries, then 25 new check companies before more | Against wearing out the check pile | Starting guess. It is lowered if final pile scores fall behind check pile scores |
+| 3 tries per improvement run | A run started on demand ending quickly, and one run using up the check pile | Starting guess |
+| 15 yes answers in the check pile before the loop starts | Against keeping changes on a pile too small to judge | The lowest aim per pile, below |
+| 20 companies prepared at a time | Marking sittings having companies ready, without paying for research nobody marks | Starting guess, about one short sitting |
+| 400 characters of a company page on the marking card | A card short enough to read in seconds | Starting guess. The full pack is one tap away |
+| 150, 75 and 75 companies, the aim for each pile | Measurement quality within the reviewer's time | About 5 to 10 hours of marking. Practice is largest because the loop needs examples to learn from. Check and final are equal so their numbers are about as reliable |
 | About 25 yes answers per pile, or 15 at least | Against precision that swings too much | A judgement. With 25, one company moves precision by about 4 points |
 | 40 companies marked first | Knowing the share of yes answers early | Enough to tell 1 in 3 (about 13 yes) from 1 in 10 (about 4 yes) |
 | 500 companies marked at most | The reviewer's time | The owner's choice |
-| 30 companies re-marked | A rough measure of consistency | Under an hour of work. The result is rough and is reported as rough |
+| 30 companies re-marked | A rough measure of consistency | A few minutes on the short card. Optional. The result is rough and is reported as rough |
+| F1 (`score_beta` 1) | Weighing a missed company the same as a wrong one | The short list limit already protects the reviewer's time, and a wrong no is the harder mistake to see. See `docs/decisions/0006-f1-replaces-f05.md` |
+| Effort: low, medium or high per job | Cost, against thinking too little on hard steps | See the AI models table. Starting choices, tuned on the practice pile only |
+| 5 asks on 20 practice packs | Knowing how much a model's first answers vary | Starting guess. Enough to see a spread, cheap enough to repeat after a change |
 | 1 second between requests | The job sources | Lever's robots file |
 | 7 days before setting a page aside | Against dropping a page for a short outage | Starting guess |
 | $70 limit, $50 warning | Money | The owner's choice |
@@ -505,7 +530,7 @@ There is no existing code to follow, so these tests set the pattern. All outside
 - Page reader safety: blocked sites, private addresses and redirects into them.
 - The rule change screen.
 - The budget stop.
-- Pile assignment: fixed by the seed, with no company in two piles.
+- Pile assignment: decided from the seed and company key at pick time, never by an answer or by marking order, with no company in two piles.
 - Generality: a run with a throwaway profile, and a check that no product name appears in the code.
 - A fresh clone: with an empty workspace and no keys, the sample run works on invented data, and no run data appears in the repo afterwards.
 
@@ -515,17 +540,17 @@ The AWS setup gets a basic synthesis test, then a real deployment check.
 
 ## Build Order
 
-Each stage ends with something that works and an update to `docs/problems.md`. Each stage also includes a plain explanation of what was built and why, so that every choice can be defended.
+Each stage ends with something that works and an update to `docs/problems.md`. Each stage also includes a plain explanation of what was built and why, so that every choice can be defended, and a hands-on session where the owner runs it.
 
 1. **Repo and accounts.** Create the repo as above. Check which accounts exist and create what's missing. Done when the first commit is on GitHub and tests run on push.
 2. **Read job ads.** Build the settings and workspace, both adapters, polite reading, saved copies, the search, grouping by company, and the command that builds a list of careers pages. Done when a local run on a sample works and the Common Crawl question is answered.
-3. **Profiles.** Build profile loading and draft the main example profile, which the reviewer edits. It is locked in stage 4, before the main marking.
-4. **Test cases.** Build research, evidence packs and the marking page, run locally. Mark 40 companies to measure the share of yes answers, adjust and lock the profile if needed, then mark about 300 companies, repeat 30 a week later, and split the piles. This is the longest stage because of the marking.
+3. **Profiles.** Build profile loading and draft the main example profile, which the reviewer edits. It is locked at its first mark in stage 4.
+4. **Test cases.** Build research, evidence packs and the marking page, run locally. Prepare and mark 40 companies to measure the share of yes answers, adjust the profile if needed, then keep marking in sittings until the check pile has enough yes answers to start the loop. Repeat marking is optional. This is the longest stage because of the marking.
 5. **Quick look, judge and score.** Build the quick look, the judge, the score and the baselines, all traced in Langfuse. Run the model comparison. Done when there are first real numbers and a first final pile reading.
 6. **Daily list.** Build briefs, the fact check, the short list and the more list. Run it locally each day for real use.
 7. **Hidden instructions.** Build the invented test set and run it on the full agent.
 8. **The improvement loop.** Build tries, the screen, the keep rule and records. Done when real tries have been both kept and discarded.
-9. **AWS.** Set up login, web pages, the scheduled daily run and storage as code. Done when it runs by itself for a week.
+9. **AWS.** The owner builds the AWS parts by hand first, guided, and runs the app against them. Then login, web pages, the scheduled daily run and storage are set up as code, and the hand-made parts are deleted. Done when it runs by itself for a week.
 10. **Public pages.** Build the score page and the rule approval flow.
 11. **Second profile.** Write it, mark about 50 companies, and run it with no code changes. Publish its score as rough.
 12. **Simulation page.** Build it from what the real agent does.
@@ -543,9 +568,26 @@ The agent can be used from stage 6, and the build keeps going until all stages a
 - Training or fine-tuning models.
 - A custom domain, or a shared service with accounts for many people. Each person runs their own copy.
 - Improving the research or brief writing steps through the loop. The loop improves judging only.
+- Entering keys or setting schedules on the web page.
 
 ## Further Notes
 
 - **What the project should be able to show someone walking through it:** the architecture and the reasons for it, rejected options, traces of real runs, scores across versions including rejected changes, real problems and lessons, tested Python, the coding agent setup, the daily run on AWS, and tests against hidden instructions.
 - **Known limits to state openly:** one reviewer with no sales background marks everything, the piles are small, the score is agreement and not buying, and job sources cover only companies that use them.
 - **Why three piles and frozen packs matter:** the promise that a change is kept only if it does better on cases the agent never saw is easy to weaken without noticing. These two rules are what keep it honest.
+
+## Revision of 8 Nov 2026
+
+After 22 tickets were built, the owner read the design closely and raised points, and an independent reviewer checked the proposed answers. What changed and why:
+
+- **On-demand use.** The project must work in occasional sittings, so runs, marking and the loop can all be started when wanted. A scheduled run stays the normal use.
+- **Less work for the person.** Marking is done in sittings of any size, from a short card with one-tap answers and short reason choices. Daily decisions give short-list precision for free. Profiles are drafted from a few sentences. Repeat marking is optional.
+- **Piles fill as companies are marked,** with each pile decided when a company is picked, instead of one split after about 300 marks. See `docs/decisions/0007-piles-fill-as-companies-are-marked.md`.
+- **F1 replaces F0.5,** because the short list limit already protects the reviewer's time and a wrong no is the mistake nobody sees. See `docs/decisions/0006-f1-replaces-f05.md`.
+- **Effort is set per job,** and only two judge setups are compared, so the check pile isn't worn out choosing among many.
+- **Saved answers carry effort and prompt version,** so a changed prompt is never mixed with old answers.
+- **Consistency is measured first,** then fixed answer levels are tried for Claude if needed.
+- **The rule proposer reads reasons for correct yeses too,** from the practice pile and daily decisions only.
+- **The web page becomes where a person does everything after entering keys.**
+- **The owner builds AWS by hand first,** then the setup as code replaces it.
+- **The simulation page** carries one small label that stays visible, rather than labels on every heading.

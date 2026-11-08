@@ -2,6 +2,8 @@
 
 Decided 6 Nov 2026 (ticket 17).
 
+**Note:** The score part is replaced by `0006-f1-replaces-f05.md` (8 Nov 2026). The parts on required and supporting questions and the cut-off still hold.
+
 ## The score is F0.5
 
 The agent's yes or no on each company is compared with the reviewer's mark. Two measures come out of that:
