@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from why_now.ai import BadModelOutput, Models, ResearchStep
 from why_now.ai.budget import Meter
 from why_now.domain import Answer, Claim, Decision, FitQuestion, JobAd, Mark
-from why_now.pipeline.brief import BriefDraft
+from why_now.pipeline.brief import BRIEF_PROMPT_VERSION, BriefDraft
 from why_now.pipeline.day import run_day
 from why_now.pipeline.reader import PageReader
 from why_now.run_context import RunContext
@@ -79,6 +79,7 @@ class FakeAnswerer:
 
     def __init__(self, chance: Callable[[str, str], float]):
         self.model = "fake-answerer"
+        self.answer_key = self.model
         self.chance = chance  # (company's board name, category) to probability of yes
         self.calls = 0
 
@@ -98,6 +99,7 @@ class QuoteWriter:
     """Writes a brief that quotes the first job ad in the evidence."""
 
     model = "fake-writer"
+    answer_key = model
 
     def __init__(self, quote: str = QUOTE):
         self.quote = quote
@@ -137,6 +139,7 @@ class CountingResearch:
     """Says it is done at once, counting how many companies were researched."""
 
     model = "fake-research"
+    answer_key = model
 
     def __init__(self):
         self.count = 0
@@ -149,10 +152,12 @@ class CountingResearch:
 class RecordingTracer:
     def __init__(self):
         self.traces: list[tuple[str, str]] = []
+        self.models: dict[str, dict[str, str]] = {}
 
     @contextmanager
     def trace(self, name, *, profile_id, rules_version, models, detail="full"):
         self.traces.append((name, detail))
+        self.models[name] = models
 
         class Handle:
             def step(self, name, input, output): ...
@@ -406,6 +411,17 @@ def test_research_judge_and_brief_are_traced_and_quick_look_lightly(make_world):
     assert ("judge", "full") in world.tracer.traces
     assert ("brief", "full") in world.tracer.traces
     assert ("quick_look", "light") in world.tracer.traces
+
+
+def test_traces_record_each_models_answer_key(make_world):
+    world = make_world(1)
+    world.tracer = RecordingTracer()
+    world.day()
+    models = world.tracer.models
+    assert models["judge"] == {"judge": "fake-answerer"}
+    assert models["research"] == {"research": "fake-research"}
+    # The writer's key has no prompt part, so the brief adds its own prompt version.
+    assert models["brief"] == {"writer": f"fake-writer#p{BRIEF_PROMPT_VERSION}"}
 
 
 def test_undecided_companies_carry_over_at_no_cost(make_world):  # Review Focus 2

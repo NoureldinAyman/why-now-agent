@@ -36,6 +36,7 @@ class CountingModel:
     """Says it is done at once, counting each call. Can fail for some companies."""
 
     model = "counting"
+    answer_key = model
 
     def __init__(self, fail_for: frozenset[str] = frozenset(), on_step=None):
         self.calls = 0

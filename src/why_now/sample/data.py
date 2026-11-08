@@ -135,6 +135,7 @@ class SampleAnswerer:
     """Gives every question the chance of yes set for the company whose name it finds."""
 
     model = f"{SCRIPTED}-answerer"
+    answer_key = model
 
     def __init__(self, companies: list[SampleCompany] = COMPANIES):
         self.companies = companies
@@ -148,6 +149,7 @@ class SampleWriter:
     """Writes a brief that quotes the first job ad in the evidence it is given."""
 
     model = f"{SCRIPTED}-writer"
+    answer_key = model
 
     def structured[M: BaseModel](
         self, *, system: str, untrusted: str, schema: type[M], category: str

@@ -9,10 +9,20 @@ from typing import Any
 
 from typesafe_sdk import Noul, NoulCriteria, SystemOneResponse, TypeSafeClient
 
-from why_now.ai import UNTRUSTED_NOTE, BadModelOutput, check_answers, locked_price, mark_untrusted
+from why_now.ai import (
+    UNTRUSTED_NOTE,
+    BadModelOutput,
+    answer_key,
+    check_answers,
+    locked_price,
+    mark_untrusted,
+)
 from why_now.ai.budget import Meter, call_cost
 from why_now.domain import Answer, FitQuestion
 from why_now.settings import Settings
+
+# Raise when the state text or the way questions become Nouls changes. Jev has no effort.
+JEV_PROMPT_VERSION = 1
 
 
 def jev_client(api_key: str, model: str) -> TypeSafeClient:
@@ -25,6 +35,7 @@ class JevAnswerer:
         # `client` is a `TypeSafeClient`, or a fake with the same `system_one`.
         self.client = client
         self.model = model
+        self.answer_key = answer_key(model, None, JEV_PROMPT_VERSION)
         self.price = locked_price(model, settings)
         self.meter = meter
 

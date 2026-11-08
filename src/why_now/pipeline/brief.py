@@ -20,6 +20,10 @@ from why_now.tracing import Tracer
 
 CATEGORY = "brief"  # the budget category briefs are charged to
 
+# Raise when BRIEF_SYSTEM or RETRY_NOTE changes. Briefs are not saved for reuse, so
+# the version only labels the trace.
+BRIEF_PROMPT_VERSION = 1
+
 BRIEF_SYSTEM = """\
 You write a short brief about one company for a person who sells {product_name}: \
 {product_description} Its users are {users}.
@@ -73,7 +77,10 @@ def write_brief(
     evidence = pack_state(pack)
     problems: list[str] = []
     with tracer.trace(
-        "brief", profile_id=profile.id, rules_version=None, models={"writer": writer.model}
+        "brief",
+        profile_id=profile.id,
+        rules_version=None,
+        models={"writer": f"{writer.answer_key}#p{BRIEF_PROMPT_VERSION}"},
     ) as trace:
         # The first attempt, then one more if it fails.
         for attempt in (1, 2):

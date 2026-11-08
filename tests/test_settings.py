@@ -96,3 +96,10 @@ def test_example_file_has_a_comment_for_every_setting():
         starts = (f"{name} =", f"[{name}]")
         at = next(i for i, line in enumerate(lines) if line.startswith(starts))
         assert at > 0 and lines[at - 1].startswith("# "), name
+
+
+def test_an_unknown_effort_is_refused():
+    with pytest.raises(ValidationError):
+        load_settings(env={"WHY_NOW_JUDGE_EFFORT": "extreme"})
+    with pytest.raises(ValidationError):  # the design allows low, medium or high only
+        load_settings(env={"WHY_NOW_JUDGE_EFFORT": "max"})

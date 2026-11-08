@@ -7,8 +7,9 @@ no, the same way for every model:
 - Strength is the mean over supporting questions of `p` for "for" questions and
   `1 - p` for "against" ones, or 1 when there are none. It must reach the cut-off.
 
-Answers are saved per evidence pack, question and model, so a try only pays for
-a new or edited question, and a run on the same pack can be repeated for free.
+Answers are saved per evidence pack, question and answer key (model, effort and
+prompt version), so a try only pays for a new or edited question, and a run on
+the same pack can be repeated for free.
 
 See docs/decisions/0002.
 """
@@ -77,7 +78,7 @@ def answer_questions(
     probabilities: dict[str, float] = {}
     unasked: dict[str, FitQuestion] = {}
     for q in questions:
-        p = workspace.saved_answer(pack.pack_id, q, answerer.model)
+        p = workspace.saved_answer(pack.pack_id, q, answerer.answer_key)
         if p is None:
             unasked[q.id] = q
         else:
@@ -85,7 +86,7 @@ def answer_questions(
     if unasked:
         for answer in ask_with_one_retry(pack, list(unasked.values()), answerer, category):
             question = unasked[answer.question_id]
-            workspace.save_answer(pack.pack_id, question, answerer.model, answer.probability)
+            workspace.save_answer(pack.pack_id, question, answerer.answer_key, answer.probability)
             probabilities[question.id] = answer.probability
     return [
         Answer(question_id=q.id, probability=probabilities[q.id], model=answerer.model)

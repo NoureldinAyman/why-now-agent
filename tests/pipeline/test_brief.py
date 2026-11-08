@@ -33,6 +33,7 @@ class FakeWriter:
     """Returns the scripted drafts in turn, and records what it was sent."""
 
     model = "writer-model"
+    answer_key = model
 
     def __init__(self, *drafts: BriefDraft | Exception):
         self.drafts = list(drafts)

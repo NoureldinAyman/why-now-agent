@@ -222,6 +222,7 @@ class _InCategory:
 
     def __init__(self, writer: Writer, category: str):
         self.model = writer.model
+        self.answer_key = writer.answer_key
         self._writer = writer
         self._category = category
 
@@ -283,7 +284,7 @@ def _record(
     tracer: Tracer, profile: Profile, models: Models, attack: Attack, result: AttackResult
 ) -> None:
     """Keep each result in the trace, so a failed attack can be looked at later."""
-    names = {"judge": models.judge.model, "writer": models.writer.model}
+    names = {"judge": models.judge.answer_key, "writer": models.writer.answer_key}
     with tracer.trace(
         "hostile_attack", profile_id=profile.id, rules_version=None, models=names
     ) as trace:

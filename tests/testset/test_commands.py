@@ -33,6 +33,7 @@ def ad(board: str, days_ago: int, title: str = "Sales Rep") -> JobAd:
 
 class DoneModel:
     model = "done"
+    answer_key = model
 
     def __init__(self):
         self.calls = 0

@@ -117,3 +117,7 @@ _Avoid_: Sample, queue, fetch
 **Effort**:
 A setting on Claude models that controls how much the model thinks before answering, and so what a call costs. Each job has its own.
 _Avoid_: Thinking budget, reasoning level
+
+**Answer key**:
+One label for a model as it was asked: its name, its effort and its prompt version, such as `claude-sonnet-5-5@medium#p1`. Saved answers and cut-offs are kept under it, so a change to any part asks again.
+_Avoid_: Model id, cache key

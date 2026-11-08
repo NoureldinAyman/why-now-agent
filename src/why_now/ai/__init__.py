@@ -16,7 +16,7 @@ from pydantic import BaseModel
 
 from why_now.ai.budget import Meter
 from why_now.domain import Answer, FitQuestion
-from why_now.settings import ModelPrice, Settings
+from why_now.settings import Effort, ModelPrice, Settings
 
 
 class BadModelOutput(Exception):
@@ -29,12 +29,16 @@ class UnknownModel(ValueError):
 
 class Answerer(Protocol):
     model: str
+    # The model, its effort and its prompt version as one label. Saved answers,
+    # cut-offs and traces use it, so a changed prompt or effort is asked again.
+    answer_key: str
 
     def answer(self, state: str, questions: list[FitQuestion], category: str) -> list[Answer]: ...
 
 
 class Writer(Protocol):
     model: str
+    answer_key: str
 
     def structured[M: BaseModel](
         self, *, system: str, untrusted: str, schema: type[M], category: str
@@ -56,6 +60,7 @@ class ResearchStep(BaseModel):
 
 class ResearchModel(Protocol):
     model: str
+    answer_key: str
 
     def step(self, conversation: list[dict], category: str) -> ResearchStep: ...
 
@@ -81,6 +86,19 @@ _JEV_VERSION = re.compile(r"jev-\d+\.\d+\.\d+")
 def mark_untrusted(text: str) -> str:
     """Wrap job ad or page text in labelled tags, removing any look-alike tags inside it."""
     return f"<untrusted_text>\n{_TAG.sub('[tag removed]', text)}\n</untrusted_text>"
+
+
+def answer_key(model: str, effort: str | None, prompt_version: int | None) -> str:
+    """`model@effort#pN`, leaving out a part the model has none of.
+
+    Jev has no effort, and the writer's prompts belong to its callers.
+    """
+    key = model
+    if effort is not None:
+        key += f"@{effort}"
+    if prompt_version is not None:
+        key += f"#p{prompt_version}"
+    return key
 
 
 def locked_price(model: str, settings: Settings) -> ModelPrice:
@@ -125,9 +143,9 @@ def build_models(settings: Settings, meter: Meter, env: Mapping[str, str]) -> Mo
     claude = anthropic.Anthropic(api_key=env.get("ANTHROPIC_API_KEY"))
     jev_key = env.get("TYPESAFE_API_KEY")
 
-    def answerer(model: str) -> Answerer:
+    def answerer(model: str, effort: Effort) -> Answerer:
         if not model.startswith("jev-"):
-            return ClaudeAnswerer(claude, model, settings, meter)
+            return ClaudeAnswerer(claude, model, settings, meter, effort=effort)
         if not jev_key:
             raise UnknownModel(f"{model!r} needs a Jev key in TYPESAFE_API_KEY")
         from why_now.ai.jev import JevAnswerer, jev_client
@@ -136,8 +154,12 @@ def build_models(settings: Settings, meter: Meter, env: Mapping[str, str]) -> Mo
 
     quick_look = settings.quick_look_model if jev_key else settings.quick_look_fallback_model
     return Models(
-        quick_look=answerer(quick_look),
-        judge=answerer(settings.judge_model),
-        writer=ClaudeWriter(claude, settings.writer_model, settings, meter),
-        research=ClaudeResearchModel(claude, settings.research_model, settings, meter),
+        quick_look=answerer(quick_look, settings.quick_look_effort),
+        judge=answerer(settings.judge_model, settings.judge_effort),
+        writer=ClaudeWriter(
+            claude, settings.writer_model, settings, meter, effort=settings.writer_effort
+        ),
+        research=ClaudeResearchModel(
+            claude, settings.research_model, settings, meter, effort=settings.research_effort
+        ),
     )

@@ -17,13 +17,20 @@ from why_now.ai import (
     UNTRUSTED_NOTE,
     BadModelOutput,
     ResearchStep,
+    answer_key,
     check_answers,
     locked_price,
     mark_untrusted,
 )
 from why_now.ai.budget import Meter, call_cost
 from why_now.domain import Answer, FitQuestion
-from why_now.settings import Settings
+from why_now.settings import Effort, Settings
+
+# Raise a version whenever its prompt changes in a way that could change answers,
+# so answers saved under the old prompt are not reused. ANSWER covers the system
+# prompt and the text around the questions; RESEARCH covers the research prompt.
+ANSWER_PROMPT_VERSION = 1
+RESEARCH_PROMPT_VERSION = 1
 
 ANSWER_SYSTEM = (
     "You judge whether a company fits a product, one yes/no question at a time. "
@@ -51,18 +58,24 @@ class _AnswerList(BaseModel):
 class ClaudeCaller:
     """The one place a Claude call is made: check the budget, call, then charge."""
 
-    def __init__(self, client: Any, model: str, settings: Settings, meter: Meter):
+    def __init__(
+        self, client: Any, model: str, settings: Settings, meter: Meter, *, effort: Effort
+    ):
         # `client` is an `anthropic.Anthropic`, or a fake with the same `messages.create`.
         self.client = client
         self.model = model
+        self.effort = effort
         self.price = locked_price(model, settings)
         self.max_tokens = settings.model_max_output_tokens
         self.meter = meter
 
     def create(self, category: str, **request: Any) -> Message:
         self.meter.ensure(category)
+        # Every call carries its job's effort, next to any output format it asks for.
+        # Effort comes last, so a caller can't override the job's setting by mistake.
+        output_config = {**request.pop("output_config", {}), "effort": self.effort}
         message: Message = self.client.messages.create(
-            model=self.model, max_tokens=self.max_tokens, **request
+            model=self.model, max_tokens=self.max_tokens, output_config=output_config, **request
         )
         usage = message.usage
         # Cached input is counted at the full input price. The agent does not use
@@ -107,9 +120,12 @@ class ClaudeCaller:
 
 
 class ClaudeAnswerer:
-    def __init__(self, client: Any, model: str, settings: Settings, meter: Meter):
+    def __init__(
+        self, client: Any, model: str, settings: Settings, meter: Meter, *, effort: Effort
+    ):
         self.model = model
-        self._caller = ClaudeCaller(client, model, settings, meter)
+        self.answer_key = answer_key(model, effort, ANSWER_PROMPT_VERSION)
+        self._caller = ClaudeCaller(client, model, settings, meter, effort=effort)
 
     def answer(self, state: str, questions: list[FitQuestion], category: str) -> list[Answer]:
         content = (
@@ -124,9 +140,13 @@ class ClaudeAnswerer:
 
 
 class ClaudeWriter:
-    def __init__(self, client: Any, model: str, settings: Settings, meter: Meter):
+    def __init__(
+        self, client: Any, model: str, settings: Settings, meter: Meter, *, effort: Effort
+    ):
         self.model = model
-        self._caller = ClaudeCaller(client, model, settings, meter)
+        # The system prompt comes from each caller, so the key carries no prompt version.
+        self.answer_key = answer_key(model, effort, None)
+        self._caller = ClaudeCaller(client, model, settings, meter, effort=effort)
 
     def structured[M: BaseModel](
         self, *, system: str, untrusted: str, schema: type[M], category: str
@@ -147,9 +167,12 @@ class ClaudeResearchModel:
     with the matching `tool_use_ids`, before the next step.
     """
 
-    def __init__(self, client: Any, model: str, settings: Settings, meter: Meter):
+    def __init__(
+        self, client: Any, model: str, settings: Settings, meter: Meter, *, effort: Effort
+    ):
         self.model = model
-        self._caller = ClaudeCaller(client, model, settings, meter)
+        self.answer_key = answer_key(model, effort, RESEARCH_PROMPT_VERSION)
+        self._caller = ClaudeCaller(client, model, settings, meter, effort=effort)
 
     def step(self, conversation: list[dict], category: str) -> ResearchStep:
         message = self._caller.create(

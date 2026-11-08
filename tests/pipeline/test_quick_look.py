@@ -59,8 +59,9 @@ class Tracer:
 class ScriptedAnswerer:
     """Answers with a probability picked from the company's text: the text is the probability."""
 
-    def __init__(self, model: str = "fake-1"):
+    def __init__(self, model: str = "fake-1", answer_key: str | None = None):
         self.model = model
+        self.answer_key = answer_key or model
         self.states: list[str] = []
         self.asked: list[list[str]] = []
 
@@ -112,6 +113,31 @@ def test_answers_are_saved_per_model(profile, settings, workspace):
     other = ScriptedAnswerer("fake-2")
     run(company, profile, other, settings, workspace)
     assert len(other.asked) == 1  # a new model version asks again
+
+
+@pytest.mark.parametrize("changed", ["fake-1@high#p1", "fake-1@low#p2"])
+def test_a_changed_effort_or_prompt_version_asks_again(profile, settings, workspace, changed):
+    company = [make_company("a", "0.8")]
+    run(company, profile, ScriptedAnswerer(answer_key="fake-1@low#p1"), settings, workspace)
+    same = ScriptedAnswerer(answer_key="fake-1@low#p1")
+    run(company, profile, same, settings, workspace)
+    assert same.asked == []
+    other = ScriptedAnswerer(answer_key=changed)
+    run(company, profile, other, settings, workspace)
+    assert len(other.asked) == 1
+
+
+def test_the_trace_records_effort_and_prompt_version(profile, settings, workspace):
+    tracer = Tracer()
+    run(
+        [make_company("a", "0.8")],
+        profile,
+        ScriptedAnswerer(answer_key="fake-1@low#p1"),
+        settings,
+        workspace,
+        tracer,
+    )
+    assert tracer.traces[0]["models"] == {"quick_look": "fake-1@low#p1"}
 
 
 def test_a_failure_is_marked_failed_not_dropped(profile, settings, workspace):
