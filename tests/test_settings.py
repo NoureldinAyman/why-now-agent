@@ -32,6 +32,7 @@ def test_numbers_added_to_the_design_table_have_its_values():
     assert s.fixed_monthly_costs_usd == 0
     assert (s.quick_look_pass, s.required_pass, s.cutoff_step) == (0.3, 0.5, 0.05)
     assert s.default_cutoff == 0.5
+    assert s.score_beta == 1
     assert (s.max_page_bytes, s.page_timeout_seconds) == (2_000_000, 15)
     assert (s.max_ad_chars, s.max_pack_chars, s.brief_max_chars) == (20_000, 60_000, 1_200)
     assert (s.screen_max_copied_words, s.screen_max_why_words) == (8, 20)
@@ -69,6 +70,12 @@ def test_environment_can_set_lists_dicts_and_booleans():
     assert s.daily_profiles == [Path("a.yaml")]
     assert s.board_lists == {"greenhouse": Path("boards.txt")}
     assert s.public_results_enabled is True
+
+
+@pytest.mark.parametrize("beta", [0, -1])
+def test_score_beta_must_be_positive(beta):
+    with pytest.raises(ValidationError):
+        load_settings(None, env={"WHY_NOW_SCORE_BETA": str(beta)})
 
 
 def test_a_misspelt_setting_is_refused(tmp_path):

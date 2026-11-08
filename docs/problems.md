@@ -139,3 +139,9 @@ The first piles tests saved 300 cases and 300 marks into a real workspace folder
 One login test took over 7 seconds while the others took a fraction of a second. It only checked that a forged session cookie is refused, and it never called Cognito. The time went into setting up a network client when the login was created. Timed alone on this computer, making the first client took 1.7 seconds and the next 0.7, and more while other tests were running. The client is now made the first time it is needed, and the test takes under a second. On Lambda this also shortens every start, since most requests only read the session cookie.
 
 **What it taught:** slow set-up hides in constructors. Make expensive things when they are first used, and read the slowest tests list, not only the total.
+
+## 9 Nov 2026: A cut-off test that passed for F0.5 gave a different answer under F1
+
+The old test of `choose_cutoff` used five rows and expected 0.65. Under F1 the best cut-off on those rows is 0.25, because letting in one wrong yes to catch the third right company is now a good trade. The test was not wrong, it was measuring the old weighting. It now runs those rows with `score_beta` 0.5 to keep the old numbers, and a new test uses rows where F1 and F0.5 pick different cut-offs (0.45 and 0.65), worked out by hand, so the test fails if the setting is ignored.
+
+**What it taught:** a test that only has one right answer for the old setting cannot show that a new setting is used. Add a case where the settings disagree.

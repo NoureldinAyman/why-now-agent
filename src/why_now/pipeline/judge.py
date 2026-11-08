@@ -37,7 +37,9 @@ def all_questions(profile: Profile, rules: RulesFile) -> list[FitQuestion]:
 def choose_cutoff(
     rows: list[tuple[list[Answer], bool]], questions: list[FitQuestion], settings: Settings
 ) -> float:
-    """The cut-off with the best F0.5 on `rows`, each a company's answers and the reviewer's yes.
+    """The cut-off with the best score on `rows`, each a company's answers and the reviewer's yes.
+
+    The score is F-beta with the `score_beta` setting.
 
     Tried on a grid from 0 to 1 in `cutoff_step` steps. On a tie the lowest wins.
     Callers pass practice pile rows only, so the cut-off never sees the check or final pile.
@@ -48,13 +50,14 @@ def choose_cutoff(
     # is 1 even when the step does not divide 1 evenly.
     steps = math.ceil(round(1 / settings.cutoff_step, 10))
     grid = [min(1.0, round(i * settings.cutoff_step, 10)) for i in range(steps + 1)]
-    best, best_f05 = grid[0], -1.0
+    best, best_f = grid[0], -1.0
     for cutoff in grid:
-        f05 = score(
-            [(combine(questions, answers, cutoff, settings).yes, yes) for answers, yes in rows]
-        ).f05
-        if f05 > best_f05:
-            best, best_f05 = cutoff, f05
+        f = score(
+            [(combine(questions, answers, cutoff, settings).yes, yes) for answers, yes in rows],
+            settings.score_beta,
+        ).f
+        if f > best_f:
+            best, best_f = cutoff, f
     return best
 
 
