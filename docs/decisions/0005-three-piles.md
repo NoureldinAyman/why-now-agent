@@ -2,6 +2,8 @@
 
 Decided 6 Nov 2026 (ticket 14).
 
+**Note:** How piles are filled, frozen and refreshed is replaced by `0007-piles-fill-as-companies-are-marked.md` (8 Nov 2026). Why there are three piles, and repeat marking, still hold.
+
 ## What the piles are
 
 The marked companies are split once into three piles, each company in exactly one:

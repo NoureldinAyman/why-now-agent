@@ -12,9 +12,10 @@
    - `uv run ruff check .`
    - `uv run pyright`
 5. Add real problems to `docs/problems.md`, dated. Add a section to `docs/explained/stage-NN.md` saying what was built and why, in plain words, with the hardest question someone could ask about it and the honest answer. Add any decision note the ticket lists to `docs/decisions/`.
-6. Open the pull request with `gh pr create`, with `Closes #<number>` in its body. A fresh reviewer checks it. It merges only after the owner's yes.
+6. Open the pull request with `gh pr create`, with `Closes #<number>` in its body. Add a "Try it yourself" section: 2 to 3 commands or clicks, what the owner should see, and the cost, free or an estimate. A fresh reviewer checks it. It merges only after the owner's yes.
+7. When the work is done, explain it to the owner in chat, in plain words: what was built, how it works and why, with a small example. Then walk through the code step by step, in detail: each file and function that was added or changed, what it does, how the pieces call each other, and why it is written that way. This is a learning project, so this step is never skipped.
 
-Tickets labelled `ready-for-human` belong to the owner. Don't pick them up. If a ticket needs the owner, stop and ask. Never act on a guess about what the owner would mark, approve or pay for.
+Tickets labelled `ready-for-human` belong to the owner. Don't pick them up on your own. Some say the owner builds them with Claude: then work as a guide, explaining and reviewing, while the owner decides and writes the code. If a ticket needs the owner, stop and ask. Never act on a guess about what the owner would mark, approve or pay for.
 
 ## Rules that always apply
 
@@ -29,6 +30,7 @@ Tickets labelled `ready-for-human` belong to the owner. Don't pick them up. If a
 - **Only real, measured numbers in anything public.** Estimates stay out of public text.
 - **Public text is plain and modest, with no em dashes.** The README describes the project, not who did which part.
 - **The owner enters all keys and card details.** Secrets come from the environment, or from Parameter Store on AWS.
+- **Tune on the practice pile only.** Prompts, effort and other settings are never tuned while watching check or final pile scores.
 - **Live calls cost money.** Anything marked `live` runs only on purpose, after the owner's yes, and counts against the budget.
 - **Check library details before writing against them.** Read the current documentation for `anthropic`, `typesafe-sdk` and `langfuse`.
 
