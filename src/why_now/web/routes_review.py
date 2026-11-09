@@ -81,6 +81,7 @@ def decide(
     _: Reviewer,
     profile: str | None = None,
     decision: Annotated[str, Form()] = "",
+    from_list: Annotated[str, Form()] = "short",
     reason: Annotated[str, Form()] = "",
     chips: Annotated[list[str] | None, Form()] = None,
     form_token: Annotated[str, Form()] = "",
@@ -93,7 +94,7 @@ def decide(
     workspace = Workspace(ctx.store, chosen.id)
     reason, picked = tidy_reason(reason, chips)
     with _DECIDING:
-        found = _waiting(workspace, company_key)
+        found = _waiting(workspace, company_key, "more" if from_list == "more" else "short")
         if found is None:
             if workspace.hidden_until(company_key, ctx.settings.hide_days) is None:
                 raise HTTPException(status_code=404, detail="That company is not on a list")
@@ -122,12 +123,17 @@ def decide(
     return RedirectResponse(_path(which) + _profile_query(ctx, chosen), status_code=303)
 
 
-def _waiting(workspace: Workspace, company_key: str) -> tuple[Which, ListEntry] | None:
-    """The company on the short list or, failing that, the more list, if it awaits a decision."""
+def _waiting(
+    workspace: Workspace, company_key: str, preferred: Which
+) -> tuple[Which, ListEntry] | None:
+    """The company on the list the form came from or, failing that, the other list, if it
+    awaits a decision. A company can be on both lists, and the page it was decided on says
+    which list the decision counts for."""
     lists: list[tuple[Which, list[ListEntry]]] = [
         ("short", workspace.short_list()),
         ("more", workspace.more_list()),
     ]
+    lists.sort(key=lambda pair: pair[0] != preferred)
     for which, entries in lists:
         for entry in entries:
             if entry.company_key == company_key:

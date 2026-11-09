@@ -9,7 +9,7 @@
 {% else %}
 {% if spend.warning %}
 <div class="alert alert-warn" role="status">
-  <p><strong>Spending warning.</strong> ${{ spend.spent }} is past the ${{ spend.warn_at }} warning. Paid work stops at ${{ spend.limit }}.</p>
+  <p><strong>Spending warning.</strong> ${{ spend.spent }} has reached the ${{ spend.warn_at }} warning. Paid work stops at ${{ spend.limit }}.</p>
 </div>
 {% endif %}
 {% if run and run.skipped %}

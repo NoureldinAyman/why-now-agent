@@ -266,3 +266,29 @@ def test_with_two_profiles_the_page_asks_which_and_decisions_stay_in_theirs(
     assert sent.headers["location"] == f"/?profile={profile.id}"
     assert len(workspace.decisions()) == 1
     assert Workspace(store, other.id).decisions() == []
+
+
+def test_a_company_on_both_lists_is_decided_on_the_list_the_form_came_from(
+    client, workspace, listed_company
+):
+    twin = listed_company.model_copy(update={"brief": None, "pack_id": None, "strength": 0.3})
+    workspace.save_day(a_day(short=[listed_company], more=[twin]))
+    token = form_token(client, "/more")
+    data = {"decision": "approve", "reason": "Hiring now.", "form_token": token}
+    sent = client.post("/decide/acme", data=data | {"from_list": "more"}, follow_redirects=False)
+    assert sent.status_code == 303
+    assert sent.headers["location"] == "/more"
+    [decision] = workspace.decisions()
+    assert decision.from_list == "more"
+
+
+def test_the_warning_starts_at_fifty_and_the_stop_at_seventy(client, ctx, listed_company):
+    ctx.meter.charge("research", 49.99, "just under")
+    assert "Spending warning" not in client.get("/").text
+    ctx.meter.charge("research", 0.01, "exactly the warning")
+    assert "Spending warning" in client.get("/").text
+    ctx.meter.charge("research", 19.98, "just under the limit")
+    html = client.get("/").text
+    assert "Paid work is stopped" not in html
+    ctx.meter.charge("research", 0.02, "exactly the limit")
+    assert "Paid work is stopped" in client.get("/").text

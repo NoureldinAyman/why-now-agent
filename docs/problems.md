@@ -181,3 +181,9 @@ The plan's decision held an approval, a free-text reason and the list it came fr
 The pages send a content security policy that allows only our own style sheet, so a bar whose width is set in a `style` attribute is silently ignored. The bar is an inline SVG whose widths are plain attributes, which the policy does not touch. A test cannot see this, because the page text is the same either way. It was found by looking at the page.
 
 **What it taught:** a rule that blocks something quietly needs a look at the real page, not only a test of its text.
+
+## 9 Nov 2026: A decision on the more list could count as a short-list decision
+
+A company can be on both lists, for example when it was listed on the more list one day and researched the next. The decision route looked on the short list first, so a decision made on the more list for such a company was saved as coming from the short list, which would have raised short-list precision for a company the agent had not put forward. The form now says which list it came from, and the route looks there first. Found by a review, not by the first set of tests.
+
+**What it taught:** when one thing can sit in two places, a test needs a case where it does.
