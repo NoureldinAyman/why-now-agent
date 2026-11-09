@@ -44,7 +44,7 @@
 - **Spending.** The top of the page shows this month's spending against the limit, with a warning at the warning amount. At the limit it says paid work is stopped and lists what the last run skipped. Both amounts are settings.
 - **Short-list precision.** Of the decisions made on short-list companies, the share approved, with its count. Decisions from the more list are left out, because the agent did not put those forward. It is shown apart from the scores and says so.
 - **An empty day** says so plainly, and says when no daily run has been saved yet.
-- **Look.** One style sheet for every page, with no script and no outside font, because the pages' security policy allows neither. The marking pages use it too, so the two halves look like one tool.
+- **Look.** One style sheet for every page, with no script, outside font or outside picture, because the pages' security policy allows none of them. So every picture is inline SVG drawn from the data (`src/why_now/web/visuals.py` and the templates): a small geometric tile for each company, made from a hash of its key so the same company always looks the same; rings for spending and short-list precision, filled from the numbers; a row of ticks for how fresh a company's newest ad is, one tick for each day of the new-ad window; and a bar splitting the month by what it paid for. A tile says nothing about a company. It only helps tell companies apart before reading a name. The marking pages use the same style, so the two halves look like one tool.
 
 **The hardest question:** "Short-list precision is a free number. Why not use it as the score?"
 

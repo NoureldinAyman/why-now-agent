@@ -5,7 +5,7 @@ Every test goes through the web pages, the way the reviewer uses them.
 
 import re
 from collections.abc import Sequence
-from datetime import date
+from datetime import date, timedelta
 from typing import Literal
 
 import pytest
@@ -292,3 +292,36 @@ def test_the_warning_starts_at_fifty_and_the_stop_at_seventy(client, ctx, listed
     assert "Paid work is stopped" not in html
     ctx.meter.charge("research", 0.02, "exactly the limit")
     assert "Paid work is stopped" in client.get("/").text
+
+
+def tile_of(html: str, name: str) -> str:
+    """The generated tile beside a company's name."""
+    found = re.search(rf'<svg class="tile-art[^>]*data-company="{name}".*?</svg>', html, re.S)
+    assert found, f"no tile for {name}"
+    return found.group(0)
+
+
+def test_each_company_has_its_own_tile_and_it_never_changes(client, workspace, listed_company):
+    other = listed_company.model_copy(update={"company_key": "globex", "company_name": "Globex"})
+    workspace.save_day(a_day(short=[listed_company, other]))
+    first = client.get("/").text
+    assert tile_of(first, "acme") == tile_of(client.get("/").text, "acme")  # the same every time
+    assert tile_of(first, "acme") != tile_of(first, "globex")
+
+
+def test_a_company_shows_how_fresh_its_newest_ad_is(client, workspace, listed_company, ctx):
+    assert "Newest ad today" in client.get("/").text
+    old = an_ad("acme").model_copy(update={"published_at": NOW - timedelta(days=3)})
+    workspace.save_day(a_day(short=[listed_company.model_copy(update={"ads": [old]})]))
+    html = client.get("/").text
+    assert "Newest ad 3 days ago" in html
+    assert (
+        html.count('class="tick') == ctx.settings.new_ad_days
+    )  # one tick for each day of the window
+
+
+def test_the_month_is_split_into_one_slice_per_thing_paid_for(client, ctx):
+    ctx.meter.charge("research", 8.0, "research")
+    ctx.meter.charge("loop", 2.0, "one try")
+    html = client.get("/spending").text
+    assert html.count('class="slice') == 2

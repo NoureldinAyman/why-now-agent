@@ -1,29 +1,44 @@
+{% from "_icons.html" import ic %}
 <article class="entry" id="{{ e.key }}">
   <header class="entry-head">
-    <span class="rank" aria-hidden="true">{{ rank }}</span>
-    <div>
+    <svg class="tile-art pal-{{ e.tile.palette }}" data-company="{{ e.key }}" viewBox="0 0 80 80" aria-hidden="true" focusable="false">
+      <rect class="t0" width="80" height="80"/>
+      {% for c in e.tile.cells %}<path class="t{{ c.tone }}" d="{{ c.d }}" transform="{{ c.turn }}"/>{% endfor %}
+    </svg>
+    <div class="who">
       <h2>{{ e.name }}</h2>
-      <p class="meta">Listed {{ e.listed }}</p>
+      <ul class="vitals">
+        {% if e.place %}<li>{{ ic("pin") }}{{ e.place }}</li>{% endif %}
+        {% if e.ad_count %}<li>{{ ic("case") }}{{ e.ad_count }} relevant {{ "ad" if e.ad_count == 1 else "ads" }}</li>{% endif %}
+        <li>{{ ic("clock") }}Listed {{ e.listed }}</li>
+      </ul>
     </div>
+    <span class="rank" aria-hidden="true">{{ "%02d"|format(rank) }}</span>
   </header>
+  {% if e.fresh %}
+  <div class="fresh{% if e.fresh.stale %} is-stale{% endif %}">
+    <span class="fresh-label">{{ e.fresh.label }}</span>
+    <span class="timeline" aria-hidden="true">{% for i in e.fresh.ticks %}<span class="tick{% if i == e.fresh.at %} on{% endif %}"></span>{% endfor %}</span>
+  </div>
+  {% endif %}
   {% for c in e.claims %}
   <figure class="claim{% if loop.first %} why-now{% endif %}">
-    {% if loop.first %}<p class="kicker">Why now</p>{% endif %}
+    {% if loop.first %}<p class="kicker">{{ ic("spark") }}Why now</p>{% endif %}
     <figcaption>{{ c.text }}</figcaption>
-    <blockquote>{{ c.quote }}</blockquote>
-    {% if c.href %}<a class="source-link" href="{{ c.href }}" rel="noopener noreferrer">{{ c.link_text }}</a>{% endif %}
+    <blockquote>{{ ic("quote", "q-mark") }}<span>{{ c.quote }}</span></blockquote>
+    {% if c.href %}<a class="source-link" href="{{ c.href }}" rel="noopener noreferrer">{{ ic("link") }}{{ c.link_text }}</a>{% endif %}
   </figure>
   {% endfor %}
   {% if e.ads %}
   <ul class="ads">
     {% for ad in e.ads %}
-    <li>{% if ad.href %}<a href="{{ ad.href }}" rel="noopener noreferrer">{{ ad.title }}</a>{% else %}{{ ad.title }}{% endif %}<span class="meta">{{ ad.location }}</span></li>
+    <li>{{ ic("case") }}{% if ad.href %}<a href="{{ ad.href }}" rel="noopener noreferrer">{{ ad.title }}</a>{% else %}<span>{{ ad.title }}</span>{% endif %}<span class="meta">{{ ad.location }}</span></li>
     {% endfor %}
   </ul>
   {% endif %}
   {% if which == "more" %}
   <details class="decide-more"{% if e.error %} open{% endif %}>
-    <summary>Decide on this company</summary>
+    <summary>{{ ic("plus") }}Decide on this company</summary>
     {% include "_decide.html" %}
   </details>
   {% else %}

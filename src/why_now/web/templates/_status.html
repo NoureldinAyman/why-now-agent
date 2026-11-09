@@ -1,28 +1,34 @@
-<section class="status" aria-label="This month">
-  <div class="tile">
-    <h2>Spending</h2>
+{% from "_icons.html" import ic %}
+<aside class="rail" aria-label="This month">
+  <section class="tile tile-spend">
+    <h2>{{ ic("coin") }}Spending</h2>
     {% include "_spend.html" %}
+    <p class="note">{{ spend.month }}. Warning at ${{ spend.warn_at }}, stop at ${{ spend.limit }}.</p>
     <p class="note"><a href="{{ spending_link }}">See the month in full</a></p>
-  </div>
-  <div class="tile">
-    <h2>Short-list precision</h2>
-    {% if precision.decided %}
-    <p class="figure"><span class="big">{{ precision.percent }}%</span> <span class="of">{{ precision.approved }} of {{ precision.decided }} approved</span></p>
-    <p class="note">Only companies the agent put forward. This is not the score.</p>
-    {% else %}
-    <p class="figure"><span class="of">No decisions yet</span></p>
-    <p class="note">It appears once you decide on a company from the short list.</p>
-    {% endif %}
-  </div>
-  <div class="tile">
-    <h2>Daily run</h2>
+  </section>
+  <section class="tile tile-precision">
+    <h2>{{ ic("gauge") }}Short-list precision</h2>
+    <div class="gauge gauge-quiet{% if not precision.decided %} is-empty{% endif %}">
+      <svg viewBox="0 0 36 36" role="img" aria-label="{% if precision.decided %}{{ precision.approved }} of {{ precision.decided }} approved{% else %}No decisions yet{% endif %}">
+        <circle class="g-track" cx="18" cy="18" r="15.9155"/>
+        {% if precision.decided %}<circle class="g-fill" cx="18" cy="18" r="15.9155" stroke-dasharray="{{ precision.percent }} {{ 100 - precision.percent }}" transform="rotate(-90 18 18)"/>{% endif %}
+      </svg>
+      {% if precision.decided %}
+      <p class="gauge-centre"><span class="big">{{ precision.percent }}%</span><span class="of">{{ precision.approved }} of {{ precision.decided }} approved</span></p>
+      {% else %}
+      <p class="gauge-centre"><span class="of">No decisions yet</span></p>
+      {% endif %}
+    </div>
+    <p class="note">{% if precision.decided %}Only companies the agent put forward. This is not the score.{% else %}It appears once you decide on a company from the short list.{% endif %}</p>
+  </section>
+  <section class="tile tile-run">
+    <h2>{{ ic("clock") }}Daily run</h2>
     {% if run %}
-    <p class="figure"><span class="big">{{ run.day }}</span></p>
+    <p class="run-day">{{ run.day }}</p>
     <p class="note">{% if run.today %}Ran today.{% else %}Nothing has run today.{% endif %}{% if run.failed %} {{ run.failed|length }} failed.{% endif %}</p>
     {% else %}
-    <p class="figure"><span class="of">No daily run yet</span></p>
+    <p class="run-day run-none">No daily run yet</p>
     <p class="note">No daily run has been saved. Run <code>why-now daily</code>.</p>
     {% endif %}
-  </div>
-</section>
-{% include "_alerts.html" %}
+  </section>
+</aside>

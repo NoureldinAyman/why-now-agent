@@ -30,6 +30,7 @@ from why_now.web.routes_marking import (
     reason_error,
     tidy_reason,
 )
+from why_now.web.visuals import slices, tile
 from why_now.workspace import Workspace
 
 router = APIRouter()
@@ -71,7 +72,9 @@ def spending(request: Request, _: Reviewer, profile: str | None = None) -> Respo
             request, "choose.html", profiles=list(ctx.profiles.values()), choose_to="/spending"
         )
     workspace = Workspace(ctx.store, chosen.id)
-    return _page(request, "spending.html", profile=chosen, **_status(ctx, workspace))
+    return _page(
+        request, "spending.html", profile=chosen, today=_today(ctx), **_status(ctx, workspace)
+    )
 
 
 @router.post("/decide/{company_key}", response_class=HTMLResponse)
@@ -164,12 +167,19 @@ def _show_list(
         which=which,
         entries=[_entry_view(ctx, workspace, chosen, e, attempt) for e in entries],
         all_chips=ctx.settings.reason_chips,
+        today=_today(ctx),
+        hide_days=ctx.settings.hide_days,
         **_status(ctx, workspace),
     )
 
 
 def _path(which: Which) -> str:
     return "/" if which == "short" else "/more"
+
+
+def _today(ctx: AppContext) -> str:
+    today = ctx.clock().date()
+    return f"{today:%A} {today.day} {today:%B}"
 
 
 def _day(day: date) -> str:
@@ -192,6 +202,10 @@ def _entry_view(
     return {
         "key": entry.company_key,
         "name": entry.company_name,
+        "tile": tile(entry.company_key),
+        "fresh": _fresh(ctx, entry),
+        "place": entry.ads[0].location if entry.ads else None,
+        "ad_count": len(entry.ads),
         "listed": _day(entry.first_listed),
         "post_to": f"/decide/{quote(entry.company_key, safe='')}" + _profile_query(ctx, profile),
         "ads": [
@@ -202,6 +216,22 @@ def _entry_view(
         "error": mine.error if mine else None,
         "reason": mine.reason if mine else "",
         "chips": mine.chips if mine else [],
+    }
+
+
+def _fresh(ctx: AppContext, entry: ListEntry) -> dict[str, object] | None:
+    """How long ago the newest of a company's relevant ads was published, and where that
+    falls in the window the daily run counts as new. None for a company with no ads."""
+    if not entry.ads:
+        return None
+    age = max(0, (ctx.clock().date() - max(ad.published_at for ad in entry.ads).date()).days)
+    window = ctx.settings.new_ad_days
+    when = "today" if age == 0 else "1 day ago" if age == 1 else f"{age} days ago"
+    return {
+        "label": f"Newest ad {when}",
+        "ticks": list(range(window)),
+        "at": window - 1 - min(age, window - 1),  # the right-hand end is today
+        "stale": age >= window,
     }
 
 
@@ -251,10 +281,9 @@ def _spend_view(ctx: AppContext) -> dict[str, object]:
         "loop_share": f"{settings.loop_budget_usd:g}",
         "loop_spent": f"{status.by_category.get(LOOP, 0.0):.2f}",
         "fixed": settings.fixed_monthly_costs_usd or None,
-        "parts": [
-            (name.replace("_", " ").capitalize(), f"{usd:.2f}")
-            for name, usd in sorted(status.by_category.items(), key=lambda p: -p[1])
-        ],
+        "slices": slices(
+            [(name.replace("_", " ").capitalize(), usd) for name, usd in status.by_category.items()]
+        ),
     }
 
 

@@ -1,8 +1,8 @@
-<div class="spend">
-  <p class="figure"><span class="big">${{ spend.spent }}</span> <span class="of">of ${{ spend.limit }} spent in {{ spend.month }}</span></p>
-  <svg class="bar{% if spend.stopped %} is-stopped{% elif spend.warning %} is-warning{% endif %}" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="${{ spend.spent }} of ${{ spend.limit }} spent">
-    <rect class="track" width="100" height="6"/>
-    <rect class="fill" width="{{ spend.fill }}" height="6"/>
-    <rect class="mark" x="{{ spend.mark }}" width="0.6" height="6"/>
+<div class="gauge{% if spend.stopped %} is-stopped{% elif spend.warning %} is-warning{% endif %}">
+  <svg viewBox="0 0 36 36" role="img" aria-label="${{ spend.spent }} of ${{ spend.limit }} spent">
+    <circle class="g-track" cx="18" cy="18" r="15.9155"/>
+    <circle class="g-fill" cx="18" cy="18" r="15.9155" stroke-dasharray="{{ spend.fill }} {{ 100 - spend.fill }}" transform="rotate(-90 18 18)"/>
+    <circle class="g-mark" cx="18" cy="18" r="15.9155" stroke-dasharray="0 {{ spend.mark }} 1.1 {{ 100 - spend.mark }}" transform="rotate(-90 18 18)"/>
   </svg>
+  <p class="gauge-centre"><span class="big">${{ spend.spent }}</span><span class="of">of ${{ spend.limit }}</span></p>
 </div>

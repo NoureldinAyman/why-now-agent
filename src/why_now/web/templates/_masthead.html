@@ -1,0 +1,17 @@
+{# The top of a list page: the date, the title and a clock face drawn from the same ticks as the new-ad window. #}
+<section class="masthead">
+  <div class="mast-text">
+    <p class="kicker">{{ today }}</p>
+    <h1>{{ heading }}</h1>
+    <p class="lede">{{ lede }}</p>
+  </div>
+  <svg class="mast-art" viewBox="0 0 240 240" aria-hidden="true" focusable="false">
+    <circle class="m-disc" cx="120" cy="120" r="112"/>
+    <path class="m-quarter" d="M120 8a112 112 0 0 1 112 112H120z"/>
+    <path class="m-half" d="M8 120a112 112 0 0 0 112 112V120z"/>
+    <circle class="m-ring" cx="120" cy="120" r="96"/>
+    {% for i in range(12) %}<path class="m-tick" d="M120 30v{{ 14 if i % 3 == 0 else 8 }}" transform="rotate({{ i * 30 }} 120 120)"/>{% endfor %}
+    <g class="m-hand-turn"><path class="m-hand" d="M120 120V50"/></g>
+    <circle class="m-hub" cx="120" cy="120" r="7"/>
+  </svg>
+</section>

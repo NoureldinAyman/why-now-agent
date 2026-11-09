@@ -1,6 +1,7 @@
+{% from "_icons.html" import ic %}
 <fieldset class="chips">
   <legend>Why? Tap any that fit, or write a sentence.</legend>
   {% for chip in all_chips %}
-  <label class="chip"><input type="checkbox" name="chips" value="{{ chip }}"{% if chip in picked %} checked{% endif %}><span>{{ chip }}</span></label>
+  <label class="chip"><input type="checkbox" name="chips" value="{{ chip }}"{% if chip in picked %} checked{% endif %}><span>{{ ic("check") }}{{ chip }}</span></label>
   {% endfor %}
 </fieldset>
