@@ -85,6 +85,9 @@ required_pass = 0.5
 cutoff_step = 0.05
 # Strength a company needs for a yes before a cut-off has been chosen on the practice pile.
 default_cutoff = 0.5
+# Weighting of the score: 1 gives F1, which counts a missed company as much as a wrong yes.
+# Fixed before marking starts, the same for every profile, and recorded with every score.
+score_beta = 1
 
 # Largest page the page reader will download, in bytes.
 max_page_bytes = 2000000

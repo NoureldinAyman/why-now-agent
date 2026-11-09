@@ -103,7 +103,7 @@ One attempt to improve: a single change to the rules file, measured on the check
 _Avoid_: Experiment, iteration, run
 
 **Score**:
-F1, one number combining how often the agent's yes was right (precision) and how many of the reviewer's yes companies it found (recall), weighing both equally. It measures agreement with the reviewer, not whether a company would buy.
+F1, one number combining how often the agent's yes was right (precision) and how many of the reviewer's yes companies it found (recall), weighing both equally. The weighting is one setting, `score_beta`, with 1 giving F1. It measures agreement with the reviewer, not whether a company would buy.
 _Avoid_: Accuracy, quality
 
 **Short-list precision**:

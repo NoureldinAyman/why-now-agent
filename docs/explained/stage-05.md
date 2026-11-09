@@ -19,14 +19,14 @@ The quick look is the cheap first read of each company's relevant job ads. For e
 
 **What was built.** The two parts that decide and measure: the judge, which turns a model's answers into yes or no, and the score, which compares those with the reviewer's marks.
 
-- **The score** (`src/why_now/evaluation/score.py`). It counts right and wrong yeses and no's, and works out precision, recall and F0.5, which counts precision more heavily. Saying no to everything scores 0. It is checked against worked examples done by hand.
+- **The score** (`src/why_now/evaluation/score.py`). It counts right and wrong yeses and no's, and works out precision, recall and F0.5, which counts precision more heavily. (Ticket 41 below changed this to F1.) Saying no to everything scores 0. It is checked against worked examples done by hand.
 - **Combining answers** (`pipeline/judge.py`, `combine`). The model gives only a probability of yes for each fit question. Code decides: every required question must pass, at 0.5 by default, and the strength, the average over the supporting questions, must reach the cut-off. "Against" questions count the other way. A missing answer stops with an error, so it is never quietly counted as a no.
 - **Saved answers** (`answer_questions`). Each answer is saved by evidence pack, question and model. Asking again only pays for questions that are new or edited, or for a new model. The model is shown a question's id, text, and what yes and no mean, so changing any of those asks again. Moving a question between required and supporting, or between for and against, does not, because the model never sees that.
 - **One retry.** A reply with a missing answer, a probability outside 0 to 1, or a refusal is tried once more. If that fails too, the company is recorded as failed, and nothing from the failed calls is saved.
 - **The cut-off** (`choose_cutoff`). It tries points from 0 to 1, 0.05 apart, on the rows it is given, and keeps the one with the best score, the lowest on a tie. Callers give it practice pile rows only. The workspace records it for each judge model.
 - **The question list** (`all_questions`). The profile's fit questions, then the learned ones from the rules file. A rules file for another profile, or two questions with the same id, are refused.
 
-The decision note `docs/decisions/0002-f05-and-required-against-supporting-questions.md` says why F0.5, and why there are two kinds of question.
+The decision note `docs/decisions/0002-f05-and-required-against-supporting-questions.md` says why F0.5, and why there are two kinds of question. `docs/decisions/0006-f1-replaces-f05.md` later replaced F0.5 with F1.
 
 **Limits we know about.** The judge is not yet run on real evidence packs, which come with research in ticket 11, so no score exists yet. Claude's probability is its own estimate, so a cut-off chosen for one model is not reused for another. Claude answers all the new questions for a company in one call, so a saved answer was given next to other questions than the ones it is reused with. Whether that changes Claude's answers is not measured. Saved answers are never removed, so the workspace grows with every new question and model; each answer is a small file. `CompanyFailed` is raised here, and recording the company as failed is the caller's job, which arrives with the evaluation ticket. The quick look keeps its own saved answers and retry, because it reads job ads rather than an evidence pack.
 
@@ -48,6 +48,24 @@ The decision note `docs/decisions/0002-f05-and-required-against-supporting-quest
 **The hardest question:** "If Langfuse is down or the keys are wrong, do you lose the run's record?"
 
 **The honest answer:** not entirely for a missing library or missing keys, because the local log is used instead. But wrong keys are not found until the first send, and Langfuse sends in the background, so those traces would be lost without stopping the run. The setup check only tests that keys are set, not that they work, so a first real trace should be viewed to be sure.
+
+## F1 score (ticket 41)
+
+**What was built.** The score is now F1, with the weighting as one setting, `score_beta` (default 1), instead of F0.5 fixed in code.
+
+- **`score(rows, beta)`** (`evaluation/score.py`). Works out precision and recall as before, then F-beta. Beta says how much more recall counts than precision: 1 counts them equally, under 1 favours precision, over 1 favours recall. The formula is `(1 + b^2) * P * R / (b^2 * P + R)`. Beta 1 weighs a missed company the same as a wrong yes. Beta 0.5 gives the old F0.5 numbers exactly. A beta of 0 or less is refused. Saying no to everything still scores 0.
+- **`ScoreResult`** has `f` and `beta`. The beta is stored with every score, so a saved score always says what it measured. Nothing is called `f05` any more.
+- **`choose_cutoff`** (`pipeline/judge.py`) scores each cut-off with `settings.score_beta`.
+- **`decide_keep`** (`improve/keep.py`) compares `.f`, and refuses with an error if the four scores it is given do not all use the same beta. Scores with different weightings are not on one scale, so a keep decision that mixed them would be meaningless.
+- **The setting** `score_beta` must be above 0. It is in the example settings file and the design's numbers table, with the reason in `docs/decisions/0006-f1-replaces-f05.md`.
+
+**Example.** 6 right yeses, 2 wrong yeses and 4 missed: precision is 0.75 and recall is 0.6. F1 is 2 * 0.75 * 0.6 / 1.35 = 0.667. F0.5 on the same rows is 0.714, higher, because it forgives the missed companies more.
+
+**Limits we know about.** The beta must be fixed before marking starts, but nothing in the code enforces that: it is a rule for the owner, written in the decision note. The cut-off test rows had to change, because on the old rows F1 prefers a lower cut-off than F0.5 did.
+
+**The hardest question:** "Why not just keep F0.5, since a wrong yes wastes the reviewer's time?"
+
+**The honest answer:** the short list has a limit on its size, which already protects the reviewer's time. A wrong no is never seen at all. F1 does not push the agent towards the mistake nobody can notice. If this turns out wrong, it is one setting to change, but only before marking starts, so that the score is not tuned after seeing results.
 
 ## Effort per job, and versioned saved answers (ticket 42)
 

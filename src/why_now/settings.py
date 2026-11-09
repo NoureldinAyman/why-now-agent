@@ -76,6 +76,7 @@ class Settings(BaseModel):
     required_pass: float = 0.5
     cutoff_step: float = Field(default=0.05, gt=0, le=1)
     default_cutoff: float = Field(default=0.5, ge=0, le=1)
+    score_beta: float = Field(default=1, gt=0)
 
     max_page_bytes: int = 2_000_000
     page_timeout_seconds: float = 15

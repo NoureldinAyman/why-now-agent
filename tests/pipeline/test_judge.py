@@ -246,12 +246,34 @@ def test_cutoff_uses_the_given_rows_and_picks_the_best_score(settings):
         strength_row(0.4, True),
         strength_row(0.2, False),
     ]
-    # Worked by hand: any cut-off above 0.6 and up to 0.8 gives 2 right yeses and
-    # none wrong (F0.5 0.91), the best. The lowest such point on the grid is 0.65.
-    assert choose_cutoff(rows, [SUPPORTING], settings) == 0.65
+    # Worked by hand with F0.5 (beta 0.5): any cut-off above 0.6 and up to 0.8 gives 2 right
+    # yeses and none wrong (F0.5 0.91), the best. The lowest such point on the grid is 0.65.
+    half = settings.model_copy(update={"score_beta": 0.5})
+    assert choose_cutoff(rows, [SUPPORTING], half) == 0.65
     # Different rows, different cut-off: without the wrong yes at 0.6, anything
     # above 0.2 and up to 0.4 is right every time, and the lowest such point is 0.25.
-    assert choose_cutoff(rows[:2] + rows[3:], [SUPPORTING], settings) == 0.25
+    assert choose_cutoff(rows[:2] + rows[3:], [SUPPORTING], half) == 0.25
+
+
+def test_cutoff_follows_the_beta_setting(settings):
+    rows = [
+        strength_row(0.9, True),
+        strength_row(0.8, True),
+        strength_row(0.7, True),
+        strength_row(0.6, False),
+        strength_row(0.5, True),
+        strength_row(0.4, False),
+        strength_row(0.3, False),
+        strength_row(0.2, True),
+    ]
+    # Worked by hand, 5 of the 8 are yes. Saying yes down to 0.7 gives precision 1 and recall
+    # 0.6 (F1 0.75, F0.5 0.88). Down to 0.5 gives precision 0.8 and recall 0.8 (F1 0.8,
+    # F0.5 0.8). Down to 0.2 gives 0.625 and 1 (F1 0.77). So F1 says yes down to 0.5 and F0.5 down
+    # to 0.7. The cut-off is the lowest grid point above the next strength down: 0.45 and 0.65.
+    assert settings.score_beta == 1
+    assert choose_cutoff(rows, [SUPPORTING], settings) == 0.45
+    half = settings.model_copy(update={"score_beta": 0.5})
+    assert choose_cutoff(rows, [SUPPORTING], half) == 0.65
 
 
 def test_cutoff_takes_the_lowest_value_on_a_tie(settings):
