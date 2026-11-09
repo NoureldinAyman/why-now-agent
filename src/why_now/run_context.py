@@ -48,6 +48,7 @@ def metered(models: Models, meter: Meter) -> Models:
 class _MeteredAnswerer:
     def __init__(self, inner: Answerer, meter: Meter):
         self.model = inner.model
+        self.answer_key = inner.answer_key
         self._inner, self._meter = inner, meter
 
     def answer(self, state: str, questions: list[FitQuestion], category: str) -> list[Answer]:
@@ -58,6 +59,7 @@ class _MeteredAnswerer:
 class _MeteredWriter:
     def __init__(self, inner: Writer, meter: Meter):
         self.model = inner.model
+        self.answer_key = inner.answer_key
         self._inner, self._meter = inner, meter
 
     def structured[M: BaseModel](
@@ -72,6 +74,7 @@ class _MeteredWriter:
 class _MeteredResearch:
     def __init__(self, inner: ResearchModel, meter: Meter):
         self.model = inner.model
+        self.answer_key = inner.answer_key
         self._inner, self._meter = inner, meter
 
     def step(self, conversation: list[dict], category: str) -> ResearchStep:

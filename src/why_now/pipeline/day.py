@@ -231,12 +231,12 @@ def _research(ctx, models, workspace, profile, settings, company, run) -> Eviden
 
 def _judge(ctx, models, workspace, profile, rules, settings, company, pack) -> Verdict:
     questions = all_questions(profile, rules)
-    cutoff = workspace.cutoff(models.judge.model)
+    cutoff = workspace.cutoff(models.judge.answer_key)
     with ctx.tracer.trace(
         "judge",
         profile_id=profile.id,
         rules_version=rules.version,
-        models={"judge": models.judge.model},
+        models={"judge": models.judge.answer_key},
     ) as trace:
         answers = answer_questions(pack, questions, models.judge, workspace, JUDGE)
         verdict = combine(

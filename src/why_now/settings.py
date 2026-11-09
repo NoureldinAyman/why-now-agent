@@ -15,6 +15,10 @@ from pydantic import BaseModel, ConfigDict, Field
 
 ENV_PREFIX = "WHY_NOW_"
 
+# How much a Claude model thinks before answering, from least to most. The design
+# allows low, medium or high per job.
+Effort = Literal["low", "medium", "high"]
+
 
 class ModelPrice(BaseModel):
     """Prices in US dollars, per million tokens, plus the cost of one web search."""
@@ -101,6 +105,13 @@ class Settings(BaseModel):
     quick_look_model: str = "jev-1.14.0"
     quick_look_fallback_model: str = "claude-haiku-5-5"  # used when there is no Jev key
     judge_model: str = "claude-sonnet-5-5"
+    # Effort per Claude job. Jev has no effort, so `quick_look_effort` is used only
+    # when the quick look falls back to Claude.
+    quick_look_effort: Effort = "low"
+    research_effort: Effort = "medium"
+    judge_effort: Effort = "medium"
+    writer_effort: Effort = "medium"
+    proposer_effort: Effort = "high"
     model_max_output_tokens: int = 16_000
     # Checked on 6 Nov 2026: Claude from Anthropic's model table, Jev from TypeSafe's
     # models page (it charges for input tokens only). A model with no price is refused.

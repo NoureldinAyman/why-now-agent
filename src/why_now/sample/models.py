@@ -25,6 +25,7 @@ class Script(BaseModel):
 
 class ScriptedAnswerer:
     model = SCRIPTED
+    answer_key = SCRIPTED
 
     def __init__(self, script: Script):
         self.script = script
@@ -43,6 +44,7 @@ class ScriptedAnswerer:
 
 class ScriptedWriter:
     model = SCRIPTED
+    answer_key = SCRIPTED
 
     def __init__(self, script: Script):
         self.script = script
@@ -57,6 +59,7 @@ class ScriptedWriter:
 
 class ScriptedResearch:
     model = SCRIPTED
+    answer_key = SCRIPTED
 
     def __init__(self, script: Script):
         self.steps = list(script.research)

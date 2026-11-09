@@ -7,7 +7,7 @@ pytest.importorskip("typesafe_sdk", reason="the Jev library comes with the `jev`
 from typesafe_sdk import Noul, NoulAnswer, SystemOneResponse, Usage  # noqa: E402
 
 from why_now.ai import BadModelOutput, UnknownModel
-from why_now.ai.jev import JevAnswerer
+from why_now.ai.jev import JEV_PROMPT_VERSION, JevAnswerer
 from why_now.domain import FitQuestion
 
 QUESTIONS = [
@@ -81,3 +81,8 @@ def test_bad_jev_output_is_rejected(settings, meter, reply):
         JevAnswerer(FakeJev(reply), "jev-1.14.0", settings, meter).answer(
             "An ad.", QUESTIONS, "quick_look"
         )
+
+
+def test_a_jev_answer_key_has_no_effort(settings, meter):
+    answerer = JevAnswerer(FakeJev(jev_reply({})), "jev-1.14.0", settings, meter)
+    assert answerer.answer_key == f"jev-1.14.0#p{JEV_PROMPT_VERSION}"

@@ -39,7 +39,7 @@ def quick_look(
         "quick_look",
         profile_id=profile.id,
         rules_version=None,
-        models={"quick_look": answerer.model},
+        models={"quick_look": answerer.answer_key},
         detail="light",
     ) as trace:
         for company in companies:
@@ -83,7 +83,7 @@ def _answers(
     saved: dict[str, float] = {}
     missing: list[FitQuestion] = []
     for q in questions:
-        p = workspace.saved_quick_answer(company_key, state, q.text, answerer.model)
+        p = workspace.saved_quick_answer(company_key, state, q.text, answerer.answer_key)
         if p is None:
             missing.append(q)
         else:
@@ -93,7 +93,7 @@ def _answers(
         for a in _answer_with_retry(answerer, state, missing):
             saved[a.question_id] = a.probability
             workspace.save_quick_answer(
-                company_key, state, texts[a.question_id], answerer.model, a.probability
+                company_key, state, texts[a.question_id], answerer.answer_key, a.probability
             )
     return [
         Answer(question_id=q.id, probability=saved[q.id], model=answerer.model) for q in questions

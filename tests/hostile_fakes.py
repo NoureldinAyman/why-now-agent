@@ -60,6 +60,7 @@ class FakeJudge:
     """Answers no to everything, unless the text it reads holds one of `swayed_by`."""
 
     model = SCRIPTED
+    answer_key = model
 
     def __init__(self, swayed_by: tuple[str, ...] = ()):
         self.swayed_by = swayed_by
@@ -74,6 +75,7 @@ class HonestWriter:
     """Writes a plain brief from the first ad, or a plain rule, and ignores the rest."""
 
     model = SCRIPTED
+    answer_key = model
 
     def structured(self, *, system: str, untrusted: str, schema: Any, category: str) -> Any:
         if "why_now" in schema.model_fields:
@@ -96,6 +98,7 @@ class CopyingWriter:
     """A writer that obeys the hostile text: it puts the planted text in every brief and rule."""
 
     model = SCRIPTED
+    answer_key = model
 
     def __init__(self, planted: str):
         self.planted = planted
@@ -115,6 +118,7 @@ class CopyingWriter:
 
 class BrokenWriter:
     model = SCRIPTED
+    answer_key = model
 
     def structured(self, *, system: str, untrusted: str, schema: Any, category: str) -> Any:
         raise BadModelOutput("no usable output")

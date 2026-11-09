@@ -87,8 +87,9 @@ Q3 = FitQuestion(id="q3", text="Is it hiring its first salesperson?")
 class CountingAnswerer:
     """Answers every question with 0.7 and records which question ids each call asked."""
 
-    def __init__(self, model: str = "model-a"):
+    def __init__(self, model: str = "model-a", answer_key: str | None = None):
         self.model = model
+        self.answer_key = answer_key or model
         self.asked: list[list[str]] = []
         self.states: list[str] = []
 
@@ -102,6 +103,7 @@ class FlakyAnswerer:
     """Gives `bad` unusable replies first, then good ones."""
 
     model = "model-a"
+    answer_key = "model-a"
 
     def __init__(self, bad: int, reply: str = "missing"):
         self.bad = bad
@@ -155,6 +157,20 @@ def test_saved_answers_are_reused_so_only_a_new_question_is_paid_for(workspace, 
     got = answer_questions(pack, [Q1, Q2, Q3], counting, workspace, "judge")
     assert counting.asked == [["q1", "q2"], ["q3"]]
     assert [(a.question_id, a.probability) for a in got] == [("q1", 0.7), ("q2", 0.7), ("q3", 0.7)]
+
+
+@pytest.mark.parametrize(
+    "changed", ["model-a@high#p1", "model-a@low#p2"], ids=["effort", "prompt version"]
+)
+def test_a_changed_effort_or_prompt_version_asks_again(workspace, pack, changed):
+    first = CountingAnswerer(answer_key="model-a@low#p1")
+    answer_questions(pack, [Q1], first, workspace, "judge")
+    same = CountingAnswerer(answer_key="model-a@low#p1")
+    answer_questions(pack, [Q1], same, workspace, "judge")
+    assert same.asked == []  # the same model, effort and prompt version reuse the answer
+    other = CountingAnswerer(answer_key=changed)
+    answer_questions(pack, [Q1], other, workspace, "judge")
+    assert other.asked == [["q1"]]
 
 
 def test_nothing_is_asked_when_every_answer_is_saved(workspace, pack):
@@ -314,3 +330,10 @@ def test_rules_and_cutoff_are_kept_per_profile(store):
     ws.save_cutoff("model-a", 0.65)
     assert ws.cutoff("model-a") == 0.65
     assert ws.cutoff("model-b") is None
+
+
+def test_a_cutoff_saved_for_one_effort_is_not_used_for_another(store):
+    ws = Workspace(store, profile_id="p")
+    ws.save_cutoff("model-a@medium#p1", 0.65)
+    assert ws.cutoff("model-a@medium#p1") == 0.65
+    assert ws.cutoff("model-a@high#p1") is None

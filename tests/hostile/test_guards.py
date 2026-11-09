@@ -103,12 +103,14 @@ def recorded(tmp_path_factory) -> Recorded:
         RecordingClient(writer_reply),
         RecordingClient(research_reply),
     )
-    answerer = ClaudeAnswerer(judge, "claude-sonnet-5-5", settings, meter)
+    answerer = ClaudeAnswerer(judge, "claude-sonnet-5-5", settings, meter, effort="medium")
     models = Models(
         quick_look=answerer,
         judge=answerer,
-        writer=ClaudeWriter(writer, "claude-sonnet-5-5", settings, meter),
-        research=ClaudeResearchModel(research, "claude-sonnet-5-5", settings, meter),
+        writer=ClaudeWriter(writer, "claude-sonnet-5-5", settings, meter, effort="medium"),
+        research=ClaudeResearchModel(
+            research, "claude-sonnet-5-5", settings, meter, effort="medium"
+        ),
     )
 
     reader = fake_web_reader(settings, [])

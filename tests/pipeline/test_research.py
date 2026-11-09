@@ -47,6 +47,7 @@ class FakeModel:
     """
 
     model = "fake"
+    answer_key = model
 
     def __init__(self, *steps: ResearchStep, repeat_last: bool = False):
         self.steps = list(steps)

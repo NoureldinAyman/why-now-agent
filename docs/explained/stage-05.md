@@ -66,3 +66,23 @@ The decision note `docs/decisions/0002-f05-and-required-against-supporting-quest
 **The hardest question:** "Why not just keep F0.5, since a wrong yes wastes the reviewer's time?"
 
 **The honest answer:** the short list has a limit on its size, which already protects the reviewer's time. A wrong no is never seen at all. F1 does not push the agent towards the mistake nobody can notice. If this turns out wrong, it is one setting to change, but only before marking starts, so that the score is not tuned after seeing results.
+
+## Effort per job, and versioned saved answers (ticket 42)
+
+**What was built.** Each Claude job now runs at a fixed effort, and every saved answer is labelled with the exact setup that gave it.
+
+- **Effort settings** (`src/why_now/settings.py`). Effort is how much a Claude model thinks before it answers, and so how much it costs. There is one setting per job: `quick_look_effort = "low"`, `research_effort = "medium"`, `judge_effort = "medium"`, `writer_effort = "medium"` and `proposer_effort = "high"`, the starting choices in the design's AI models table. Only `low`, `medium` and `high` are accepted, the range the design allows. Without a setting, Claude Sonnet 5.5 would quietly run at high and Claude Haiku 5.5 at medium, so the cost would depend on each model's default rather than on a choice we wrote down. `proposer_effort` has no caller yet. The improvement run will use it.
+- **Every request carries its effort** (`src/why_now/ai/claude.py`, `ClaudeCaller.create`). The call sends `output_config={"effort": ...}`, next to the answer format when there is one. This shape was checked against the current `anthropic` documentation. `build_models` hands each job its own effort. Jev has no effort, so `quick_look_effort` only matters when the quick look falls back to Claude.
+- **The answer key** (`src/why_now/ai/__init__.py`, `answer_key`). Each model now has an `answer_key` that names the model, its effort and its prompt version in one label, such as `claude-sonnet-5-5@medium#p1`. Jev's has no effort part (`jev-1.14.0#p1`). The writer's has no prompt part (`claude-sonnet-5-5@medium`), because its prompts come from the code that calls it, so the brief adds its own (`BRIEF_PROMPT_VERSION`) to its trace. Each prompt has a version number next to it in the code (`ANSWER_PROMPT_VERSION`, `RESEARCH_PROMPT_VERSION`, `JEV_PROMPT_VERSION`, `BRIEF_PROMPT_VERSION`), to be raised whenever the prompt changes in a way that could change answers.
+- **Saved answers and cut-offs use the key** (`src/why_now/workspace/judge.py`, `src/why_now/workspace/quick_look.py`). The judge and the quick look save each answer under the answer key instead of the bare model name, so a changed effort or prompt version asks again and the same setup reuses the saved answer for free. A cut-off is saved per answer key too, so one chosen for the judge at medium effort is never used at high effort.
+- **Traces record it.** Every trace's `models` field now holds the answer key, so a trace shows the effort and prompt version of each model, as the design asks.
+
+**Limits we know about.**
+
+- Raising a prompt version is a person's job. If someone edits `ANSWER_SYSTEM` and forgets to raise `ANSWER_PROMPT_VERSION`, old answers are reused. A test could compare a hash of the prompt with a recorded one, but that would fail on harmless edits too, so for now the comment next to the prompt is the guard.
+- The writer's key has no prompt version, because one writer serves several prompts. Briefs are not saved and reused, so the brief's version only labels its trace. When the proposer arrives, its prompt version belongs in its own trace the same way.
+- Workspaces that saved answers or a cut-off under the bare model name will not find them any more, and are asked again. Nothing was moved, because no real marks or cut-offs exist yet.
+
+**The hardest question:** "Why not keep the effort and prompt version as fields in the saved answer, instead of squeezing them into the key?"
+
+**The honest answer:** because a field is only a note, while the key decides what gets reused. If the effort were a field, every reader would have to remember to check it, and one forgotten check would mix answers from two setups into one score. With the effort and prompt version inside the key, an answer from another setup is simply never found, so it can't be reused by mistake. The cost is that changing the effort once asks every question again, which is what the design wants.

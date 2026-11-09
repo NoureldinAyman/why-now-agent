@@ -50,7 +50,7 @@ def research_company(
     the company as failed or stops the run.
     """
     with tracer.trace(
-        "research", profile_id=profile.id, rules_version=None, models={"research": model.model}
+        "research", profile_id=profile.id, rules_version=None, models={"research": model.answer_key}
     ) as trace:
         pack = _PackBuilder(settings.max_pack_chars)
         for job_ad in _newest(company.ads, settings.newest_ads_read):

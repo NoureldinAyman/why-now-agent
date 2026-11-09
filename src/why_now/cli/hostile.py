@@ -27,11 +27,11 @@ def hostile_test(profile_file: ProfileOption, settings_file: SettingsOption = No
     settings, workspace, profile = open_workspace(profile_file, settings_file)
     store = workspace.store
     models = make_models(settings, Meter(store, settings, now))
-    cutoff = workspace.cutoff(models.judge.model)
+    cutoff = workspace.cutoff(models.judge.answer_key)
     if cutoff is None:
         typer.echo(
-            f"No cut-off is recorded for {models.judge.model}, so decisions can't be compared. "
-            "Choose one on the practice pile first."
+            f"No cut-off is recorded for {models.judge.answer_key}, so decisions can't be "
+            "compared. Choose one on the practice pile first."
         )
         raise typer.Exit(1)
     questions = all_questions(profile, workspace.load_rules())

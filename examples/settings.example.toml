@@ -141,6 +141,18 @@ quick_look_model = "jev-1.14.0"
 quick_look_fallback_model = "claude-haiku-5-5"
 # Model that judges each evidence pack.
 judge_model = "claude-sonnet-5-5"
+# Effort is low, medium or high: more thinks harder and costs more. Changing
+# one asks the saved questions again. Tune effort on the practice pile only.
+# Effort for the quick look, used only when it falls back to Claude.
+quick_look_effort = "low"
+# Effort for research.
+research_effort = "medium"
+# Effort for the judge.
+judge_effort = "medium"
+# Effort for writing briefs.
+writer_effort = "medium"
+# Effort for proposing rule changes in the improvement loop.
+proposer_effort = "high"
 # Most tokens one Claude call may write, so a call finishes inside the library's time limit.
 model_max_output_tokens = 16000
 

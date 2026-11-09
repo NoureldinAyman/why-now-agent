@@ -16,6 +16,30 @@ def test_without_a_jev_key_the_quick_look_uses_claude(settings, meter):
     assert models.judge.model == "claude-sonnet-5-5"
 
 
+def test_each_claude_job_gets_its_effort_from_the_settings(settings, meter):
+    settings = settings.model_copy(
+        update={
+            "quick_look_effort": "low",
+            "judge_effort": "high",
+            "writer_effort": "low",
+            "research_effort": "high",
+        }
+    )
+    models = build_models(settings, meter, env={"ANTHROPIC_API_KEY": "test-key"})
+    assert models.quick_look.answer_key.startswith("claude-haiku-5-5@low#p")
+    assert models.judge.answer_key.startswith("claude-sonnet-5-5@high#p")
+    assert models.writer.answer_key == "claude-sonnet-5-5@low"
+    assert models.research.answer_key.startswith("claude-sonnet-5-5@high#p")
+
+
+def test_the_default_efforts_follow_the_design():
+    from why_now.settings import Settings
+
+    s = Settings()
+    assert (s.quick_look_effort, s.research_effort, s.judge_effort) == ("low", "medium", "medium")
+    assert (s.writer_effort, s.proposer_effort) == ("medium", "high")
+
+
 def test_with_a_jev_key_the_quick_look_uses_a_locked_jev_version(settings, meter):
     pytest.importorskip("typesafe_sdk")
     env = {"ANTHROPIC_API_KEY": "test-key", "TYPESAFE_API_KEY": "test-key"}
