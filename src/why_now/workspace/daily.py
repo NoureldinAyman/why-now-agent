@@ -78,6 +78,11 @@ class DailyArea(WorkspaceBase):
     def day_result(self, day: date) -> DayResult | None:
         return self.get_model("days", f"{self.require_profile()}/{day.isoformat()}", DayResult)
 
+    def latest_day(self) -> DayResult | None:
+        """The most recent saved day, or None if the daily run has never been saved."""
+        days = self.list_models("days", DayResult, self.require_profile() + "/")
+        return max(days, key=lambda d: d.day, default=None)
+
     def _waiting(self, which: str) -> list[ListEntry]:
         doc = self.store.get(_LISTS, self.require_profile())
         entries = [] if doc is None else [ListEntry.model_validate(e) for e in doc[which]]

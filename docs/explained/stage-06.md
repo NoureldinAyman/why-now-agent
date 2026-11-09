@@ -31,3 +31,21 @@
 **The hardest question:** "The short list stops at 10, so what happens to the good company that ranks 11th?"
 
 **The honest answer:** it goes on the more list with no research and no brief, and it is not looked at again unless the reviewer opens it. The design accepts this, because a list the reviewer cannot get through is worth less than a shorter one, but it does mean a good company can be missed on a busy day. The test cases are picked at random for this reason: they show how often good companies are wrongly left out.
+
+## The review page (ticket 24)
+
+**What was built.** The private page where the reviewer reads each brief and approves or rejects it. Approving only records a decision. Nothing is sent to anyone.
+
+- **The pages** (`src/why_now/web/routes_review.py`). `/` is the short list, strongest first. `/more` is the more list. `/spending` is this month's money. `POST /decide/{company_key}` saves a decision. Every one needs the login, the same one as the marking pages, and a sent form is refused rather than sent to a sign-in page.
+- **What a brief shows.** The why-now claim first, then the other claims, each with its quote word for word and a link to the job ad or company page the quote came from. The company's relevant ads are listed with links. A link is only made for a web address, because an address read from the internet could hold anything.
+- **Deciding.** Approve or reject, with a reason that is one or more short chips, a sentence, or both. Without a reason nothing is saved and the page says so. A saved decision hides the company from both lists straight away, and for 90 days after.
+- **The same form twice saves one.** A company that is no longer waiting is not decided again, so a second press, or a second tab, changes nothing and lands back on the list. The check and the save happen under one lock, so two copies sent at the same moment cannot both pass.
+- **The more list.** The same form, folded away under each company. A decision made there is recorded as coming from the more list.
+- **Spending.** The top of the page shows this month's spending against the limit, with a warning at the warning amount. At the limit it says paid work is stopped and lists what the last run skipped. Both amounts are settings.
+- **Short-list precision.** Of the decisions made on short-list companies, the share approved, with its count. Decisions from the more list are left out, because the agent did not put those forward. It is shown apart from the scores and says so.
+- **An empty day** says so plainly, and says when no daily run has been saved yet.
+- **Look.** One style sheet for every page, with no script, outside font or outside picture, because the pages' security policy allows none of them. So every picture is inline SVG drawn from the data (`src/why_now/web/visuals.py` and the templates): a small geometric tile for each company, made from a hash of its key so the same company always looks the same; rings for spending and short-list precision, filled from the numbers; a row of ticks for how fresh a company's newest ad is, one tick for each day of the new-ad window; and a bar splitting the month by what it paid for. A tile says nothing about a company. It only helps tell companies apart before reading a name. The marking pages use the same style, so the two halves look like one tool.
+
+**The hardest question:** "Short-list precision is a free number. Why not use it as the score?"
+
+**The honest answer:** because the agent chose those companies and the reviewer judged them from briefs. It says how often the agent's yeses were approved, but nothing about the good companies it left off the list, which a wrong no hides. The score comes from randomly picked companies for that reason. The two numbers sit apart on the page and are never added together.

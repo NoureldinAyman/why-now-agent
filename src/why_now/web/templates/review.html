@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% set active = "today" if which == "short" else "more" %}
+{% block title %}{% if which == "short" %}Short list{% else %}More list{% endif %}{% endblock %}
+{% block content %}
+{% if which == "short" %}
+{% set heading = "Short list" %}
+{% if entries %}
+{% set lede = entries|length ~ (" company is" if entries|length == 1 else " companies are") ~ " waiting for a decision, strongest first." %}
+{% else %}
+{% set lede = "Companies you decide on stay hidden for " ~ hide_days ~ " days." %}
+{% endif %}
+{% else %}
+{% set heading = "More list" %}
+{% set lede = "Not researched, so there is no brief. Nothing here needs a decision, but you can make one." %}
+{% endif %}
+{% include "_masthead.html" %}
+<div class="desk">
+  {% include "_status.html" %}
+  <div class="feed">
+    {% include "_alerts.html" %}
+    {% if entries %}
+    <ol class="entries">
+      {% for e in entries %}
+      {% set rank = loop.index %}
+      <li>{% include "_entry.html" %}</li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    {% set message = "No companies are waiting for a decision." if which == "short" else "Nothing is on the more list." %}
+    {% include "_empty.html" %}
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

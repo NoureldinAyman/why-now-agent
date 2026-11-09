@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ic %}
+{% set active = "spending" %}
+{% block title %}Spending{% endblock %}
+{% block content %}
+{% set heading = "Spending" %}
+{% set lede = "What " ~ spend.month ~ " has cost so far, and what it paid for." %}
+{% include "_masthead.html" %}
+{% include "_alerts.html" %}
+{% if spend.loop_stopped %}
+<div class="alert" role="status">{{ ic("alert", "alert-ic") }}<div><p>The improvement loop has used its ${{ spend.loop_share }} share, so it waits until next month. Research can still use the rest.</p></div></div>
+{% endif %}
+<section class="month">
+  <div class="tile tile-spend tile-big">
+    <h2>{{ ic("coin") }}{{ spend.month }}</h2>
+    {% include "_spend.html" %}
+    <p class="note">Warning at ${{ spend.warn_at }}. Paid work stops at ${{ spend.limit }}.</p>
+  </div>
+  <div class="tile paid-for">
+    <h2>{{ ic("layers") }}What it paid for</h2>
+    {% if spend.slices or spend.fixed %}
+    {% if spend.slices %}
+    <svg class="split" viewBox="0 0 100 10" preserveAspectRatio="none" role="img" aria-label="Share of the month spent on each thing">
+      {% for s in spend.slices %}<rect class="slice tone-{{ s.tone }}" x="{{ s.x }}" width="{{ s.w }}" height="10"/>{% endfor %}
+    </svg>
+    {% endif %}
+    <ul class="legend">
+      {% for s in spend.slices %}<li><span class="dot tone-{{ s.tone }}"></span><span>{{ s.name }}</span><b>${{ s.usd }}</b></li>{% endfor %}
+      {% if spend.fixed %}<li><span class="dot tone-fixed"></span><span>Fixed monthly costs</span><b>${{ "%.2f"|format(spend.fixed) }}</b></li>{% endif %}
+    </ul>
+    <p class="note">The improvement loop has used ${{ spend.loop_spent }} of its ${{ spend.loop_share }} share.</p>
+    {% else %}
+    {% set message = "Nothing has been spent in " ~ spend.month ~ "." %}
+    {% include "_empty.html" %}
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

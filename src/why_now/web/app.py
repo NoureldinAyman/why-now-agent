@@ -44,7 +44,7 @@ def create_app(ctx: AppContext, auth: Authenticator) -> FastAPI:
     if isinstance(auth, LocalAuth) and ctx.settings.deployment != "local":
         raise ValueError("local login is for use on one's own machine, not when deployed")
 
-    from why_now.web import routes_marking, routes_repeat
+    from why_now.web import routes_marking, routes_repeat, routes_review
 
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
     app.state.ctx = ctx
@@ -54,6 +54,7 @@ def create_app(ctx: AppContext, auth: Authenticator) -> FastAPI:
         autoescape=select_autoescape(["html"], default=True),
     )
     app.mount("/static", StaticFiles(directory=HERE / "static"), name="static")
+    app.include_router(routes_review.router)
     app.include_router(routes_marking.router)
     app.include_router(routes_repeat.router)
     if isinstance(auth, SignInPages):
