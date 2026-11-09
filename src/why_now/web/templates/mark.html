@@ -2,6 +2,7 @@
 {% block title %}Mark a company{% endblock %}
 {% block content %}
 <p class="counter">{{ progress.left }} left to mark. {{ progress.marked }} marked so far.</p>
+{% if repeat_nudge %}<p class="nudge">{{ repeat_nudge }}</p>{% endif %}
 
 {% if repeating %}<p class="counter">Second look. Answer from the evidence alone, as if you had not seen this company before.</p>{% endif %}
 <section class="about">
@@ -11,28 +12,47 @@
   <p>Mark <strong>yes</strong> if the founder would want to look at this company this week, based only on the evidence below. Mark <strong>can't tell</strong> if the evidence is too thin to say.</p>
 </section>
 
-<h1>{{ pack.company_name }}</h1>
-<p class="facts">{{ pack.relevant_ad_count }} relevant job ads. {{ pack.total_open_jobs }} open jobs in all.</p>
+<section class="card">
+  <h1>{{ card.company_name }}</h1>
+  <p class="facts">{{ card.relevant_ads }} relevant job ads. {{ card.open_jobs }} open jobs in all.{% if card.newest_ad %} Newest ad: {{ card.newest_ad }}.{% endif %}</p>
+  {% if card.titles %}
+  <ul class="titles">
+    {% for title, count in card.titles %}<li>{{ title }}{% if count > 1 %} ×{{ count }}{% endif %}</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if card.page_start %}
+  <p class="url">From the company's page, {{ card.page_url }}:</p>
+  <div class="text">{{ card.page_start }}{% if card.page_truncated %}…{% endif %}</div>
+  {% endif %}
+</section>
 
-{% for source in sources %}
-<article class="source">
-  <h2>{{ source.kind }}</h2>
-  <p class="url">{% if source.href %}<a href="{{ source.href }}" rel="noopener noreferrer">{{ source.url }}</a>{% else %}{{ source.url }}{% endif %}</p>
-  <div class="text">{{ source.text }}</div>
-</article>
-{% endfor %}
+<details class="pack">
+  <summary>Open the full evidence pack</summary>
+  {% for source in sources %}
+  <article class="source">
+    <h2>{{ source.kind }}</h2>
+    <p class="url">{% if source.href %}<a href="{{ source.href }}" rel="noopener noreferrer">{{ source.url }}</a>{% else %}{{ source.url }}{% endif %}</p>
+    <div class="text">{{ source.text }}</div>
+  </article>
+  {% endfor %}
+</details>
 
 <form method="post" action="{{ post_to }}" class="mark-form">
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <input type="hidden" name="form_token" value="{{ form_token }}">
-  <fieldset>
-    <legend>Your answer</legend>
-    <label><input type="radio" name="answer" value="yes" required{% if answer == "yes" %} checked{% endif %}> Yes</label>
-    <label><input type="radio" name="answer" value="no"{% if answer == "no" %} checked{% endif %}> No</label>
-    <label><input type="radio" name="answer" value="cant_tell"{% if answer == "cant_tell" %} checked{% endif %}> Can't tell</label>
+  <fieldset class="chips">
+    <legend>Why? Tap any that fit, or write a sentence.</legend>
+    {% for chip in all_chips %}
+    <label><input type="checkbox" name="chips" value="{{ chip }}"{% if chip in chips %} checked{% endif %}> {{ chip }}</label>
+    {% endfor %}
   </fieldset>
-  <label for="reason">Why? A sentence is enough. You can dictate it.</label>
-  <textarea id="reason" name="reason" rows="4" required>{{ reason }}</textarea>
-  <button type="submit">Save and go to the next company</button>
+  <label for="reason">Or in your own words (you can dictate it)</label>
+  <textarea id="reason" name="reason" rows="2">{{ reason }}</textarea>
+  <div class="answers">
+    <button type="submit" name="answer" value="yes">Yes</button>
+    <button type="submit" name="answer" value="no">No</button>
+    <button type="submit" name="answer" value="cant_tell">Can't tell</button>
+  </div>
 </form>
+{% include "_prepare.html" %}
 {% endblock %}

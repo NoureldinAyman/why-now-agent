@@ -79,6 +79,10 @@ class EvidencePack(BaseModel):
     relevant_ad_count: int
     total_open_jobs: int
     research_steps: int
+    # Every relevant ad's title and the newest ad's publish date, kept so the marking card
+    # can be built from the pack alone. Packs made before these were kept have neither.
+    ad_titles: list[str] = []
+    newest_ad_at: datetime | None = None
 
 
 class Answer(BaseModel):
@@ -117,9 +121,11 @@ class Decision(BaseModel):
 class Mark(BaseModel):
     case_id: str
     answer: Literal["yes", "no", "cant_tell"]
-    reason: str
+    reason: str  # may be empty when chips give the reason
     marked_at: datetime
     round: Literal["first", "repeat"] = "first"
+    chips: list[str] = []  # the short reasons the reviewer tapped
+    seen_on_list: bool = False  # the company was on a daily list before it was marked
 
 
 class CaseRecord(BaseModel):

@@ -52,6 +52,19 @@ class Settings(BaseModel):
     check_size: int = 75
     final_size: int = 75
     pilot_size: int = 40
+    prepare_batch: int = Field(default=20, gt=0)
+    card_page_chars: int = Field(default=400, gt=0)
+    # Short reasons the reviewer can tap in place of writing a sentence.
+    reason_chips: list[str] = Field(
+        default_factory=lambda: [
+            "recruitment agency",
+            "competitor",
+            "not hiring the right people",
+            "too big",
+            "too small",
+            "good timing",
+        ]
+    )
     marking_ceiling: int = 500
     remark_size: int = 30
     remark_after_days: int = 7

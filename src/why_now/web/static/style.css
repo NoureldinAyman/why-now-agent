@@ -19,3 +19,11 @@ button { font: inherit; min-height: 2.75rem; padding: 0 1.25rem; }
 .error { color: #b00020; font-weight: 600; }
 @media (prefers-color-scheme: dark) { .error { color: #ff8a80; } }
 .counts { padding-left: 1.25rem; }
+.card { border: 1px solid; border-color: color-mix(in srgb, currentColor 25%, transparent);
+  border-radius: 0.5rem; padding: var(--gap); margin: var(--gap) 0; }
+.titles { margin: 0.5rem 0; padding-left: 1.25rem; }
+.pack summary { cursor: pointer; min-height: 2.75rem; display: flex; align-items: center; }
+.answers { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.answers button { flex: 1 1 8rem; }
+.nudge { border-left: 4px solid; padding-left: 0.75rem; }
+.prepare-form { margin: 1rem 0 3rem; display: grid; gap: 0.5rem; }

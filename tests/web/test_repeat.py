@@ -126,3 +126,15 @@ def test_save_repeat_selection_keeps_the_first_pick(workspace):
     assert workspace.save_repeat_selection(1, ["a", "b"], datetime(2026, 11, 6, tzinfo=UTC))
     assert not workspace.save_repeat_selection(2, ["c"], datetime(2026, 11, 7, tzinfo=UTC))
     assert workspace.repeat_selection() == ["a", "b"]
+
+
+def test_the_repeat_page_uses_the_same_card_and_takes_chips(client, workspace, repeat_case):
+    html = client.get("/repeat").text
+    assert 'class="card"' in html and "Acme" in html
+    assert 'name="chips" value="competitor"' in html
+    reply = post_repeat(client, repeat_case.case_id, answer="no", reason="")
+    assert reply.status_code == 422  # still needs a reason
+    data = {"answer": "no", "reason": "", "chips": ["too big"], "form_token": form_token(client)}
+    assert client.post(f"/repeat/{repeat_case.case_id}", data=data).status_code == 200
+    [again] = workspace.marks("repeat")
+    assert again.chips == ["too big"] and again.reason == ""

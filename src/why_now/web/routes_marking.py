@@ -5,15 +5,18 @@ pack and the reviewer's own marks, so there is no agent answer in reach to leak.
 """
 
 import secrets
+import threading
 from collections import Counter
 from dataclasses import dataclass
-from typing import Annotated, Final, get_args
+from typing import Annotated, Final, Literal, get_args
 
 from fastapi import APIRouter, Depends, Form, HTTPException
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from why_now.domain import CaseRecord, Mark, Profile, Source
+from why_now.testset.packs import SEED_LIMIT, card
+from why_now.testset.repeat import can_repeat
 from why_now.web.app import AppContext
 from why_now.web.auth import SignInPages
 from why_now.workspace import Workspace
@@ -23,6 +26,11 @@ router = APIRouter()
 ROUND: Final = "first"
 TOKEN_NAME: Final = "form_token"
 ANSWERS: Final = get_args(Mark.model_fields["answer"].annotation)
+
+# Held while companies are being prepared, so a second press, or a second tab, cannot start
+# a second run that researches and pays for the same companies. It covers one process, which
+# is how the page runs on one's own computer.
+_PREPARING = threading.Lock()
 
 
 def signed_in(request: Request) -> str:
@@ -61,7 +69,13 @@ def next_case(request: Request, _: Reviewer, profile: str | None = None) -> Resp
     workspace = Workspace(ctx.store, chosen.id)
     waiting = _waiting(workspace)
     if not waiting:
-        return _page(request, "mark_done.html", profile=chosen, progress=_progress(workspace))
+        return _form_page(
+            request,
+            "mark_done.html",
+            profile=chosen,
+            progress=_progress(workspace),
+            repeat_nudge=_repeat_nudge(ctx, workspace),
+        )
     return _show_case(request, workspace, chosen, waiting[0])
 
 
@@ -81,6 +95,36 @@ def progress(request: Request, _: Reviewer, profile: str | None = None) -> Respo
     )
 
 
+@router.post("/prepare", response_class=HTMLResponse)
+def prepare_now(
+    request: Request,
+    _: Reviewer,
+    seed: Annotated[int, Form(ge=0, lt=SEED_LIMIT)],
+    profile: str | None = None,
+    form_token: Annotated[str, Form()] = "",
+) -> Response:
+    """Prepare companies now, and wait for it. It costs money, so only on one's own computer."""
+    check_form_token(request, form_token)
+    ctx = _ctx(request)
+    chosen = _choose_profile(ctx, profile)
+    if not _can_prepare(ctx) or ctx.prepare is None or chosen is None:
+        raise HTTPException(status_code=404, detail="Preparing is not available here")
+    if not _PREPARING.acquire(blocking=False):
+        raise HTTPException(status_code=409, detail="Companies are already being prepared")
+    # The page offers to finish a stopped run with the same seed, so it carries both along.
+    again = {"seed": seed, "form_token": form_token}
+    try:
+        result = ctx.prepare(chosen, ctx.settings.prepare_batch, seed)
+    except Exception as e:  # shown as text, so a missing key or a failed read is not a blank page
+        return _page(
+            request, "prepared.html", status=500, profile=chosen, result=None,
+            problem=f"{type(e).__name__}: {e}", **again,
+        )  # fmt: skip
+    finally:
+        _PREPARING.release()
+    return _page(request, "prepared.html", profile=chosen, result=result, problem=None, **again)
+
+
 @router.post("/mark/{case_id}", response_class=HTMLResponse)
 def save_mark(
     request: Request,
@@ -88,6 +132,7 @@ def save_mark(
     _: Reviewer,
     answer: Annotated[str, Form()] = "",
     reason: Annotated[str, Form()] = "",
+    chips: Annotated[list[str] | None, Form()] = None,
     form_token: Annotated[str, Form()] = "",
 ) -> Response:
     check_form_token(request, form_token)
@@ -97,21 +142,12 @@ def save_mark(
         raise HTTPException(status_code=404, detail="No such case")
     workspace, profile, case = found
 
-    reason = reason.strip()
-    error = form_error(answer, reason)
+    reason, picked, error = read_form(ctx, answer, reason, chips)
     if error is not None:
-        return _show_case(request, workspace, profile, case, error, answer, reason, status=422)
+        return _show_case(request, workspace, profile, case, error, reason, picked, status=422)
 
-    mark = Mark.model_validate(
-        {
-            "case_id": case.case_id,
-            "answer": answer,
-            "reason": reason,
-            "marked_at": ctx.clock(),
-            "round": ROUND,
-        }
-    )
-    workspace.save_mark(mark)  # a second copy of the same form changes nothing
+    # A second copy of the same form changes nothing.
+    workspace.save_mark(new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
     return RedirectResponse(_mark_url(ctx, profile), status_code=303)
 
 
@@ -122,13 +158,50 @@ def check_form_token(request: Request, form_token: str) -> None:
         raise HTTPException(status_code=403, detail="The form has expired. Go back and reload it.")
 
 
-def form_error(answer: str, reason: str) -> str | None:
-    """What is wrong with a submitted answer and reason, or None if both are fine."""
+def read_form(
+    ctx: AppContext, answer: str, reason: str, chips: list[str] | None
+) -> tuple[str, list[str], str | None]:
+    """The reason and chips of a sent mark form, tidied, and what is wrong with it if anything.
+    Both the marking and the repeat page read their form here, so they cannot drift apart."""
+    reason = reason.strip()
+    picked = list(dict.fromkeys(chips or []))  # each chip once, in the order sent
+    return reason, picked, form_error(answer, reason, picked, ctx.settings.reason_chips)
+
+
+def form_error(answer: str, reason: str, chips: list[str], allowed: list[str]) -> str | None:
+    """What is wrong with a submitted answer and reason, or None if all is fine. A reason is
+    one or more chips, a sentence, or both, and at least one is needed."""
     if answer not in ANSWERS:
         return "Choose yes, no or can't tell."
-    if not reason:
-        return "Give a reason, even a short one."
+    if any(chip not in allowed for chip in chips):
+        return "One of the reasons is not on the list. Pick from the short choices."
+    if not reason and not chips:
+        return "Give a reason: tap a short choice or write a sentence."
     return None
+
+
+def new_mark(
+    ctx: AppContext,
+    workspace: Workspace,
+    case: CaseRecord,
+    answer: str,
+    reason: str,
+    chips: list[str],
+    round: Literal["first", "repeat"],
+) -> Mark:
+    """The mark for a checked answer, noting whether the company was on a daily list before."""
+    now = ctx.clock()
+    return Mark.model_validate(
+        {
+            "case_id": case.case_id,
+            "answer": answer,
+            "reason": reason,
+            "chips": chips,
+            "seen_on_list": workspace.was_listed(case.company_key, now),
+            "marked_at": now,
+            "round": round,
+        }
+    )
 
 
 def _ctx(request: Request) -> AppContext:
@@ -171,6 +244,21 @@ def _waiting(workspace: Workspace) -> list[CaseRecord]:
     return [c for c in workspace.cases() if c.pack_id is not None and c.case_id not in done]
 
 
+def _repeat_nudge(ctx: AppContext, workspace: Workspace) -> str | None:
+    """A line suggesting a repeat round when one can be picked, and none has been yet."""
+    if workspace.repeat_selection() is not None:
+        return None
+    settings = ctx.settings
+    ready = can_repeat(workspace.marks(ROUND), ctx.clock().date(), settings.remark_after_days)
+    if len(ready) < settings.remark_size:
+        return None
+    return (
+        f"{len(ready)} companies were marked yes or no at least {settings.remark_after_days} days "
+        f"ago and can be marked again, which measures how consistent you are. It is optional. "
+        f"Pick {settings.remark_size} with why-now repeat-marks, then mark them again."
+    )
+
+
 def _progress(workspace: Workspace) -> Progress:
     given = Counter(m.answer for m in workspace.marks(ROUND))
     return Progress(
@@ -181,14 +269,18 @@ def _progress(workspace: Workspace) -> Progress:
     )
 
 
+def _can_prepare(ctx: AppContext) -> bool:
+    return ctx.prepare is not None and ctx.settings.deployment == "local"
+
+
 def _show_case(
     request: Request,
     workspace: Workspace,
     profile: Profile,
     case: CaseRecord,
     error: str | None = None,
-    answer: str = "",
     reason: str = "",
+    chips: list[str] | None = None,
     status: int = 200,
     progress: Progress | None = None,
     post_to: str | None = None,
@@ -197,22 +289,47 @@ def _show_case(
     pack = workspace.load_pack(case.pack_id) if case.pack_id else None
     if pack is None:
         raise HTTPException(status_code=404, detail="This case has no evidence pack yet")
-    token = request.cookies.get(TOKEN_NAME) or secrets.token_urlsafe()
-    response = _page(
+    return _form_page(
         request,
         "mark.html",
         status=status,
         profile=profile,
         case=case,
-        pack=pack,
+        card=card(case, pack, _ctx(request).settings),
         sources=[_source_view(s) for s in pack.sources],
         progress=progress or _progress(workspace),
         post_to=post_to or f"/mark/{case.case_id}",
         repeating=repeating,
-        form_token=token,
         error=error,
-        answer=answer,
         reason=reason,
+        chips=chips or [],
+        repeat_nudge=None if repeating else _repeat_nudge(_ctx(request), workspace),
+        all_chips=_ctx(request).settings.reason_chips,
+    )
+
+
+def _form_page(
+    request: Request,
+    template: str,
+    status: int = 200,
+    profile: Profile | None = None,
+    **values: object,
+) -> Response:
+    """A page with a form on it: it carries the form token, and the Prepare form when it
+    is available. The browser keeps the token in a cookie, which the sent form must match."""
+    ctx = _ctx(request)
+    token = request.cookies.get(TOKEN_NAME) or secrets.token_urlsafe()
+    response = _page(
+        request,
+        template,
+        status,
+        profile,
+        form_token=token,
+        can_prepare=_can_prepare(ctx),
+        prepare_batch=ctx.settings.prepare_batch,
+        prepare_seed=secrets.randbelow(SEED_LIMIT),  # fixed by the page, so a second press of the
+        # same form asks for the same companies and pays for nothing twice
+        **values,
     )
     if token != request.cookies.get(TOKEN_NAME):
         response.set_cookie(
@@ -247,6 +364,7 @@ def _page(
     links = {
         "mark_link": "/mark" + suffix,
         "progress_link": "/mark/progress" + suffix,
+        "prepare_link": "/prepare" + suffix,
         "repeat_link": "/repeat" + suffix,
     }
     html = request.app.state.templates.get_template(template).render(

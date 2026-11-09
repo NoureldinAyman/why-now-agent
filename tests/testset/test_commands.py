@@ -109,3 +109,72 @@ def test_picking_again_never_repeats_a_company(tmp_path, monkeypatch, make_profi
     assert "Only 1 could be picked" in result.output
     assert sorted(c.company_key for c in ws.cases()) == ["acme", "globex"]
     assert [p.seed for p in ws.picks()] == [1, 2]
+
+
+class Idle:
+    model = answer_key = "idle"
+
+    def answer(self, state, questions, category):
+        raise AssertionError("not used")
+
+    def structured(self, *, system, untrusted, schema, category):
+        raise AssertionError("not used")
+
+    def step(self, conversation, category):
+        raise AssertionError("not used")
+
+
+def use_models(monkeypatch, research):
+    from why_now.ai import Models
+
+    monkeypatch.setattr(
+        testset_command,
+        "make_models",
+        lambda settings, meter: Models(
+            quick_look=Idle(), judge=Idle(), writer=Idle(), research=research
+        ),
+    )
+
+
+def test_prepare_picks_researches_and_a_rerun_with_its_seed_pays_nothing_twice(
+    tmp_path, monkeypatch, make_profile
+):
+    ws, args, model = setup(tmp_path, monkeypatch, make_profile)
+    use_models(monkeypatch, model)
+    runner = CliRunner()
+
+    result = runner.invoke(app, ["prepare", *args, "--n", "5", "--seed", "42"])
+    assert result.exit_code == 0, result.output
+    assert "Picked 2 of 2 companies" in result.output and "seed 42" in result.output
+    assert "Only 2 could be picked, fewer than the 5 asked for" in result.output
+    assert "Built 2 evidence packs" in result.output
+    assert all(c.pack_id for c in ws.cases()) and model.calls == 2
+
+    again = runner.invoke(app, ["prepare", *args, "--n", "5", "--seed", "42"])
+    assert again.exit_code == 0, again.output
+    assert "already picked with seed 42" in again.output
+    assert "Built 0 evidence packs" in again.output
+    assert model.calls == 2
+
+
+def test_prepare_uses_the_batch_setting_and_records_a_seed_when_none_is_given(
+    tmp_path, monkeypatch, make_profile
+):
+    ws, args, model = setup(tmp_path, monkeypatch, make_profile)
+    use_models(monkeypatch, model)
+    settings_file = args[args.index("--settings") + 1]
+    with open(settings_file, "a", encoding="utf-8") as f:
+        f.write("prepare_batch = 1\n")
+    result = CliRunner().invoke(app, ["prepare", *args])
+    assert result.exit_code == 0, result.output
+    [pick] = ws.picks()
+    assert pick.n == 1 and f"seed {pick.seed}" in result.output
+
+
+def test_prepare_says_so_when_there_are_no_ads_to_pick_from(tmp_path, monkeypatch, make_profile):
+    ws, args, model = setup(tmp_path, monkeypatch, make_profile)
+    use_models(monkeypatch, model)
+    monkeypatch.setattr(testset_command, "now", lambda: NOW + timedelta(days=100))
+    result = CliRunner().invoke(app, ["prepare", *args, "--seed", "1"])
+    assert result.exit_code == 1
+    assert "No company has a relevant ad" in result.output and model.calls == 0

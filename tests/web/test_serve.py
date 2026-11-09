@@ -56,3 +56,21 @@ def test_serve_needs_a_profile(tmp_path):
     result = CliRunner().invoke(app, ["serve", "--settings", str(settings_file)])
     assert result.exit_code != 0
     assert "daily_profiles" in result.output
+
+
+def test_serve_gives_the_page_the_prepare_step_on_one_own_computer(
+    tmp_path, monkeypatch, make_profile
+):
+    started = {}
+
+    class FakeServer:
+        def __init__(self, config):
+            started["app"] = config.app
+
+        def run(self):
+            pass
+
+    monkeypatch.setattr(serve_command.uvicorn, "Server", FakeServer)
+    result = CliRunner().invoke(app, serve_args(tmp_path, make_profile))
+    assert result.exit_code == 0, result.output
+    assert started["app"].state.ctx.prepare is not None

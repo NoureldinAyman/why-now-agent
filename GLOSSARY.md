@@ -114,6 +114,14 @@ _Avoid_: Precision (on its own), hit rate
 To pick companies at random for marking and research each one into a frozen evidence pack, so they are ready to mark. Each company's pile is decided at this moment.
 _Avoid_: Sample, queue, fetch
 
+**Card**:
+The short read a reviewer sees before marking, built by code from the evidence pack alone: the company, its relevant job titles with counts, the open jobs, the newest ad's date and the start of a company page. The full pack opens below it. It never holds an agent answer.
+_Avoid_: Preview, summary
+
+**Reason chip**:
+A short reason the reviewer taps instead of typing, such as "too big". A reason is one or more chips, a sentence, or both, and at least one is needed.
+_Avoid_: Tag, label
+
 **Effort**:
 A setting on Claude models that controls how much the model thinks before answering, and so what a call costs. Each job has its own.
 _Avoid_: Thinking budget, reasoning level

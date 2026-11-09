@@ -87,6 +87,8 @@ def research_company(
             created_at=now,
             sources=pack.sources,
             relevant_ad_count=len(company.ads),
+            ad_titles=[remove_contacts(a.title) for a in company.ads],
+            newest_ad_at=max((a.published_at for a in company.ads), default=None),
             total_open_jobs=company.total_open_jobs,
             research_steps=steps,
         )

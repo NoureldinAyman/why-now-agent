@@ -51,6 +51,8 @@ def test_documents_are_plain_json_in_the_store(store):
         "reason": "hiring",
         "marked_at": "2026-11-05T00:00:00Z",
         "round": "first",
+        "chips": [],
+        "seen_on_list": False,
     }
 
 

@@ -239,3 +239,14 @@ def test_one_profile_finishing_does_not_end_another_profiles_pause(store):
     assert first.one_time_research_active() and second.one_time_research_active()
     second.set_one_time_research(False)
     assert not first.one_time_research_active()
+
+
+def test_the_pack_keeps_every_relevant_title_and_the_newest_date_for_the_card(
+    workspace, profile, settings, tracer
+):
+    picked(workspace, profile, "acme")
+    build(workspace, profile, CountingModel(), settings, tracer)
+    pack = workspace.load_pack(workspace.cases()[0].pack_id)
+    assert pack is not None
+    assert pack.ad_titles == ["Sales Rep"]
+    assert pack.newest_ad_at == NOW - timedelta(days=1)

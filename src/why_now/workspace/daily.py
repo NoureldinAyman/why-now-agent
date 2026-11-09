@@ -5,7 +5,7 @@ decisions, its own lists, and its own idea of which ads are worth a second look.
 """
 
 import hashlib
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 from why_now.day_result import DayResult, ListEntry
 from why_now.domain import Decision, JobAd
@@ -46,6 +46,16 @@ class DailyArea(WorkspaceBase):
         return None if latest is None else latest.date() + timedelta(days=hide_days)
 
     # The two lists
+
+    def was_listed(self, company_key: str, by: datetime) -> bool:
+        """Whether the company was on the short list or the more list on a day up to and
+        including the day of `by`. Every saved day is looked at, not only the current lists."""
+        days = self.list_models("days", DayResult, self.require_profile() + "/")
+        return any(
+            day.day <= by.date()
+            and any(e.company_key == company_key for e in [*day.short_list, *day.more_list])
+            for day in days
+        )
 
     def short_list(self) -> list[ListEntry]:
         """Companies on the short list that nobody has decided yet, strongest first."""

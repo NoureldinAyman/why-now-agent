@@ -140,3 +140,23 @@ One-time research is charged to its own budget category, `test_cases`, so it sho
 **The hardest question:** "With a hash, the check pile could end up with far fewer yes answers than the final pile. Isn't the old even split better?"
 
 **The honest answer:** for one fixed set of 300 companies, yes, the old split made check and final more alike. But it needed all the marking done before anything could be measured, and the reviewer marks in occasional sittings. The hash gives up the even deal of yes answers in return for numbers that come as soon as there are enough, and for a pile that no mark, order or can't tell can change. The loop waits for 15 yes answers in check, and the final pile still guards against a check pile that happens to be easy.
+
+## Prepare and quick marking (ticket 44)
+
+**What was built.** One step now takes a reviewer from nothing to companies ready to mark, and the marking page is a short card with taps instead of a long page and a typed reason.
+
+- **`prepare(ctx, profile, n, seed)`** (`src/why_now/testset/packs.py`). It picks `n` companies at random from everyone with a relevant ad in the window, decides each company's pile at once, and researches each into a frozen pack. It is the old pick and build steps run together, and `pick-cases` and `build-packs` still work on their own. The budget is checked before every paid call, so a spent budget stops it with what was built kept.
+- **A rerun pays for nothing twice.** A seed and count that were already picked are not picked again: the rerun only finishes companies still without a pack. A new seed picks more companies, never one picked before.
+- **`why-now prepare --profile P`.** `--n` defaults to the `prepare_batch` setting, 20. With no `--seed` it makes one and prints it, so a stop can be finished with `--seed`. On the marking page, on one's own computer only, a "Prepare 20" button does the same. The page waits while it runs, and the seed is fixed when the page is drawn, so pressing the form twice asks for the same companies.
+- **`card(case, pack, settings)`.** It builds the card from the pack alone: company name, relevant job titles with counts, relevant and open job counts, the date of the newest ad, and the first 400 characters of the first web page in the pack. No agent answer can be on it, because nothing but the pack is passed in. The full pack opens below it. To make this possible the pack now also keeps every relevant ad's title and the newest ad's date.
+- **One-tap answers and reason chips.** Yes, no and can't tell are three buttons. A reason is one or more chips from the `reason_chips` setting, a sentence, or both, and at least one is needed. A chip that is not in the setting is refused, so a sent form cannot invent one.
+- **`seen_on_list`.** A mark records whether the company was on a short list or more list on or before the day it was marked. Marks still do not hide a company from daily lists.
+- **The repeat page and the nudge.** The repeat page uses the same card and form. When 30 first yes or no marks are at least 7 days old and no repeat round is picked, the marking page says a repeat round is possible and names the command that picks it.
+
+**Example.** Press "Prepare 20". The page waits while the research runs, then says how many companies were picked and how many are ready. The first card shows a company's name, its job titles with a count where a title repeats, its open jobs, the date of its newest ad and the start of its page. Tap "too big", then "No". The mark records the chip, an empty sentence, and whether the company had been on a daily list.
+
+**Limits we know about.** Preparing on the page holds the request open while research runs, which is fine on one's own computer and is why it is not offered when deployed. Packs made before this ticket have no titles or newest date, so their card leaves those out. A repeat mark also records `seen_on_list`, though it is not used there.
+
+**The hardest question:** "The card shows only a short start of the company page. Won't you mark on too little and make the test worse?"
+
+**The honest answer:** it can happen, and it is a trade. The card is short so that marking is quick enough to do 300 companies at all. The whole pack is one tap below it, and can't tell is a real answer that leaves the company out of the scores, so thin evidence does not have to be forced into a yes or no. The 400 characters is a starting guess, and it is a setting.

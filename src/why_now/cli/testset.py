@@ -1,6 +1,7 @@
-"""`why-now pick-cases` and `why-now build-packs`: make a profile's test cases."""
+"""`why-now prepare`, `pick-cases` and `build-packs`: make a profile's test cases."""
 
 import os
+import random
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -8,7 +9,7 @@ from typing import Annotated
 import httpx
 import typer
 
-from why_now.ai import ResearchModel, build_models
+from why_now.ai import Models, ResearchModel, build_models
 from why_now.ai.budget import Meter
 from why_now.cli import app
 from why_now.deployment import open_store
@@ -16,8 +17,10 @@ from why_now.domain import Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.search import search_ads
 from why_now.profile import ProfileError, load_profile
+from why_now.run_context import RunContext
 from why_now.settings import Settings, load_settings
-from why_now.testset.packs import build_packs, new_case
+from why_now.store import Store
+from why_now.testset.packs import SEED_LIMIT, BuildResult, build_packs, new_case, prepare
 from why_now.testset.picking import eligible_companies, pick_cases
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
@@ -35,12 +38,89 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
+def make_models(settings: Settings, meter: Meter) -> Models:
+    return build_models(settings, meter, os.environ)
+
+
 def make_research(settings: Settings, meter: Meter) -> ResearchModel:
-    return build_models(settings, meter, os.environ).research
+    return make_models(settings, meter).research
 
 
 def make_reader(settings: Settings) -> PageReader:
     return PageReader(httpx.Client(trust_env=False), settings)
+
+
+def run_prepare(
+    settings: Settings, store: Store, profile: Profile, n: int, seed: int
+) -> BuildResult:
+    """Prepare companies with the real models and page reader. The command and the marking
+    page's button both come here, so they do the same thing."""
+    meter = Meter(store, settings, now)
+    reader = make_reader(settings)
+    ctx = RunContext(
+        settings=settings,
+        store=store,
+        sources=[],
+        boards={},
+        models=make_models(settings, meter),
+        reader=reader,
+        meter=meter,
+        tracer=build_tracer(
+            settings.workspace_path / "traces", UnitCounter(store, settings, now), now, os.environ
+        ),
+        clock=now,
+    )
+    with reader.http:
+        return prepare(ctx, profile, n, seed)
+
+
+@app.command("prepare")
+def prepare_command(
+    profile_file: ProfileOption,
+    n: Annotated[
+        int | None,
+        typer.Option(
+            "--n", min=1, help="How many companies to prepare. Defaults to prepare_batch."
+        ),
+    ] = None,
+    seed: Annotated[
+        int | None,
+        typer.Option(help="Seed for the random pick. It is recorded. Defaults to a new one."),
+    ] = None,
+    settings_file: SettingsOption = None,
+) -> None:
+    """Pick companies at random, decide their piles and research each, ready to mark."""
+    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    n = settings.prepare_batch if n is None else n
+    # A new seed each time, so asking again prepares more. Say it, so a stop can be finished.
+    seed = random.SystemRandom().randrange(SEED_LIMIT) if seed is None else seed
+    again = any(p.seed == seed and p.n == n for p in workspace.picks())
+    result = run_prepare(settings, workspace.store, profile, n, seed)
+    if again:
+        typer.echo(f"{n} companies were already picked with seed {seed}. Finishing any left.")
+    elif result.eligible == 0:
+        typer.echo(
+            f"No company has a relevant ad in the last {settings.new_ad_days} days. "
+            "Read job ads first with why-now read."
+        )
+    else:
+        typer.echo(
+            f"Picked {result.picked} of {result.eligible} companies with a relevant ad in the "
+            f"last {settings.new_ad_days} days, with seed {seed}."
+        )
+        if result.picked < n:
+            typer.echo(f"Only {result.picked} could be picked, fewer than the {n} asked for.")
+    typer.echo(f"Built {result.built} evidence packs.")
+    for case_id, reason in result.failed.items():
+        typer.echo(f"  {case_id} failed: {reason}. It is kept and tried again next time.")
+    if result.stopped:
+        typer.echo(
+            f"{result.stopped} {result.left} companies are left. Run again with --n {n} "
+            f"--seed {seed} to finish them."
+        )
+        raise typer.Exit(1)
+    if not again and result.eligible == 0 and result.built == 0:
+        raise typer.Exit(1)  # nothing was picked and nothing was built
 
 
 @app.command("pick-cases")

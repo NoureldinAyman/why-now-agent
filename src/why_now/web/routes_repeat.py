@@ -2,13 +2,13 @@
 later. It shows the evidence pack alone. It never reads the first-round marks for display,
 so the first answer and its reason cannot reach the page."""
 
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Form, HTTPException
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
-from why_now.domain import CaseRecord, Mark, Profile
+from why_now.domain import CaseRecord, Profile
 from why_now.web.routes_marking import (
     Progress,
     Reviewer,
@@ -19,13 +19,14 @@ from why_now.web.routes_marking import (
     _profile_query,
     _show_case,
     check_form_token,
-    form_error,
+    new_mark,
+    read_form,
 )
 from why_now.workspace import Workspace
 
 router = APIRouter()
 
-ROUND = "repeat"
+ROUND: Literal["repeat"] = "repeat"
 
 
 @router.get("/repeat", response_class=HTMLResponse)
@@ -50,6 +51,7 @@ def save_repeat(
     _: Reviewer,
     answer: Annotated[str, Form()] = "",
     reason: Annotated[str, Form()] = "",
+    chips: Annotated[list[str] | None, Form()] = None,
     form_token: Annotated[str, Form()] = "",
 ) -> Response:
     check_form_token(request, form_token)
@@ -61,21 +63,12 @@ def save_repeat(
     if case.case_id not in (workspace.repeat_selection() or []):
         raise HTTPException(status_code=404, detail="This case was not picked to be marked again")
 
-    reason = reason.strip()
-    error = form_error(answer, reason)
+    reason, picked, error = read_form(ctx, answer, reason, chips)
     if error is not None:
-        return _show_repeat(request, workspace, profile, case, error, answer, reason, 422)
+        return _show_repeat(request, workspace, profile, case, error, reason, picked, 422)
 
-    mark = Mark.model_validate(
-        {
-            "case_id": case.case_id,
-            "answer": answer,
-            "reason": reason,
-            "marked_at": ctx.clock(),
-            "round": ROUND,
-        }
-    )
-    workspace.save_mark(mark)  # a second copy of the same form changes nothing
+    # A second copy of the same form changes nothing.
+    workspace.save_mark(new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
     return RedirectResponse("/repeat" + _profile_query(ctx, profile), status_code=303)
 
 
@@ -85,12 +78,12 @@ def _show_repeat(
     profile: Profile,
     case: CaseRecord,
     error: str | None = None,
-    answer: str = "",
     reason: str = "",
+    chips: list[str] | None = None,
     status: int = 200,
 ) -> Response:
     return _show_case(
-        request, workspace, profile, case, error, answer, reason, status,
+        request, workspace, profile, case, error, reason, chips, status,
         progress=_progress(workspace), post_to=f"/repeat/{case.case_id}", repeating=True,
     )  # fmt: skip
 
