@@ -15,6 +15,7 @@ import uvicorn
 
 from why_now.ai.budget import Meter
 from why_now.cli import app
+from why_now.cli.testset import run_prepare
 from why_now.deployment import build_auth, open_store
 from why_now.profile import ProfileError, load_profile
 from why_now.settings import load_settings
@@ -58,6 +59,8 @@ def serve_command(
         store = open_store(settings)
         auth = build_auth(settings, os.environ)
         ctx = AppContext(settings, store, profiles, Meter(store, settings, now), now)
+        if settings.deployment == "local":
+            ctx.prepare = lambda profile, n, seed: run_prepare(settings, store, profile, n, seed)
         web_app = create_app(ctx, auth)
     except ValueError as e:
         typer.echo(str(e), err=True)

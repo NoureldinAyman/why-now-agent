@@ -8,16 +8,22 @@ from datetime import date, timedelta
 from why_now.domain import Mark
 
 
-def pick_repeats(marks: list[Mark], n: int, seed: int, today: date, after_days: int) -> list[str]:
-    """Pick up to `n` cases to mark again. Only first-round yes and no answers given at least
-    `after_days` ago can be picked, because a fresh memory would flatter the reviewer and a
-    can't-tell has nothing to compare. Fewer than `n` come back if fewer are old enough."""
+def can_repeat(marks: list[Mark], today: date, after_days: int) -> list[str]:
+    """The cases that could be marked again, sorted. Only first-round yes and no answers given
+    at least `after_days` ago can be, because a fresh memory would flatter the reviewer and a
+    can't-tell has nothing to compare."""
     cutoff = today - timedelta(days=after_days)
-    old_enough = sorted(
+    return sorted(
         m.case_id
         for m in marks
         if m.round == "first" and m.answer != "cant_tell" and m.marked_at.date() <= cutoff
     )
+
+
+def pick_repeats(marks: list[Mark], n: int, seed: int, today: date, after_days: int) -> list[str]:
+    """Pick up to `n` cases to mark again, from those that `can_repeat`. Fewer than `n` come
+    back if fewer are old enough."""
+    old_enough = can_repeat(marks, today, after_days)
     return sorted(random.Random(seed).sample(old_enough, min(n, len(old_enough))))
 
 

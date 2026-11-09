@@ -15,6 +15,7 @@ from why_now.ai.budget import Meter
 from why_now.domain import Profile
 from why_now.settings import Settings
 from why_now.store import Store
+from why_now.testset.packs import BuildResult
 from why_now.web.auth import Authenticator, LocalAuth, SignInPages
 
 HERE = Path(__file__).parent
@@ -34,6 +35,9 @@ class AppContext:
     profiles: dict[str, Profile]
     meter: Meter
     clock: Callable[[], datetime]
+    # Prepares companies for a profile: (profile, how many, seed). Only given on one's own
+    # computer, where the keys and the budget are the reviewer's own.
+    prepare: Callable[[Profile, int, int], BuildResult] | None = None
 
 
 def create_app(ctx: AppContext, auth: Authenticator) -> FastAPI:

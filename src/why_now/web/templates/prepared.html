@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Prepared{% endblock %}
+{% block content %}
+{% if problem %}
+<h1>Preparing stopped</h1>
+<p class="error" role="alert">{{ problem }}</p>
+{% else %}
+<h1>Prepared</h1>
+{% if result.picked %}<p>{{ result.picked }} companies were picked from {{ result.eligible }} with a relevant ad.</p>{% endif %}
+<p>{{ result.built }} are ready to mark.</p>
+{% if result.stopped %}<p class="error" role="alert">{{ result.stopped }} {{ result.left }} are left.</p>{% endif %}
+{% for case_id, reason in result.failed.items() %}<p class="error">A company failed: {{ reason }}. It is kept and tried again next time.</p>{% endfor %}
+{% endif %}
+{% if problem or result.stopped or result.failed %}
+<form method="post" action="{{ prepare_link }}" class="prepare-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <input type="hidden" name="seed" value="{{ seed }}">
+  <button type="submit">Finish these</button>
+  <p class="counter">Asks for the same companies again, so nothing already researched is paid for twice.</p>
+</form>
+{% endif %}
+<p><a href="{{ mark_link }}">Back to marking</a></p>
+{% endblock %}

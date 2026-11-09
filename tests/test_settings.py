@@ -40,6 +40,15 @@ def test_numbers_added_to_the_design_table_have_its_values():
     assert s.session_secret_min_chars == 32
 
 
+def test_prepare_and_card_settings_have_the_designs_values():
+    s = load_settings(None, env={})
+    assert (s.prepare_batch, s.card_page_chars) == (20, 400)
+    assert s.reason_chips == [
+        "recruitment agency", "competitor", "not hiring the right people",
+        "too big", "too small", "good timing",
+    ]  # fmt: skip
+
+
 def test_quick_look_has_a_fallback_model_setting():
     s = load_settings(None, env={})
     assert s.quick_look_fallback_model == "claude-haiku-5-5"

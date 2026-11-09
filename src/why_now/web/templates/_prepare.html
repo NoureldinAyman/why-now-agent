@@ -1,0 +1,8 @@
+{% if can_prepare and not repeating %}
+<form method="post" action="{{ prepare_link }}" class="prepare-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <input type="hidden" name="seed" value="{{ prepare_seed }}">
+  <button type="submit">Prepare {{ prepare_batch }}</button>
+  <p class="counter">Picks {{ prepare_batch }} more companies at random and researches each one. This costs money and takes a while, so keep this page open.</p>
+</form>
+{% endif %}

@@ -7,22 +7,32 @@
 - A spent budget stops the build. What was built is kept, and the result says so.
 - Any other failure is recorded against the case, which stays in the list and is
   tried again on the next run.
+- `prepare` is the whole step for the reviewer: pick, decide piles, build. Run again with the
+  same seed and count it picks nothing and only finishes what is still unbuilt.
 """
 
 import hashlib
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
+
+from pydantic import BaseModel
 
 from why_now.ai import ResearchModel
 from why_now.ai.budget import TEST_CASES, BudgetExceeded
-from why_now.domain import CaseRecord, Company, Profile
+from why_now.domain import CaseRecord, Company, EvidencePack, Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.research import research_company
+from why_now.pipeline.search import search_ads
+from why_now.run_context import RunContext, metered
 from why_now.settings import Settings
+from why_now.testset.picking import eligible_companies, pick_cases
 from why_now.testset.piles import pile_for
 from why_now.tracing import Tracer
 from why_now.workspace import Workspace
+
+SEED_LIMIT = 2**31  # seeds are whole numbers from 0 up to this. It only keeps them short to read.
 
 
 @dataclass
@@ -32,6 +42,8 @@ class BuildResult:
     failed: dict[str, str] = field(default_factory=dict)  # case id to reason
     stopped: str | None = None  # why the build stopped early, if it did
     left: int = 0  # cases not tried because the build stopped
+    picked: int = 0  # companies picked by this step, when it was a `prepare`
+    eligible: int = 0  # companies with a relevant ad in the window, when it was a `prepare`
 
 
 def new_case(profile_id: str, company: Company, seed: int, settings: Settings) -> CaseRecord:
@@ -98,6 +110,39 @@ def build_packs(
     return result
 
 
+def prepare(ctx: RunContext, profile: Profile, n: int, seed: int) -> BuildResult:
+    """Pick `n` companies at random, decide each one's pile, and research each into a pack.
+
+    A seed and count already picked with are not picked again, so a rerun after a stop only
+    finishes the companies still without a pack. Pick more with a new seed. The budget is
+    checked before every paid call, so a spent budget stops the step with what was built kept.
+    """
+    workspace = Workspace(ctx.store, profile.id)
+    picked = eligible = 0
+    if not any(p.seed == seed and p.n == n for p in workspace.picks()):
+        companies = search_ads(workspace.all_board_ads(), profile, {})
+        pool = eligible_companies(companies, ctx.settings, ctx.clock().date())
+        before = {c.company_key for c in workspace.cases()}
+        chosen = pick_cases(pool, n, seed, before)
+        for company in chosen:
+            workspace.save_case(new_case(profile.id, company, seed, ctx.settings), company)
+        workspace.record_pick(seed, n, [c.key for c in chosen], ctx.clock())
+        picked, eligible = len(chosen), len(pool)
+    waiting = [c for c in workspace.cases() if not _has_pack(workspace, c)]
+    result = build_packs(
+        waiting,
+        workspace,
+        profile,
+        metered(ctx.models, ctx.meter).research,
+        ctx.reader,
+        ctx.settings,
+        ctx.tracer,
+        clock=ctx.clock,
+    )
+    result.picked, result.eligible = picked, eligible
+    return result
+
+
 def _has_pack(workspace: Workspace, case: CaseRecord) -> bool:
     return case.pack_id is not None and workspace.load_pack(case.pack_id) is not None
 
@@ -111,3 +156,34 @@ def _fail(
 ) -> None:
     workspace.record_pack_failure(case.case_id, reason, clock())
     result.failed[case.case_id] = reason
+
+
+class Card(BaseModel):
+    """What the reviewer reads before marking. Every field comes from the evidence pack,
+    so there is no agent answer on it."""
+
+    company_name: str
+    titles: list[tuple[str, int]]  # each relevant job title and how many ads have it
+    relevant_ads: int
+    open_jobs: int
+    newest_ad: date | None
+    page_start: str | None  # the start of the first web page in the pack, if it has one
+    page_truncated: bool
+    page_url: str | None
+
+
+def card(case: CaseRecord, pack: EvidencePack, settings: Settings) -> Card:
+    """Build the marking card from the pack alone. `case` is taken so the card is made for a
+    case, but nothing on it is read from there."""
+    page = next((s for s in pack.sources if s.kind == "page"), None)
+    limit = settings.card_page_chars
+    return Card(
+        company_name=pack.company_name,
+        titles=Counter(pack.ad_titles).most_common(),  # ties keep the order first seen
+        relevant_ads=pack.relevant_ad_count,
+        open_jobs=pack.total_open_jobs,
+        newest_ad=None if pack.newest_ad_at is None else pack.newest_ad_at.date(),
+        page_start=None if page is None else page.text[:limit],
+        page_truncated=page is not None and len(page.text) > limit,
+        page_url=None if page is None else page.url,
+    )

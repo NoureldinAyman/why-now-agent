@@ -151,3 +151,21 @@ The old test of `choose_cutoff` used five rows and expected 0.65. Under F1 the b
 Moving to piles set at the pick, the design says a company never changes pile, but nothing in the code stopped it. Any later step that saved a case with a different pile, by mistake or by a bad merge of two copies, would have moved it without a sound, and the scores would quietly mix piles. The workspace now refuses to save a case whose pile differs from the saved one, and a test checks it. With the frozen flag gone, the small workspace area that held it had nothing left, so it was removed rather than kept empty.
 
 **What it taught:** a rule in the design that the code could break is worth one check where the data is saved, not only in the step that sets it.
+
+## 9 Nov 2026: The marking card needed facts the pack did not keep
+
+The plan says the card shows the job titles with counts and the date of the newest ad, built from the pack alone. The pack held only the newest five ads as text and a count of all relevant ads, with the time the pack was built as each ad's time. So the titles of the others, and the real publish date, were not in it, and a card built from what was there would have shown wrong counts and a wrong date. The pack now keeps every relevant ad's title and the newest publish date. Packs made earlier have neither, and their card leaves them out rather than guessing.
+
+**What it taught:** when a rule says "only from the pack", check that the pack really holds each fact before writing the code that reads it.
+
+## 9 Nov 2026: "A rerun pays for nothing twice" meant two different things
+
+Picking skips companies picked before. So running prepare again with the same seed would not repeat the same pick: it would pick 20 other companies and pay to research them. That is the opposite of what a rerun after a budget stop needs. A seed and count already picked with are now treated as the same pick: nothing new is picked, and only the companies still without a pack are researched. A new seed picks more. On the page the seed is fixed when it is drawn, so pressing the button twice cannot pay twice.
+
+**What it taught:** an idempotent step needs its "same request" defined. Here it is the seed and the count.
+
+## 9 Nov 2026: The plan's card function had nowhere to get the 400
+
+The plan gives `card(case, pack)`, but the first 400 characters is a setting, and no number is fixed in code. `card` takes the settings as a third argument. The case is still passed, as the plan says, though nothing is read from it, so that the card is always made for a case and never from one.
+
+**What it taught:** a signature in a plan is not final until every number it needs has a source.

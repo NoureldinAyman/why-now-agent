@@ -3,5 +3,7 @@
 {% block content %}
 <h1>All marked</h1>
 <p>Every company with an evidence pack has a mark. {{ progress.marked }} marked in all.</p>
+{% if repeat_nudge %}<p class="nudge">{{ repeat_nudge }}</p>{% endif %}
 <p><a href="{{ progress_link }}">See the counts</a></p>
+{% include "_prepare.html" %}
 {% endblock %}
