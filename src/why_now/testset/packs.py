@@ -20,6 +20,7 @@ from why_now.domain import CaseRecord, Company, Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.research import research_company
 from why_now.settings import Settings
+from why_now.testset.piles import pile_for
 from why_now.tracing import Tracer
 from why_now.workspace import Workspace
 
@@ -33,11 +34,16 @@ class BuildResult:
     left: int = 0  # cases not tried because the build stopped
 
 
-def new_case(profile_id: str, company: Company, seed: int) -> CaseRecord:
-    """A case for a newly picked company. One company has one case per profile."""
+def new_case(profile_id: str, company: Company, seed: int, settings: Settings) -> CaseRecord:
+    """A case for a newly picked company, with its pile decided now. One company has one case
+    per profile."""
     digest = hashlib.sha256(f"{profile_id}|{company.key}".encode()).hexdigest()[:16]
     return CaseRecord(
-        case_id=f"case-{digest}", profile_id=profile_id, company_key=company.key, seed=seed
+        case_id=f"case-{digest}",
+        profile_id=profile_id,
+        company_key=company.key,
+        seed=seed,
+        pile=pile_for(seed, company.key, settings),
     )
 
 

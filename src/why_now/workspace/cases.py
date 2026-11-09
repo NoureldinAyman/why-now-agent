@@ -15,9 +15,17 @@ _FLAGS = "one_time_research"
 
 class CasesArea(WorkspaceBase):
     def save_case(self, case: CaseRecord, company: Company | None = None) -> None:
-        """Save a case. The company, with the ads it was picked with, is saved once at the pick."""
+        """Save a case. The company, with the ads it was picked with, is saved once at the pick.
+
+        A case's pile is set when it is picked, and a case never changes pile.
+        """
         if case.profile_id != self.require_profile():
             raise ValueError(f"case for {case.profile_id!r} saved in {self.profile_id!r}")
+        saved = self.get_model("cases", self._key(case.case_id), CaseRecord)
+        if saved is not None and saved.pile != case.pile:
+            raise ValueError(
+                f"case {case.case_id} is in the {saved.pile} pile, and a case never changes pile"
+            )
         self.put_model("cases", self._key(case.case_id), case)
         if company is not None:
             self.put_model("case_companies", self._key(case.case_id), company)

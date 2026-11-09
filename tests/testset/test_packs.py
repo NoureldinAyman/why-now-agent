@@ -7,6 +7,7 @@ from why_now.ai import BadModelOutput, ResearchStep
 from why_now.ai.budget import BudgetExceeded, Meter
 from why_now.domain import CaseRecord, Company, JobAd
 from why_now.pipeline.reader import PageReader
+from why_now.settings import Settings
 from why_now.testset.packs import build_packs, new_case
 from why_now.tracing import LocalLogTracer, UnitCounter
 from why_now.workspace import Workspace
@@ -80,7 +81,7 @@ def tracer(store, settings, tmp_path):
 
 def picked(workspace, profile, *keys: str) -> list[CaseRecord]:
     for key in keys:
-        workspace.save_case(new_case(profile.id, company(key), seed=42), company(key))
+        workspace.save_case(new_case(profile.id, company(key), 42, Settings()), company(key))
     return workspace.cases()
 
 

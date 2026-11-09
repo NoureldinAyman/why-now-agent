@@ -1,5 +1,5 @@
-"""`why-now yes-share`, `split-piles`, `repeat-marks` and `agreement`: the numbers and steps
-that come after the reviewer has marked the test cases."""
+"""`why-now yes-share`, `piles`, `repeat-marks` and `agreement`: the numbers and steps that
+come as the reviewer marks the test cases."""
 
 from datetime import UTC, datetime
 from typing import Annotated
@@ -8,7 +8,7 @@ import typer
 
 from why_now.cli import app
 from why_now.cli.testset import ProfileOption, SettingsOption, open_workspace
-from why_now.testset.piles import PilesFrozen, split_piles, yes_share
+from why_now.testset.piles import loop_ready, pile_report, yes_share
 from why_now.testset.repeat import agreement_counts, pick_repeats
 
 SeedOption = Annotated[int, typer.Option(help="Seed for the random choice. It fixes the result.")]
@@ -38,27 +38,28 @@ def yes_share_command(profile_file: ProfileOption, settings_file: SettingsOption
     )
 
 
-@app.command("split-piles")
-def split_piles_command(
-    profile_file: ProfileOption, seed: SeedOption, settings_file: SettingsOption = None
-) -> None:
-    """Split the marked companies into the practice, check and final piles."""
+@app.command("piles")
+def piles_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+    """Show how full each pile is, and whether the improvement loop can start."""
     settings, workspace, _ = open_workspace(profile_file, settings_file)
-    try:
-        report = split_piles(workspace, seed, settings)
-    except PilesFrozen as e:
-        typer.echo(f"{e} Nothing was changed.")
-        raise typer.Exit(1) from e
-    for pile, count in report.counts.items():
-        typer.echo(f"{pile}: {count} companies, {report.yes_counts[pile]} yes.")
-    typer.echo(f"Yes share, leaving out can't tell: {report.yes_share:.0%}. Seed {seed}.")
-    if report.short_piles:
+    report = pile_report(workspace)
+    for pile, row in report.piles.items():
         typer.echo(
-            f"Short of {settings.target_yes_per_pile} yes answers: "
-            f"{', '.join(report.short_piles)}. "
-            f"Mark more companies, up to {settings.marking_ceiling} in all, and split again. "
-            "If it is still short, lower target_yes_per_pile (never below "
-            f"{settings.floor_yes_per_pile}) and say publicly that the numbers are rougher."
+            f"{pile}: {row.cases} companies, {row.marked} marked: "
+            f"{row.yes} yes, {row.no} no, {row.cant_tell} can't tell."
+        )
+    if report.no_pile:
+        typer.echo(f"{report.no_pile} companies were picked before piles were set, in no pile.")
+    check_yes = report.piles["check"].yes
+    if loop_ready(report, settings):
+        typer.echo(
+            f"Ready: the check pile has {check_yes} yes answers, at least the "
+            f"{settings.floor_yes_per_pile} the improvement loop needs."
+        )
+    else:
+        typer.echo(
+            f"Not ready: the check pile has {check_yes} of {settings.floor_yes_per_pile} yes "
+            "answers the improvement loop needs. Keep marking."
         )
 
 

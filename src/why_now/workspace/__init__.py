@@ -9,14 +9,11 @@ from why_now.workspace.cases import CasesArea
 from why_now.workspace.daily import DailyArea
 from why_now.workspace.judge import JudgeArea
 from why_now.workspace.marks import MarksArea
-from why_now.workspace.piles import PilesArea
 from why_now.workspace.quick_look import QuickLookArea
 from why_now.workspace.read import ReadArea
 
 
-class Workspace(
-    CasesArea, DailyArea, MarksArea, PilesArea, QuickLookArea, ReadArea, JudgeArea, WorkspaceBase
-):
+class Workspace(CasesArea, DailyArea, MarksArea, QuickLookArea, ReadArea, JudgeArea, WorkspaceBase):
     """Add each area's mixin before `WorkspaceBase`."""
 
 
