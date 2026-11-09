@@ -1,0 +1,12 @@
+<form method="post" action="{{ e.post_to }}" class="decide">
+  {% if e.error %}<p class="error" role="alert">{{ e.error }}</p>{% endif %}
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  {% set picked = e.chips %}
+  {% include "_chips.html" %}
+  <label class="own-words" for="reason-{{ e.key }}">Or in your own words</label>
+  <textarea id="reason-{{ e.key }}" name="reason" rows="1">{{ e.reason }}</textarea>
+  <div class="verdicts">
+    <button type="submit" name="decision" value="approve" class="approve">Approve</button>
+    <button type="submit" name="decision" value="reject" class="reject">Reject</button>
+  </div>
+</form>

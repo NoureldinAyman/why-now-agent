@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set active = "spending" %}
+{% block title %}Spending{% endblock %}
+{% block content %}
+<h1>Spending</h1>
+<section class="status status-one" aria-label="This month">
+  <div class="tile">
+    <h2>{{ spend.month }}</h2>
+    {% include "_spend.html" %}
+    <p class="note">Warning at ${{ spend.warn_at }}. Paid work stops at ${{ spend.limit }}.</p>
+  </div>
+</section>
+{% include "_alerts.html" %}
+{% if spend.loop_stopped %}
+<div class="alert" role="status"><p>The improvement loop has used its ${{ spend.loop_share }} share, so it waits until next month. Research can still use the rest.</p></div>
+{% endif %}
+<section class="card">
+  <h2>What it paid for</h2>
+  {% if spend.parts or spend.fixed %}
+  <table class="parts">
+    <tbody>
+      {% for name, usd in spend.parts %}<tr><th scope="row">{{ name }}</th><td>${{ usd }}</td></tr>{% endfor %}
+      {% if spend.fixed %}<tr><th scope="row">Fixed monthly costs</th><td>${{ "%.2f"|format(spend.fixed) }}</td></tr>{% endif %}
+    </tbody>
+  </table>
+  <p class="note">The improvement loop has used ${{ spend.loop_spent }} of its ${{ spend.loop_share }} share.</p>
+  {% else %}
+  <p class="empty">Nothing has been spent in {{ spend.month }}.</p>
+  {% endif %}
+</section>
+{% endblock %}

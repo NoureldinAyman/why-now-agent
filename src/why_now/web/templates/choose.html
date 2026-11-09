@@ -4,7 +4,7 @@
 <h1>Choose a profile to mark</h1>
 <ul>
 {% for p in profiles %}
-  <li><a href="/mark?profile={{ p.id }}">{{ p.product_name }}</a></li>
+  <li><a href="{{ choose_to|default("/mark") }}?profile={{ p.id }}">{{ p.product_name }}</a></li>
 {% endfor %}
 </ul>
 {% endblock %}

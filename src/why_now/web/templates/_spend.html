@@ -1,0 +1,8 @@
+<div class="spend">
+  <p class="figure"><span class="big">${{ spend.spent }}</span> <span class="of">of ${{ spend.limit }} spent in {{ spend.month }}</span></p>
+  <svg class="bar{% if spend.stopped %} is-stopped{% elif spend.warning %} is-warning{% endif %}" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="${{ spend.spent }} of ${{ spend.limit }} spent">
+    <rect class="track" width="100" height="6"/>
+    <rect class="fill" width="{{ spend.fill }}" height="6"/>
+    <rect class="mark" x="{{ spend.mark }}" width="0.6" height="6"/>
+  </svg>
+</div>

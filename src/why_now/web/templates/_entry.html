@@ -1,0 +1,32 @@
+<article class="entry" id="{{ e.key }}">
+  <header class="entry-head">
+    <span class="rank" aria-hidden="true">{{ rank }}</span>
+    <div>
+      <h2>{{ e.name }}</h2>
+      <p class="meta">Listed {{ e.listed }}</p>
+    </div>
+  </header>
+  {% for c in e.claims %}
+  <figure class="claim{% if loop.first %} why-now{% endif %}">
+    {% if loop.first %}<p class="kicker">Why now</p>{% endif %}
+    <figcaption>{{ c.text }}</figcaption>
+    <blockquote>{{ c.quote }}</blockquote>
+    {% if c.href %}<a class="source-link" href="{{ c.href }}" rel="noopener noreferrer">{{ c.link_text }}</a>{% endif %}
+  </figure>
+  {% endfor %}
+  {% if e.ads %}
+  <ul class="ads">
+    {% for ad in e.ads %}
+    <li>{% if ad.href %}<a href="{{ ad.href }}" rel="noopener noreferrer">{{ ad.title }}</a>{% else %}{{ ad.title }}{% endif %}<span class="meta">{{ ad.location }}</span></li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if which == "more" %}
+  <details class="decide-more"{% if e.error %} open{% endif %}>
+    <summary>Decide on this company</summary>
+    {% include "_decide.html" %}
+  </details>
+  {% else %}
+  {% include "_decide.html" %}
+  {% endif %}
+</article>

@@ -1,0 +1,28 @@
+<section class="status" aria-label="This month">
+  <div class="tile">
+    <h2>Spending</h2>
+    {% include "_spend.html" %}
+    <p class="note"><a href="{{ spending_link }}">See the month in full</a></p>
+  </div>
+  <div class="tile">
+    <h2>Short-list precision</h2>
+    {% if precision.decided %}
+    <p class="figure"><span class="big">{{ precision.percent }}%</span> <span class="of">{{ precision.approved }} of {{ precision.decided }} approved</span></p>
+    <p class="note">Only companies the agent put forward. This is not the score.</p>
+    {% else %}
+    <p class="figure"><span class="of">No decisions yet</span></p>
+    <p class="note">It appears once you decide on a company from the short list.</p>
+    {% endif %}
+  </div>
+  <div class="tile">
+    <h2>Daily run</h2>
+    {% if run %}
+    <p class="figure"><span class="big">{{ run.day }}</span></p>
+    <p class="note">{% if run.today %}Ran today.{% else %}Nothing has run today.{% endif %}{% if run.failed %} {{ run.failed|length }} failed.{% endif %}</p>
+    {% else %}
+    <p class="figure"><span class="of">No daily run yet</span></p>
+    <p class="note">No daily run has been saved. Run <code>why-now daily</code>.</p>
+    {% endif %}
+  </div>
+</section>
+{% include "_alerts.html" %}

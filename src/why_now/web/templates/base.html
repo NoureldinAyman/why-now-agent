@@ -3,17 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Marking{% endblock %}</title>
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}Review{% endblock %} · Why-Now</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <nav>
-    <a href="{{ mark_link }}">Mark</a>
-    <a href="{{ progress_link }}">Progress</a>
-  </nav>
+<a class="skip" href="#main">Skip to the page</a>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="{{ review_link }}">
+      <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle class="ring" cx="12" cy="12" r="9"/>
+        <path class="hand" d="M12 6.5V12l3.6 2.2"/>
+      </svg>
+      <span>Why-Now</span>
+    </a>
+    <nav aria-label="Pages">
+      <ul class="nav-group">
+        <li><a href="{{ review_link }}"{% if active == "today" %} aria-current="page"{% endif %}>Short list</a></li>
+        <li><a href="{{ more_link }}"{% if active == "more" %} aria-current="page"{% endif %}>More</a></li>
+        <li><a href="{{ spending_link }}"{% if active == "spending" %} aria-current="page"{% endif %}>Spending</a></li>
+      </ul>
+      <ul class="nav-group nav-testing">
+        <li><a href="{{ mark_link }}"{% if active == "mark" %} aria-current="page"{% endif %}>Mark</a></li>
+        <li><a href="{{ progress_link }}"{% if active == "progress" %} aria-current="page"{% endif %}>Progress</a></li>
+      </ul>
+    </nav>
+  </div>
 </header>
-<main>
+<main id="main">
 {% block content %}{% endblock %}
 </main>
 </body>

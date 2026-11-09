@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set active = "today" if which == "short" else "more" %}
+{% block title %}{% if which == "short" %}Short list{% else %}More list{% endif %}{% endblock %}
+{% block content %}
+{% if which == "short" %}
+<h1>Short list</h1>
+{% else %}
+<h1>More list</h1>
+{% endif %}
+{% if entries %}
+<p class="lede">{% if which == "short" %}{{ entries|length }} {{ "company is" if entries|length == 1 else "companies are" }} waiting for a decision, strongest first.{% else %}Not researched, so there is no brief. Nothing here needs a decision, but you can make one.{% endif %}</p>
+{% endif %}
+{% include "_status.html" %}
+{% if entries %}
+<ol class="entries">
+  {% for e in entries %}
+  {% set rank = loop.index %}
+  <li>{% include "_entry.html" %}</li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="empty">{% if which == "short" %}No companies are waiting for a decision.{% else %}Nothing is on the more list.{% endif %}</p>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,21 @@
+{% if spend.stopped %}
+<div class="alert alert-stop" role="status">
+  <p><strong>Paid work is stopped.</strong> ${{ spend.spent }} of the ${{ spend.limit }} limit is spent for {{ spend.month }}. The daily read still runs, but nothing is researched or judged until next month.</p>
+  {% if run and run.skipped %}
+  <p>Skipped in the run of {{ run.day }}:</p>
+  <ul>{% for line in run.skipped %}<li>{{ line }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% else %}
+{% if spend.warning %}
+<div class="alert alert-warn" role="status">
+  <p><strong>Spending warning.</strong> ${{ spend.spent }} is past the ${{ spend.warn_at }} warning. Paid work stops at ${{ spend.limit }}.</p>
+</div>
+{% endif %}
+{% if run and run.skipped %}
+<div class="alert" role="status">
+  <p>Skipped in the run of {{ run.day }}:</p>
+  <ul>{% for line in run.skipped %}<li>{{ line }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+{% endif %}
