@@ -1,10 +1,12 @@
+import pytest
+
 from why_now.evaluation.score import ScoreResult
 from why_now.improve.keep import decide_keep
 
 
-def result(correct: int, f05: float) -> ScoreResult:
+def result(correct: int, f: float, beta: float = 1) -> ScoreResult:
     return ScoreResult(
-        tp=0, fp=0, fn=0, tn=0, n=100, correct=correct, precision=0, recall=0, f05=f05
+        tp=0, fp=0, fn=0, tn=0, n=100, correct=correct, precision=0, recall=0, f=f, beta=beta
     )
 
 
@@ -46,3 +48,18 @@ def test_hostile_tests_not_run_yet_is_not_a_keep(settings):
 def test_gain_comes_from_the_setting(settings):
     s = settings.model_copy(update={"keep_min_gain": 1})
     assert decide_keep(result(60, 0.60), result(61, 0.63), P, P, True, s).keep
+
+
+@pytest.mark.parametrize(
+    "odd", ["check_before", "check_after", "practice_before", "practice_after"]
+)
+def test_scores_with_different_betas_are_refused(settings, odd):
+    scores = {
+        "check_before": result(60, 0.60),
+        "check_after": result(62, 0.65),
+        "practice_before": P,
+        "practice_after": P,
+    }
+    scores[odd] = scores[odd].model_copy(update={"beta": 0.5})
+    with pytest.raises(ValueError, match="beta"):
+        decide_keep(**scores, hostile_passed=True, settings=settings)
