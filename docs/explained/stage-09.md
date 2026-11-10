@@ -24,3 +24,23 @@ The four new numbers (350 KB, 12 hours, 10 minutes, 32 characters) are settings,
 **The hardest question:** "You tested against a fake AWS. How do you know the real one behaves the same?"
 
 **The honest answer:** we don't yet, not fully. moto copies the AWS behaviour the store relies on, such as listing in pages of 1 MB and refusing an empty prefix in a key condition, and the login is checked against a fake Cognito built from Cognito's documented token rules. What a fake can't show is the real setup: permissions, region names and the registered sign-in address. The deployment ticket checks those by signing in and running the night run on the real account.
+
+## The whole AWS setup, built by hand (ticket 48)
+
+**What was built.** Every AWS part the app needs, made by hand in the console and the command line, to learn each service and to run the app on them. No code changed. Ticket 32 writes the same setup as code, and ticket 33 deploys from it and deletes these hand-made parts, using a private list kept while building.
+
+- **A budget alarm first,** so that anything that goes wrong shows up as an email to the owner's own address.
+- **Storage.** A private S3 bucket with public access blocked, for job ads and evidence packs. A DynamoDB table in on-demand mode, with partition key `collection` and sort key `key`, which are the names the store writes. Both are charged by use.
+- **The login.** A Cognito user pool with no self sign-up, two-factor sign-in required with an authenticator app, one user made by hand, and a login client with a secret. The client's return address could only be set once the web address existed, so it was first a placeholder and then replaced.
+- **Secrets.** The session secret and the login client's ID and secret sit in Parameter Store under `/why-now/`. The owner entered them, and no agent saw the values.
+- **The image.** The same image serves both jobs. It was built on the owner's computer, pushed to a private registry in the same region, and used by both Lambda and Fargate.
+- **The web page.** A Lambda function from the image, with a role that can use only this bucket, this table and these parameters. Its web address needs no AWS sign-in, because the app checks the login itself: every page and form needs a signed-in session, and a signed-out visit goes to the sign-in.
+- **A run on Fargate.** A task that runs the image with `sample-run`, which uses invented data and no keys. It ran and exited cleanly.
+
+**Why by hand first.** Writing the setup as code is much easier to check when you already know what a bucket, a table, a role and a return address are, and which settings they depend on. Each problem we hit is in `docs/problems.md`.
+
+**What was not done.** The schedule that starts the daily task did not run, and was skipped. A real daily run, which uses the model key and costs money, was left for the deployment ticket. So nothing here shows that a real run reads real job ads and saves them to S3 and DynamoDB. The deployed image is also a few commits behind the code, so it does not yet include later pages.
+
+**The hardest question:** "You say the review page works on AWS. What did you actually prove?"
+
+**The honest answer:** that a signed-out visitor is sent to the sign-in, that the owner can sign in with a password and a second factor and reach the marking page, and that the page reads from the real table and bucket. We did not prove a real run end to end, a schedule, or how the setup behaves over a week. The deployment ticket does those with measured numbers.

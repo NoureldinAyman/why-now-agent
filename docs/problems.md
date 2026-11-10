@@ -187,3 +187,51 @@ The pages send a content security policy that allows only our own style sheet, s
 A company can be on both lists, for example when it was listed on the more list one day and researched the next. The decision route looked on the short list first, so a decision made on the more list for such a company was saved as coming from the short list, which would have raised short-list precision for a company the agent had not put forward. The form now says which list it came from, and the route looks there first. Found by a review, not by the first set of tests.
 
 **What it taught:** when one thing can sit in two places, a test needs a case where it does.
+
+## 10 Nov 2026: A new AWS account does not work the way the guides say
+
+Building by hand on a fresh account, three guesses from memory were wrong. The page for making an IAM user had no option for a console password, so a user made there could never sign in to the website, and the planned two-factor step for it had nothing to attach to. The account turned out to sign in through a temporary full-access role, not a root login, which is what AWS now prefers. The free plan also hides IAM Identity Center until the account is upgraded, and AWS's documentation says creating an Organization, which Identity Center needs, upgrades the account and ends the free credits. We did not test that last part. We kept the free plan and the role sign-in with two-factor sign-in.
+
+**What it taught:** check the current AWS documentation for the account in front of you before giving steps, and say which parts are unverified.
+
+## 10 Nov 2026: Docker could not store the registry login on Windows
+
+Logging in to the image registry failed with "The stub received bad data". Docker saves the login in the Windows credential store, which has a size limit that the long login token went over. The first fix, setting an empty store name, was not enough on its own, because Docker could still choose the Windows store. What worked was a temporary Docker settings folder with an explicit entry for the registry and no store, used for one session and deleted after the push.
+
+**What it taught:** a fix that changes how Docker picks its login store has to be tried, not assumed. Keep the login token out of the normal settings and remove it afterwards.
+
+## 10 Nov 2026: A comment in the Dockerfile named a command that does not exist
+
+The Dockerfile says the Fargate task runs `night-run`. There is no such command yet. The daily run is `why-now daily`, which needs a profile and the careers page lists. The hand-built task ran `sample-run` instead, which uses invented data and no keys.
+
+**What it taught:** a comment about a future command is a promise. Say "not yet" in the comment, or keep it out.
+
+## 10 Nov 2026: The sign-in address must match exactly, and its failure says little
+
+The login page first showed "redirect_mismatch". The app sends its web address plus `/auth/callback`, and the address saved on the login client had only the web address, so the two did not match. The error page does not say which part differs. We found it by reading the address the app sends from the response headers and comparing it with the saved one.
+
+**What it taught:** when a sign-in is refused at the provider, read the exact address the app sent, and compare it character by character with what is registered.
+
+## 10 Nov 2026: A fixed secret did nothing until the function restarted
+
+After the sign-in succeeded at Cognito, the app showed "Sign-in failed" twice. The login client's secret in Parameter Store did not match the one in Cognito. Correcting it did not help at first, because the function reads its secrets once when it starts and keeps them while it stays warm. Adding a throwaway setting forced a new start, and sign-in worked.
+
+**What it taught:** after changing a secret, restart whatever reads it. A secret that is read once is also one that is cached.
+
+## 10 Nov 2026: The sign-in refusal gives no reason, and the log gives none either
+
+The final sign-in step answers every failure with the same short message, on purpose, so an attacker learns nothing. But the server also writes nothing to its log, so the owner could not tell a wrong secret from a wrong pool ID from an expired attempt, and found the cause by checking settings one at a time. A line in the log naming the failed check, and never a secret or a token, would have shortened this. This is not fixed yet.
+
+**What it taught:** a refusal can be vague to the visitor and still specific in the log.
+
+## 10 Nov 2026: The scheduled run did not start, and was left for the deployment ticket
+
+A schedule meant to start the Fargate task did not run, and the reason was not found. The task itself, started by hand with `sample-run`, ran and exited cleanly. The schedule is rewritten as code in the setup ticket and tested in the deployment ticket, so it was skipped here.
+
+**What it taught:** a hand-built part that was not proven is recorded as not proven, not ticked.
+
+## 10 Nov 2026: Different tests failed on each full run on one Windows computer
+
+Running the whole non-live suite four times on the owner's Windows computer gave 7, 2, 4 and 1 failures, and the failing tests were mostly different each time. Every file that failed passed when run alone. The one that failed every time is the test that copies the project without the example profiles and runs the suite again inside the copy. In that inner run, researching a company failed with "Access is denied" when saving the monthly trace file, and other runs showed missing files. The cause was not found. It looks like a file being locked or replaced while another step still holds it, which Windows refuses and other systems allow. Nothing in this change touches that code, because the change is notes only. It is not fixed.
+
+**What it taught:** a test suite that passes on one computer and fails differently on the next run is a finding, not noise. Write down what was seen, and find the cause before trusting a green run.
