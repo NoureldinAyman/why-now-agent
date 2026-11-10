@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% set active = "mark" %}
 {% block title %}Mark a company{% endblock %}
 {% block content %}
 <p class="counter">{{ progress.left }} left to mark. {{ progress.marked }} marked so far.</p>
@@ -40,13 +41,9 @@
 <form method="post" action="{{ post_to }}" class="mark-form">
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <input type="hidden" name="form_token" value="{{ form_token }}">
-  <fieldset class="chips">
-    <legend>Why? Tap any that fit, or write a sentence.</legend>
-    {% for chip in all_chips %}
-    <label><input type="checkbox" name="chips" value="{{ chip }}"{% if chip in chips %} checked{% endif %}> {{ chip }}</label>
-    {% endfor %}
-  </fieldset>
-  <label for="reason">Or in your own words (you can dictate it)</label>
+  {% set picked = chips %}
+  {% include "_chips.html" %}
+  <label class="own-words" for="reason">Or in your own words (you can dictate it)</label>
   <textarea id="reason" name="reason" rows="2">{{ reason }}</textarea>
   <div class="answers">
     <button type="submit" name="answer" value="yes">Yes</button>

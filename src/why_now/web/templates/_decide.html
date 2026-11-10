@@ -1,0 +1,14 @@
+{% from "_icons.html" import ic %}
+<form method="post" action="{{ e.post_to }}" class="decide">
+  {% if e.error %}<p class="error" role="alert">{{ ic("alert") }}{{ e.error }}</p>{% endif %}
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <input type="hidden" name="from_list" value="{{ which }}">
+  {% set picked = e.chips %}
+  {% include "_chips.html" %}
+  <label class="own-words" for="reason-{{ e.key }}">Or in your own words</label>
+  <textarea id="reason-{{ e.key }}" name="reason" rows="1">{{ e.reason }}</textarea>
+  <div class="verdicts">
+    <button type="submit" name="decision" value="reject" class="reject">{{ ic("x") }}Reject</button>
+    <button type="submit" name="decision" value="approve" class="approve">{{ ic("check") }}Approve</button>
+  </div>
+</form>

@@ -170,6 +170,24 @@ The plan gives `card(case, pack)`, but the first 400 characters is a setting, an
 
 **What it taught:** a signature in a plan is not final until every number it needs has a source.
 
+## 9 Nov 2026: A decision had no place for the reason chips
+
+The plan's decision held an approval, a free-text reason and the list it came from. The 8 Nov revision says decisions use the same reason chips as marking, so a chip-only reason, which is the quick way to decide, had nowhere to be saved. `Decision` now has a `chips` list, and `reason` may be empty when chips give the reason, as on a mark. Marking and deciding check the reason with one shared function, so the two cannot disagree about what a valid reason is.
+
+**What it taught:** when a revision changes how people answer, check every saved shape that holds an answer, not only the page.
+
+## 9 Nov 2026: The spending bar could not be drawn with a style attribute
+
+The pages send a content security policy that allows only our own style sheet, so a bar whose width is set in a `style` attribute is silently ignored. The bar is an inline SVG whose widths are plain attributes, which the policy does not touch. A test cannot see this, because the page text is the same either way. It was found by looking at the page.
+
+**What it taught:** a rule that blocks something quietly needs a look at the real page, not only a test of its text.
+
+## 9 Nov 2026: A decision on the more list could count as a short-list decision
+
+A company can be on both lists, for example when it was listed on the more list one day and researched the next. The decision route looked on the short list first, so a decision made on the more list for such a company was saved as coming from the short list, which would have raised short-list precision for a company the agent had not put forward. The form now says which list it came from, and the route looks there first. Found by a review, not by the first set of tests.
+
+**What it taught:** when one thing can sit in two places, a test needs a case where it does.
+
 ## 10 Nov 2026: A new AWS account does not work the way the guides say
 
 Building by hand on a fresh account, three guesses from memory were wrong. The page for making an IAM user had no option for a console password, so a user made there could never sign in to the website, and the planned two-factor step for it had nothing to attach to. The account turned out to sign in through a temporary full-access role, not a root login, which is what AWS now prefers. The free plan also hides IAM Identity Center until the account is upgraded, and AWS's documentation says creating an Organization, which Identity Center needs, upgrades the account and ends the free credits. We did not test that last part. We kept the free plan and the role sign-in with two-factor sign-in.

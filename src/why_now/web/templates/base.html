@@ -1,19 +1,40 @@
-<!doctype html>
+{% from "_icons.html" import ic %}<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{% block title %}Marking{% endblock %}</title>
+<meta name="color-scheme" content="light dark">
+<title>{% block title %}Review{% endblock %} · Why-Now</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-<header>
-  <nav>
-    <a href="{{ mark_link }}">Mark</a>
-    <a href="{{ progress_link }}">Progress</a>
-  </nav>
+{% include "_sprite.html" %}
+<a class="skip" href="#main">Skip to the page</a>
+<header class="top">
+  <div class="top-in">
+    <a class="brand" href="{{ review_link }}">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+        <circle class="disc" cx="16" cy="16" r="15"/>
+        <path class="quarter" d="M16 1a15 15 0 0 1 15 15H16z"/>
+        <circle class="hub" cx="16" cy="16" r="2.4"/>
+        <path class="hand" d="M16 16V6.5"/>
+      </svg>
+      <span>Why-Now</span>
+    </a>
+    <nav aria-label="Pages">
+      <ul class="nav-group">
+        <li><a href="{{ review_link }}"{% if active == "today" %} aria-current="page"{% endif %}>{{ ic("list") }}Short list</a></li>
+        <li><a href="{{ more_link }}"{% if active == "more" %} aria-current="page"{% endif %}>{{ ic("layers") }}More</a></li>
+        <li><a href="{{ spending_link }}"{% if active == "spending" %} aria-current="page"{% endif %}>{{ ic("coin") }}Spending</a></li>
+      </ul>
+      <ul class="nav-group nav-testing">
+        <li><a href="{{ mark_link }}"{% if active == "mark" %} aria-current="page"{% endif %}>{{ ic("pen") }}Mark</a></li>
+        <li><a href="{{ progress_link }}"{% if active == "progress" %} aria-current="page"{% endif %}>{{ ic("bars") }}Progress</a></li>
+      </ul>
+    </nav>
+  </div>
 </header>
-<main>
+<main id="main">
 {% block content %}{% endblock %}
 </main>
 </body>

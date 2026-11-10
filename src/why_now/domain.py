@@ -113,9 +113,10 @@ class Decision(BaseModel):
     profile_id: str
     company_key: str
     approved: bool
-    reason: str
+    reason: str  # may be empty when chips give the reason
     decided_at: datetime
     from_list: Literal["short", "more"]
+    chips: list[str] = []  # the short reasons the reviewer tapped, as when marking
 
 
 class Mark(BaseModel):

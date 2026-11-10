@@ -163,16 +163,25 @@ def read_form(
 ) -> tuple[str, list[str], str | None]:
     """The reason and chips of a sent mark form, tidied, and what is wrong with it if anything.
     Both the marking and the repeat page read their form here, so they cannot drift apart."""
-    reason = reason.strip()
-    picked = list(dict.fromkeys(chips or []))  # each chip once, in the order sent
+    reason, picked = tidy_reason(reason, chips)
     return reason, picked, form_error(answer, reason, picked, ctx.settings.reason_chips)
 
 
+def tidy_reason(reason: str, chips: list[str] | None) -> tuple[str, list[str]]:
+    """The sentence without stray spacing, and each chip once, in the order sent."""
+    return reason.strip(), list(dict.fromkeys(chips or []))
+
+
 def form_error(answer: str, reason: str, chips: list[str], allowed: list[str]) -> str | None:
-    """What is wrong with a submitted answer and reason, or None if all is fine. A reason is
-    one or more chips, a sentence, or both, and at least one is needed."""
+    """What is wrong with a submitted answer and reason, or None if all is fine."""
     if answer not in ANSWERS:
         return "Choose yes, no or can't tell."
+    return reason_error(reason, chips, allowed)
+
+
+def reason_error(reason: str, chips: list[str], allowed: list[str]) -> str | None:
+    """What is wrong with a reason, or None if it is fine. A reason is one or more chips from
+    the list, a sentence, or both, and at least one is needed. Marks and decisions share it."""
     if any(chip not in allowed for chip in chips):
         return "One of the reasons is not on the list. Pick from the short choices."
     if not reason and not chips:
@@ -344,13 +353,18 @@ def _form_page(
 
 def _source_view(source: Source) -> dict[str, object]:
     """What the page shows of one source. Its address is a link only if it is a web address."""
-    is_web = source.url.lower().startswith(("http://", "https://"))
     return {
         "kind": "Job ad" if source.kind == "job_ad" else "Web page",
         "url": source.url,
-        "href": source.url if is_web else None,
+        "href": _web_href(source.url),
         "text": source.text,
     }
+
+
+def _web_href(url: str) -> str | None:
+    """The address as a link target, or None unless it is a web address. A page read from the
+    internet could hold any text as an address, so nothing else becomes a link."""
+    return url if url.lower().startswith(("http://", "https://")) else None
 
 
 def _page(
@@ -362,6 +376,9 @@ def _page(
 ) -> Response:
     suffix = "" if profile is None else _profile_query(_ctx(request), profile)
     links = {
+        "review_link": "/" + suffix,
+        "more_link": "/more" + suffix,
+        "spending_link": "/spending" + suffix,
         "mark_link": "/mark" + suffix,
         "progress_link": "/mark/progress" + suffix,
         "prepare_link": "/prepare" + suffix,
