@@ -153,6 +153,23 @@ Tests: run now is refused on AWS; the settings page lists every setting with a d
 - **Ticket 38 [Task 30]:** one small label always visible at the top, modern design, using the project's design skill.
 - **Ticket 39 [Task 31]:** the README describes the web path for non-coders: enter keys once, then use the browser.
 
+### Update of 13 Nov 2026: fewer tickets, simpler builds
+
+The open tickets were merged from 20 into 8. Every feature stays. Each ticket is built in the simplest way that still keeps the score honest, because this is a learning project and not a production system. Where this section is simpler than a task above, this section wins.
+
+| Ticket | Who | Now also covers | Simplest build |
+|---|---|---|---|
+| 15: Mark test cases | Owner | 16, 25, 37, 47 | No code. Marking in sittings until the loop is ready, daily decisions along the way, then about 50 for the second profile |
+| 20: Evaluation, judge comparison and first numbers | Owner with Claude | 21 | One module, `evaluation/evaluate.py`, holding `evaluate_pile`, `baselines`, `compare_judges`, `consistency` and `open_final_pile`. Fixed answer levels only if the consistency check shows a large spread. The code can be built before marks exist. The live step waits for the check pile |
+| 29: Improvement run and first real tries | Owner with Claude | 27, 30 | One plain loop in `improve/run.py` and one proposer call per try. Mistakes are worked out fresh each run, and tried ones are recorded by rules version. `night-run` is the daily run followed by `improve` for each daily profile. The live hidden instruction run is part of the first real tries |
+| 46: Control pages and profile drafting | Agent | 45 | The profile page is a text box holding the profile file, checked by `load_profile`, with a "Draft from description" button (one structured call) and a preview with no paid calls. No field-by-field form. The settings page is generated from each setting's description. "Improve now" shows once `why-now improve` exists |
+| 32: AWS setup as code and deploy | Owner with Claude | 33 | One CDK stack in Python, public network only, no NAT gateway, matching the hand-made setup from ticket 48. The scheduled task runs `why-now daily` until `night-run` exists. After the owner's yes: deploy, check sign-in and one scheduled run, then delete the hand-made parts |
+| 34: Public results and score page | Agent | 35 | One page without login in the same web app, reading one public results document. Approving or declining a rule is one button on the review page. Turning public results on needs the owner's yes |
+| 38: Simulation page | Agent | | One static page with its invented data built in. No backend, no AI calls, no scores |
+| 39: Second profile, README, fresh clone and final numbers | Agent | 36, 40 | The second profile is an example file only, and its rough score uses the existing evaluate commands. The final pile opening for publishing needs the owner's yes |
+
+Steps that cost money, deploy, or delete anything stop and ask the owner first, with the cost or what will change.
+
 ### How each ticket ends
 
 Each pull request has a "Try it yourself" section: 2 to 3 commands or clicks, what you should see, and the cost, free or an estimate. At the end, the session explains to the owner in plain words what was built, how it works and why, with a small example.
