@@ -6,7 +6,7 @@ import pytest
 
 from why_now.ai import BadModelOutput
 from why_now.domain import JobAd
-from why_now.drafting import DRAFT_SCHEMA, draft_profile, preview
+from why_now.drafting import DraftedProfile, draft_profile, preview
 from why_now.profile import ProfileError, parse_profile, profile_text
 from why_now.sample.models import Script, ScriptedWriter
 from why_now.workspace import Workspace
@@ -46,7 +46,7 @@ class RecordingWriter(ScriptedWriter):
 
 
 def test_a_scripted_draft_is_a_profile_the_loader_accepts():
-    writer = RecordingWriter(Script(writes={DRAFT_SCHEMA.__name__: DRAFT}))
+    writer = RecordingWriter(Script(writes={DraftedProfile.__name__: DRAFT}))
 
     profile = draft_profile("A practice tool for new salespeople.", writer)
 
@@ -57,7 +57,9 @@ def test_a_scripted_draft_is_a_profile_the_loader_accepts():
 
 
 def test_a_draft_with_no_search_words_is_refused():
-    writer = ScriptedWriter(Script(writes={DRAFT_SCHEMA.__name__: DRAFT | {"search_words": [" "]}}))
+    writer = ScriptedWriter(
+        Script(writes={DraftedProfile.__name__: DRAFT | {"search_words": [" "]}})
+    )
     with pytest.raises(ProfileError, match="search word"):
         draft_profile("A practice tool.", writer)
 

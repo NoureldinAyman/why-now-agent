@@ -21,7 +21,7 @@ A written description of one product, the people who would use it, and what make
 _Avoid_: ICP, customer profile, config
 
 **Profile version**:
-A short hash of what a profile says. Any edit to its fields gives a new version, while comments and layout in the file change nothing. Marks and decisions record it, so scores from different versions are never joined as one line.
+A hash of what a profile says. Any edit to its fields gives a new version, while comments and layout in the file change nothing. Marks and decisions record it, so scores from different versions are never joined as one line.
 _Avoid_: Revision, profile number
 
 **Profile preview**:

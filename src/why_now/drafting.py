@@ -22,11 +22,11 @@ a product now. The person describes the product below. Write:
 
 - id: a short lowercase name with hyphens, from the product's name.
 - product_name, product_description and users (who uses the product), from the description.
-- search_words: 3 to 8 job titles, as whole words or phrases, whose ads suggest a company
+- search_words: a few job titles, as whole words or phrases, whose ads suggest a company
   could need the product now.
 - countries and languages: empty lists unless the description limits them. Countries are
   two-letter codes and languages are two-letter codes.
-- fit_questions: 4 to 8 yes or no questions about the company, answerable from its job ads
+- fit_questions: several yes or no questions about the company, answerable from its job ads
   and website. Each question tests one exact condition and is read literally. Mark a
   question "required" only if a "no" truly rules the company out, such as a competitor or a
   recruitment agency. All others are "supporting". Use direction "against" for a question
@@ -52,13 +52,10 @@ class DraftedProfile(BaseModel):
     why_now: str
 
 
-DRAFT_SCHEMA = DraftedProfile
-
-
 def draft_profile(description: str, writer: Writer) -> Profile:
     """A profile drafted from `description`, checked as a profile file is checked."""
     drafted = writer.structured(
-        system=DRAFT_SYSTEM, untrusted=description, schema=DRAFT_SCHEMA, category=CATEGORY
+        system=DRAFT_SYSTEM, untrusted=description, schema=DraftedProfile, category=CATEGORY
     )
     profile = Profile.model_validate(drafted.model_dump())
     # Written out and read back, so a draft is only offered if the loader accepts it.

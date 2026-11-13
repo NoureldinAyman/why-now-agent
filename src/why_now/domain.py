@@ -66,10 +66,10 @@ class Profile(BaseModel):
 
     @property
     def version(self) -> str:
-        """A short hash of what the profile says. Any edit to its fields gives a new version,
+        """A hash of what the profile says. Any edit to its fields gives a new version,
         while comments and layout in the file change nothing."""
         said = json.dumps(self.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
-        return hashlib.sha256(said.encode()).hexdigest()[:12]
+        return hashlib.sha256(said.encode()).hexdigest()
 
 
 class Source(BaseModel):

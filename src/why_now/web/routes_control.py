@@ -9,7 +9,7 @@ work, and a profile is changed in its file and deployed.
 import json
 import os
 from pathlib import Path
-from typing import Annotated, get_args
+from typing import Annotated, cast, get_args
 
 from fastapi import APIRouter, Form, HTTPException
 from starlette.requests import Request
@@ -44,7 +44,11 @@ def improve_exists() -> bool:
     """Whether the `why-now improve` command has been built yet."""
     from why_now.cli import app
 
-    return any(c.name == IMPROVE_COMMAND for c in app.registered_commands)
+    # A command registered without a name is named after its function, as typer does.
+    return any(
+        (c.name or getattr(c.callback, "__name__", "").replace("_", "-")) == IMPROVE_COMMAND
+        for c in app.registered_commands
+    )
 
 
 def _local(ctx: AppContext) -> bool:
@@ -114,7 +118,7 @@ def run_now(
     if mode not in _modes():
         return _run_page(request, ctx, chosen, "Choose how to run.", status=422)
     try:
-        ctx.runner.start(mode, profile_file, ctx.settings.run_now_sample_boards)  # type: ignore[arg-type]
+        ctx.runner.start(cast(Mode, mode), profile_file, ctx.settings.run_now_sample_boards)
     except AlreadyRunning:
         return _run_page(
             request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
@@ -163,9 +167,7 @@ def profile_page(request: Request, _: Reviewer, profile: str | None = None) -> R
         return _page(
             request, "choose.html", profiles=list(ctx.profiles.values()), choose_to="/profile"
         )
-    path = ctx.profile_files.get(chosen.id)
-    text = path.read_text(encoding="utf-8") if path is not None else profile_text(chosen)
-    return _profile_page(request, ctx, chosen, text)
+    return _profile_page(request, ctx, chosen, _current_text(ctx, chosen))
 
 
 @router.post("/profile/preview", response_class=HTMLResponse)
@@ -183,8 +185,8 @@ def profile_preview(
         edited = parse_profile(text, "in the box")
     except ProfileError as e:
         return _profile_page(request, ctx, chosen, text, problem=str(e), status=422)
-    shown = preview(Workspace(ctx.store), edited, ctx.settings)
-    return _profile_page(request, ctx, chosen, text, shown=shown, checked=edited)
+    found = preview(Workspace(ctx.store), edited, ctx.settings)
+    return _profile_page(request, ctx, chosen, text, found=found, edited=edited)
 
 
 @router.post("/profile/draft", response_class=HTMLResponse)
@@ -276,8 +278,8 @@ def _profile_page(
     text: str,
     problem: str | None = None,
     status: int = 200,
-    shown: Preview | None = None,
-    checked: Profile | None = None,
+    found: Preview | None = None,
+    edited: Profile | None = None,
     drafted: bool = False,
     description: str = "",
 ) -> Response:
@@ -291,11 +293,11 @@ def _profile_page(
         active="profile",
         text=text,
         problem=problem,
-        preview=shown,
-        quick_look=quick_look_questions(checked) if checked is not None else None,
-        own_quick_look=bool(checked and checked.quick_look_questions),
+        preview=found,
+        quick_look=quick_look_questions(edited) if edited is not None else None,
+        own_quick_look=bool(edited and edited.quick_look_questions),
         version=chosen.version,
-        new_version=checked is not None and checked.version != chosen.version,
+        new_version=edited is not None and edited.version != chosen.version,
         drafted=drafted,
         description=description,
         can_save=local and chosen.id in ctx.profile_files,

@@ -5,7 +5,7 @@ from typer.testing import CliRunner
 
 from why_now.cli import app
 from why_now.cli import profile as profile_command
-from why_now.drafting import DRAFT_SCHEMA
+from why_now.drafting import DraftedProfile
 from why_now.profile import load_profile
 from why_now.sample.models import Script, ScriptedWriter
 
@@ -14,7 +14,7 @@ def test_draft_profile_writes_a_file_the_loader_accepts(tmp_path, monkeypatch):
     monkeypatch.setattr(
         profile_command,
         "make_writer",
-        lambda settings: ScriptedWriter(Script(writes={DRAFT_SCHEMA.__name__: DRAFT})),
+        lambda settings: ScriptedWriter(Script(writes={DraftedProfile.__name__: DRAFT})),
     )
     out = tmp_path / "mine.yaml"
 

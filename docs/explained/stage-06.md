@@ -61,6 +61,12 @@
 
 **Why it is shaped this way.** A run is a separate program so the page stays quick and a failing run cannot take the page down. A full read takes hours, so a run started on demand uses the saved read or a sample, as the design says. The profile page is a text box over the file rather than a form with a field for each part: the loader already says exactly what is wrong, and the file stays the one place a profile lives.
 
+**Limits we know about.**
+
+- The profile page edits the profiles the page was started with. A new product still starts as a file, from `why-now draft-profile` or by copying an example, and is then added to `daily_profiles`.
+- Run state is kept in memory. After the page restarts it still shows the last run's output, but not whether it ended well, and it cannot see a run started from the terminal.
+- A profile file edited outside the page while it runs is not seen until the page restarts, so marks made meanwhile record the version it started with.
+
 **The hardest question:** "Run now on the saved read finds nothing new after a normal daily run. Is it useless then?"
 
 **The honest answer:** mostly, yes, and on purpose. Ads already seen are not new, so a second run on the same read pays for nothing and lists nothing new. It is meant for someone who reads now and then: read once, then run from the page whenever they sit down, or read a sample when they want fresh ads in minutes.

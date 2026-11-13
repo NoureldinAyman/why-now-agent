@@ -446,7 +446,7 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 20 companies prepared at a time | Marking sittings having companies ready, without paying for research nobody marks | Starting guess, about one short sitting |
 | 400 characters of a company page on the marking card | A card short enough to read in seconds | Starting guess. The full pack is one tap away |
 | 20 companies in a profile preview | A preview short enough to scan after each edit | Starting guess. The total count is always shown |
-| 50 careers pages per job source read by "Run now" | A run started on demand ending in minutes, not hours | Starting guess. At 1 second between requests that is under a minute of reading per source |
+| 50 careers pages per job source read by "Run now" | A run started on demand ending in minutes, not hours | Starting guess |
 | 150, 75 and 75 companies, the aim for each pile | Measurement quality within the reviewer's time | About 5 to 10 hours of marking. Practice is largest because the loop needs examples to learn from. Check and final are equal so their numbers are about as reliable |
 | About 25 yes answers per pile, or 15 at least | Against precision that swings too much | A judgement. With 25, one company moves precision by about 4 points |
 | 40 companies marked first | Knowing the share of yes answers early | Enough to tell 1 in 3 (about 13 yes) from 1 in 10 (about 4 yes) |

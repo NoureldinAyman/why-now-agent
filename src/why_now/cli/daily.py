@@ -102,11 +102,12 @@ def daily(
                 max_retry_wait_seconds=settings.max_retry_wait_seconds,
             )
             sources.append(SOURCES[name](client))
-            names = read_command.load_names(path)
+            board_list = BoardList(Workspace(store), name, read_command.load_names(path), settings)
             if sample_boards is not None:
-                ready = BoardList(Workspace(store), name, names, settings).to_read(today)
-                names = random.sample(ready, min(sample_boards, len(ready)))
-            boards[name] = BoardList(Workspace(store), name, names, settings)
+                ready = board_list.to_read(today)
+                sampled = random.sample(ready, min(sample_boards, len(ready)))
+                board_list = BoardList(Workspace(store), name, sampled, settings)
+            boards[name] = board_list
         ctx = RunContext(
             settings=settings,
             store=store,
