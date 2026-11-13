@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ic %}
+{% block title %}Setup{% endblock %}
+{% block content %}
+<h1>Setup</h1>
+<p class="lede">What is ready, what is missing and what is optional. Only the names of keys are checked here, never their values. Keys are entered in your environment file, not on this page.</p>
+{% if not local %}<p class="note">When deployed, keys are read from Parameter Store, so a key shown as missing here may still be set there.</p>{% endif %}
+{% for status, heading in [("missing", "Missing"), ("optional", "Optional"), ("ok", "Ready")] %}
+{% set group = items | selectattr("status", "equalto", status) | list %}
+{% if group %}
+<section class="tile">
+  <h2>{{ ic("check" if status == "ok" else "alert") }}{{ heading }}</h2>
+  <ul>
+  {% for item in group %}<li><b>{{ item.name }}</b>{% if item.how_to_fix %}: {{ item.how_to_fix }}{% endif %}</li>{% endfor %}
+  </ul>
+</section>
+{% endif %}
+{% endfor %}
+<p class="note">With no keys at all, the sample run still works on invented data.</p>
+{% endblock %}

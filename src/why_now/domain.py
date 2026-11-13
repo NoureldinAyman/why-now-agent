@@ -1,5 +1,7 @@
 """Shared data shapes. Later tasks use these names, so this file is their source of truth."""
 
+import hashlib
+import json
 from datetime import date, datetime
 from typing import Literal
 
@@ -55,10 +57,19 @@ class Profile(BaseModel):
     search_words: list[str]
     countries: list[str] = []
     languages: list[str] = []
-    quick_look_questions: list[FitQuestion]
+    # Optional. When empty, the quick look uses the required questions plus one built from
+    # who uses the product (see `profile.quick_look_questions`).
+    quick_look_questions: list[FitQuestion] = []
     fit_questions: list[FitQuestion]
     why_now: str
     public: bool = False
+
+    @property
+    def version(self) -> str:
+        """A short hash of what the profile says. Any edit to its fields gives a new version,
+        while comments and layout in the file change nothing."""
+        said = json.dumps(self.model_dump(mode="json"), sort_keys=True, ensure_ascii=False)
+        return hashlib.sha256(said.encode()).hexdigest()[:12]
 
 
 class Source(BaseModel):
@@ -117,6 +128,7 @@ class Decision(BaseModel):
     decided_at: datetime
     from_list: Literal["short", "more"]
     chips: list[str] = []  # the short reasons the reviewer tapped, as when marking
+    profile_version: str | None = None  # the profile's version when it was decided
 
 
 class Mark(BaseModel):
@@ -127,6 +139,9 @@ class Mark(BaseModel):
     round: Literal["first", "repeat"] = "first"
     chips: list[str] = []  # the short reasons the reviewer tapped
     seen_on_list: bool = False  # the company was on a daily list before it was marked
+    # The profile's version when it was marked, so scores from different versions are never
+    # joined as one line. None for marks made before versions were kept.
+    profile_version: str | None = None
 
 
 class CaseRecord(BaseModel):

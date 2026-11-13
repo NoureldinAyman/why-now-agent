@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ic %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+<h1>Profile: {{ profile.product_name }}</h1>
+<p class="lede">The profile file, as text. Check it with Preview, which costs nothing, then save it. Saving is your approval of every question in it, the required ones above all, because the improvement loop can never change those.</p>
+<p class="note">Version {{ version }}{% if path %}, from <code>{{ path }}</code>{% endif %}.</p>
+{% if marked %}<div class="alert" role="status">{{ ic("alert", "alert-ic") }}<div><p>Companies have been marked for this profile, so saving a change starts a new version. Marks are kept, but scores from different versions are never joined as one line.</p></div></div>{% endif %}
+{% if problem %}<p class="error" role="alert">{{ problem }}</p>{% endif %}
+{% if drafted %}<p class="note">Drafted from your description. Nothing is saved yet. Read every question before saving.</p>{% endif %}
+{% if can_draft %}
+<form method="post" action="/profile/draft{{ query }}" class="prepare-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <label for="description">Describe the product and who uses it, in a few sentences</label>
+  <textarea id="description" name="description" rows="4">{{ description }}</textarea>
+  <button type="submit">Draft from description</button>
+  <p class="counter">One paid call. The draft replaces the text below, and nothing is saved until you save it.</p>
+</form>
+{% endif %}
+<form method="post" action="/profile/preview{{ query }}" class="mark-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <label for="text">Profile file</label>
+  <textarea id="text" class="profile-box" name="text" rows="30" spellcheck="false"{% if not can_save %} readonly{% endif %}>{{ text }}</textarea>
+  <p>
+    <button type="submit">Preview</button>
+    {% if can_save %}<button type="submit" formaction="/profile/save{{ query }}">Save</button>{% endif %}
+  </p>
+  {% if not can_save %}<p class="note">Profiles are edited on your own computer. Change the file there and deploy it.</p>{% endif %}
+</form>
+{% if preview %}
+<section class="tile">
+  <h2>{{ ic("list") }}Preview</h2>
+  {% if new_version %}<p class="note">This text differs from the saved profile, so saving it starts a new version.</p>{% endif %}
+  {% if preview.ads_read == 0 %}
+  <p>There is no saved read yet, so there is nothing to search. Run a read first.</p>
+  {% else %}
+  <p>The last saved read has {{ preview.ads_read }} job ads. The search words find {{ preview.company_count }} companies{% if preview.companies | length < preview.company_count %}. The {{ preview.companies | length }} with the most relevant ads are shown{% endif %}.</p>
+  <ul>
+  {% for c in preview.companies %}<li><b>{{ c.name }}</b>: {{ c.relevant_ads }} relevant ads ({{ c.titles | join(", ") }})</li>{% endfor %}
+  </ul>
+  {% endif %}
+  {% if quick_look %}
+  <h3>Quick look questions{% if not own_quick_look %}, built from the required questions and who uses the product{% endif %}</h3>
+  <ul>{% for q in quick_look %}<li>{{ q.text }}</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

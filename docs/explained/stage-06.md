@@ -49,3 +49,18 @@
 **The hardest question:** "Short-list precision is a free number. Why not use it as the score?"
 
 **The honest answer:** because the agent chose those companies and the reviewer judged them from briefs. It says how often the agent's yeses were approved, but nothing about the good companies it left off the list, which a wrong no hides. The score comes from randomly picked companies for that reason. The two numbers sit apart on the page and are never added together.
+
+## Control pages (ticket 46)
+
+**What was built.** Four pages so a person never needs the terminal after entering keys, all behind the same login as the review page, with every value escaped:
+
+- **Run now** (`/run`). Starts `why-now daily` as a separate program, on the last saved read (`--saved-read`, new) or on a random sample of careers pages (`--sample-boards`, new, sized by `run_now_sample_boards`). The page shows whether it is running and the output of the last run. One run at a time. It works only on one's own computer, and on AWS it says so and refuses the form. "Improve now" appears on it once a `why-now improve` command exists.
+- **Setup** (`/setup`). The setup check from ticket 08 as a page: what is missing and how to fix it, by key name only, never a value.
+- **Settings** (`/settings`). Every setting, its value and its reason, read-only. The reasons are the settings' own descriptions, and a test fails if a setting has none.
+- **Profile** (`/profile`). The profile file in a text box. Preview checks it with the loader and shows what it would find, at no cost. Save writes it only if the loader accepts it and the id is unchanged, because the id names where the profile's marks are kept. "Draft from description" fills the box from a few sentences with one paid call, and saves nothing. After the first mark, the page warns that saving starts a new version. Editing and drafting work only on one's own computer.
+
+**Why it is shaped this way.** A run is a separate program so the page stays quick and a failing run cannot take the page down. A full read takes hours, so a run started on demand uses the saved read or a sample, as the design says. The profile page is a text box over the file rather than a form with a field for each part: the loader already says exactly what is wrong, and the file stays the one place a profile lives.
+
+**The hardest question:** "Run now on the saved read finds nothing new after a normal daily run. Is it useless then?"
+
+**The honest answer:** mostly, yes, and on purpose. Ads already seen are not new, so a second run on the same read pays for nothing and lists nothing new. It is meant for someone who reads now and then: read once, then run from the page whenever they sit down, or read a sample when they want fresh ads in minutes.

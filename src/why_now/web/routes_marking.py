@@ -209,8 +209,14 @@ def new_mark(
             "seen_on_list": workspace.was_listed(case.company_key, now),
             "marked_at": now,
             "round": round,
+            "profile_version": _profile_version(ctx, case.profile_id),
         }
     )
+
+
+def _profile_version(ctx: AppContext, profile_id: str) -> str | None:
+    profile = ctx.profiles.get(profile_id)
+    return None if profile is None else profile.version
 
 
 def _ctx(request: Request) -> AppContext:
@@ -383,6 +389,10 @@ def _page(
         "progress_link": "/mark/progress" + suffix,
         "prepare_link": "/prepare" + suffix,
         "repeat_link": "/repeat" + suffix,
+        "run_link": "/run" + suffix,
+        "profile_link": "/profile" + suffix,
+        "setup_link": "/setup",
+        "settings_link": "/settings",
     }
     html = request.app.state.templates.get_template(template).render(
         profile=profile, **links, **values

@@ -235,3 +235,9 @@ A schedule meant to start the Fargate task did not run, and the reason was not f
 Running the whole non-live suite four times on the owner's Windows computer gave 7, 2, 4 and 1 failures, and the failing tests were mostly different each time. Every file that failed passed when run alone. The one that failed every time is the test that copies the project without the example profiles and runs the suite again inside the copy. In that inner run, researching a company failed with "Access is denied" when saving the monthly trace file, and other runs showed missing files. The cause was not found. It looks like a file being locked or replaced while another step still holds it, which Windows refuses and other systems allow. Nothing in this change touches that code, because the change is notes only. It is not fixed.
 
 **What it taught:** a test suite that passes on one computer and fails differently on the next run is a finding, not noise. Write down what was seen, and find the cause before trusting a green run.
+
+## 13 Nov 2026: A setting's default given by position was invisible to the type checker
+
+Every setting gained a description, written as `Field(10, description=...)`. The tests passed, but pyright then reported every place that builds settings as missing all those fields. Pyright reads pydantic models through a typing rule that only sees a default written as `default=10`, so a default given by position looked like no default at all. Writing each one as `default=` fixed it, and a check against the old file showed no default had changed.
+
+**What it taught:** run the type checker after a change that touches many fields at once, and compare the values before and after, not only the tests.

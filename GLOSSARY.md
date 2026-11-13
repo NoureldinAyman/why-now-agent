@@ -20,6 +20,14 @@ _Avoid_: Job board, ATS
 A written description of one product, the people who would use it, and what makes a company a good or bad fit for it. Changing the profile changes what the agent looks for.
 _Avoid_: ICP, customer profile, config
 
+**Profile version**:
+A short hash of what a profile says. Any edit to its fields gives a new version, while comments and layout in the file change nothing. Marks and decisions record it, so scores from different versions are never joined as one line.
+_Avoid_: Revision, profile number
+
+**Profile preview**:
+The companies the last saved read gives for a profile's search words, shown while editing the profile. It calls no model, so it costs nothing.
+_Avoid_: Dry run, test run
+
 **Fit question**:
 One yes/no question the agent answers about a company, such as "Is this company hiring for itself, not for clients?" A profile holds the starting ones, and the rules file holds the ones the agent has learned.
 _Avoid_: Check, criterion, rule
