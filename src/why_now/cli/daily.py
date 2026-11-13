@@ -1,6 +1,7 @@
 """`why-now daily`: one whole daily run for a profile, with the lists printed at the end."""
 
 import os
+import random
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -48,12 +49,24 @@ def daily(
     new_ad_days: Annotated[
         int | None, typer.Option(min=1, help="Days an ad counts as new, for this run only.")
     ] = None,
+    saved_read: Annotated[
+        bool,
+        typer.Option(
+            "--saved-read", help="Read no careers page. Use the ads saved at the last read."
+        ),
+    ] = False,
+    sample_boards: Annotated[
+        int | None,
+        typer.Option(min=1, help="Read only this many careers pages per job source, at random."),
+    ] = None,
     settings_file: Annotated[
         Path | None,
         typer.Option("--settings", help="Settings file. Defaults to settings.toml if present."),
     ] = None,
 ) -> None:
     """Read, search, judge and write briefs for one profile, then print the two lists."""
+    if saved_read and sample_boards is not None:
+        raise typer.BadParameter("choose either --saved-read or --sample-boards, not both")
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
     settings = load_settings(settings_file)
@@ -89,9 +102,12 @@ def daily(
                 max_retry_wait_seconds=settings.max_retry_wait_seconds,
             )
             sources.append(SOURCES[name](client))
-            boards[name] = BoardList(
-                Workspace(store), name, read_command.load_names(path), settings
-            )
+            board_list = BoardList(Workspace(store), name, read_command.load_names(path), settings)
+            if sample_boards is not None:
+                ready = board_list.to_read(today)
+                sampled = random.sample(ready, min(sample_boards, len(ready)))
+                board_list = BoardList(Workspace(store), name, sampled, settings)
+            boards[name] = board_list
         ctx = RunContext(
             settings=settings,
             store=store,
@@ -108,7 +124,7 @@ def daily(
             ),
             clock=now,
         )
-        result = run_day(ctx, profile, today, overrides)
+        result = run_day(ctx, profile, today, overrides, saved_read=saved_read)
     for line in describe(result):
         typer.echo(line)
 

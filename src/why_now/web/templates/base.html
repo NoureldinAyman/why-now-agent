@@ -31,6 +31,12 @@
         <li><a href="{{ mark_link }}"{% if active == "mark" %} aria-current="page"{% endif %}>{{ ic("pen") }}Mark</a></li>
         <li><a href="{{ progress_link }}"{% if active == "progress" %} aria-current="page"{% endif %}>{{ ic("bars") }}Progress</a></li>
       </ul>
+      <ul class="nav-group nav-testing">
+        <li><a href="{{ run_link }}"{% if active == "run" %} aria-current="page"{% endif %}>{{ ic("clock") }}Run</a></li>
+        <li><a href="{{ profile_link }}"{% if active == "profile" %} aria-current="page"{% endif %}>{{ ic("case") }}Profile</a></li>
+        <li><a href="{{ setup_link }}"{% if active == "setup" %} aria-current="page"{% endif %}>{{ ic("check") }}Setup</a></li>
+        <li><a href="{{ settings_link }}"{% if active == "settings" %} aria-current="page"{% endif %}>{{ ic("gauge") }}Settings</a></li>
+      </ul>
     </nav>
   </div>
 </header>

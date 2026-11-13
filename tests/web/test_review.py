@@ -325,3 +325,9 @@ def test_the_month_is_split_into_one_slice_per_thing_paid_for(client, ctx):
     ctx.meter.charge("loop", 2.0, "one try")
     html = client.get("/spending").text
     assert html.count('class="slice') == 2
+
+
+def test_a_decision_records_the_profile_version(decide, listed_company, workspace, profile):
+    decide("acme")
+    [decision] = workspace.decisions()
+    assert decision.profile_version == profile.version

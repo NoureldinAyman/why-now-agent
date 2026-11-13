@@ -119,3 +119,12 @@ def test_an_unknown_effort_is_refused():
         load_settings(env={"WHY_NOW_JUDGE_EFFORT": "extreme"})
     with pytest.raises(ValidationError):  # the design allows low, medium or high only
         load_settings(env={"WHY_NOW_JUDGE_EFFORT": "max"})
+
+
+def test_every_setting_says_why_it_is_there():
+    from why_now.settings import Settings
+
+    missing = [
+        name for name, f in Settings.model_fields.items() if not (f.description or "").strip()
+    ]
+    assert missing == []

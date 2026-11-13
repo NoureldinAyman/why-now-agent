@@ -2,7 +2,7 @@ from pathlib import Path
 
 import pytest
 
-from why_now.profile import ProfileError, load_profile
+from why_now.profile import ProfileError, load_profile, quick_look_questions
 
 COMPLETE = """\
 id: throwaway
@@ -63,3 +63,33 @@ def test_a_misspelt_field_inside_a_question_is_refused(tmp_path):
     p.write_text(COMPLETE.replace("kind: required", "knd: required"), encoding="utf-8")
     with pytest.raises(ProfileError, match="fit_questions.0.knd"):
         load_profile(p)
+
+
+def test_a_profile_without_quick_look_questions_uses_required_ones_and_one_about_users(tmp_path):
+    p = tmp_path / "p.yaml"
+    text = COMPLETE.replace(
+        "quick_look_questions:\n  - id: q1\n    text: Does it sell to businesses?\n", ""
+    )
+    p.write_text(text, encoding="utf-8")
+    profile = load_profile(p)
+
+    questions = quick_look_questions(profile)
+
+    assert [q.id for q in questions] == ["f1", "has_users"]
+    assert questions[0].text == "Is it hiring salespeople?"
+    assert "Sales teams" in questions[1].text
+
+
+def test_a_profile_with_quick_look_questions_uses_its_own(profile_file):
+    assert [q.id for q in quick_look_questions(load_profile(profile_file))] == ["q1"]
+
+
+def test_editing_a_profile_changes_its_version(profile_file, tmp_path):
+    before = load_profile(profile_file)
+    same = tmp_path / "same.yaml"
+    same.write_text("# a comment changes nothing the profile says\n" + COMPLETE, encoding="utf-8")
+    edited = tmp_path / "edited.yaml"
+    edited.write_text(COMPLETE.replace("[sales]", "[sales, account executive]"), encoding="utf-8")
+
+    assert before.version == load_profile(same).version
+    assert before.version != load_profile(edited).version

@@ -16,9 +16,17 @@ class ProfileError(Exception):
 
 def load_profile(path: Path) -> Profile:
     try:
-        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+        text = path.read_text(encoding="utf-8")
     except OSError as e:
         raise ProfileError(f"cannot read profile {path}: {e}") from e
+    return parse_profile(text, str(path))
+
+
+def parse_profile(text: str, path: str) -> Profile:
+    """The profile written in `text`, checked as `load_profile` checks a file. `path` names
+    where the text came from in any error."""
+    try:
+        raw = yaml.safe_load(text)
     except yaml.YAMLError as e:
         raise ProfileError(f"profile {path} is not valid YAML: {e}") from e
     if not isinstance(raw, dict):
@@ -49,3 +57,27 @@ def load_profile(path: Path) -> Profile:
     if not [w for w in profile.search_words if w.strip()]:
         raise ProfileError(f"profile {path} needs at least one search word in search_words")
     return profile
+
+
+USERS_QUESTION_ID = "has_users"
+
+
+def quick_look_questions(profile: Profile) -> list[FitQuestion]:
+    """The profile's own quick look questions or, if it has none, its required questions plus
+    one built from who uses the product."""
+    if profile.quick_look_questions:
+        return profile.quick_look_questions
+    required = [q for q in profile.fit_questions if q.kind == "required"]
+    users = profile.users.strip().rstrip(".")
+    built = FitQuestion(
+        id=USERS_QUESTION_ID,
+        text=f"Does the company employ people who fit this description: {users}?",
+    )
+    return [*required, built]
+
+
+def profile_text(profile: Profile) -> str:
+    """The profile as the YAML a profile file holds, fields in their usual order."""
+    return yaml.safe_dump(
+        profile.model_dump(mode="json"), sort_keys=False, allow_unicode=True, width=100
+    )

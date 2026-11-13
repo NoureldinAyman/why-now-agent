@@ -41,7 +41,9 @@ def test_saving_moves_to_the_next_case(client, post_mark, add_case):
     assert "all marked" in client.get("/mark").text.lower()
 
 
-def test_a_saved_mark_keeps_the_answer_the_reason_and_the_time(client, post_mark, workspace, case):
+def test_a_saved_mark_keeps_the_answer_the_reason_and_the_time(
+    client, post_mark, workspace, case, profile
+):
     post_mark(case.case_id, answer="no", reason="  Sells to shoppers, not businesses. ")
     [mark] = workspace.marks("first")
     assert mark == Mark(
@@ -50,6 +52,7 @@ def test_a_saved_mark_keeps_the_answer_the_reason_and_the_time(client, post_mark
         reason="Sells to shoppers, not businesses.",
         marked_at=NOW,
         round="first",
+        profile_version=profile.version,
     )
 
 
@@ -297,3 +300,9 @@ def test_no_repeat_round_is_suggested_when_too_few_marks_are_old_enough(
     )
     add_case("hooli")
     assert "marked again" not in small.get("/mark").text
+
+
+def test_a_mark_records_the_profile_version(post_mark, workspace, case, profile):
+    post_mark(case.case_id)
+    [mark] = workspace.marks("first")
+    assert mark.profile_version == profile.version

@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1>Settings</h1>
+<p class="lede">Every setting, its value and why it is there. This page is read-only: settings are changed in the settings file. Keys are never settings, so none is shown.</p>
+<table class="settings">
+  <thead><tr><th scope="col">Setting</th><th scope="col">Value</th><th scope="col">Why</th></tr></thead>
+  <tbody>
+  {% for row in rows %}<tr><th scope="row"><code>{{ row.name }}</code></th><td><code>{{ row.value }}</code></td><td>{{ row.why }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% endblock %}

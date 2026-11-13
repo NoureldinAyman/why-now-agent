@@ -211,9 +211,9 @@ class World:
             clock=self.clock,
         )
 
-    def day(self, day: date = TODAY, overrides: dict | None = None):
+    def day(self, day: date = TODAY, overrides: dict | None = None, saved_read: bool = False):
         self.clock.day = day
-        return run_day(self.context(), self.profile, day, overrides)
+        return run_day(self.context(), self.profile, day, overrides, saved_read=saved_read)
 
 
 @pytest.fixture
@@ -524,3 +524,21 @@ def test_a_waiting_company_with_a_new_ad_shows_the_new_ad(make_world):
     entry = next(e for e in r.short_list if e.company_key == "co0")
     assert {a.ad_id for a in entry.ads} == {"1", "2"}
     assert world.research.count == 3  # and it was not researched again
+
+
+def test_a_run_on_the_saved_read_reads_no_careers_page(make_world):
+    world = make_world(3)
+    for board, ads in world.boards.items():  # what an earlier read saved
+        world.workspace.save_board_ads("greenhouse", board, ads)
+    world.source.broken = set(world.boards)  # reading any page now would fail
+
+    r = world.day(saved_read=True)
+
+    assert [e.company_key for e in r.short_list] == ["co0", "co1", "co2"]
+    assert r.failed == []
+
+
+def test_a_run_on_the_saved_read_with_nothing_saved_says_so(make_world):
+    r = make_world(3).day(saved_read=True)
+    assert r.short_list == []
+    assert any("saved read" in s for s in r.skipped)

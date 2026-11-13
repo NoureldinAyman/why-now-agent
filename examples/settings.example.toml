@@ -44,6 +44,10 @@ pilot_size = 40
 prepare_batch = 20
 # Characters of a company page shown on the marking card. The full pack is one tap away.
 card_page_chars = 400
+# Companies a profile preview lists, with the most relevant ads first. The total is always shown.
+preview_companies = 20
+# Careers pages per job source that "Run now" reads at random, so it ends in minutes.
+run_now_sample_boards = 50
 # Short reasons the reviewer can tap in place of writing a sentence.
 reason_chips = [
   "recruitment agency",
