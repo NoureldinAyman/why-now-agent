@@ -76,6 +76,7 @@ def test_open_final_logs_the_opening(tmp_path, monkeypatch, make_profile):
         tmp_path, monkeypatch, make_profile, quick={"Acme": 0.9}, judge={"Acme": 0.9}
     )
     add_case(workspace, "Acme", "final", "yes")
+    workspace.save_cutoff("fake-1", 0.5)
 
     result = run("open-final", args, "--moment", "first")
 
@@ -177,3 +178,13 @@ def test_consistency_reads_practice_packs_only_and_shows_the_spread(
     assert "wobbly-1: 5 asks on 2 companies" in result.output
     assert "f1: answers moved 0.80 on average, 0.80 at worst." in result.output
     assert [r.companies for r in workspace.consistency_results()] == [2]
+
+
+def test_evaluate_says_when_it_used_the_default_cutoff(tmp_path, monkeypatch, make_profile):
+    both = {"Acme": 0.9}
+    workspace, args = setup(tmp_path, monkeypatch, make_profile, quick=both, judge=both)
+    add_case(workspace, "Acme", "check", "yes")
+
+    result = run("evaluate", args, "--pile", "check")
+
+    assert "default cut-off 0.5" in result.output

@@ -30,6 +30,8 @@ class PileResult(BaseModel):
     rules_version: int
     profile_version: str
     models: dict[str, str]  # the answer key of the quick look and judge that gave these answers
+    cutoff: float  # the cut-off the judge's answers were combined with
+    cutoff_recorded: bool  # False when none was recorded for this judge and the default was used
 
 
 class ScorePoint(BaseModel):
@@ -46,6 +48,9 @@ class ComparisonResult(BaseModel):
     scores: dict[str, ScoreResult]  # by the judge's answer key
     winner: str  # the answer key of the judge with the higher score
     day: date
+    dropped_cases: list[str]  # companies left out because either judge could not answer
+    rules_version: int
+    profile_version: str
 
 
 class QuestionSpread(BaseModel):

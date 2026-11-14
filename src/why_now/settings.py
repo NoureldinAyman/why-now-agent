@@ -456,6 +456,8 @@ class Settings(BaseModel):
     )
     judge_candidates: list[str] = Field(
         default_factory=lambda: ["jev-1.14.0", "claude-sonnet-5-5"],
+        min_length=2,
+        max_length=2,
         description=(
             "The two judge setups the comparison runs on the check pile. Only two, because "
             "comparing many and keeping the best would fit the score to that pile. With no Jev "

@@ -128,3 +128,15 @@ def test_every_setting_says_why_it_is_there():
         name for name, f in Settings.model_fields.items() if not (f.description or "").strip()
     ]
     assert missing == []
+
+
+def test_exactly_two_judge_candidates_are_allowed():
+    import pytest
+    from pydantic import ValidationError
+
+    from why_now.settings import Settings
+
+    assert len(Settings().judge_candidates) == 2
+    for names in (["only-one"], ["a", "b", "c"]):
+        with pytest.raises(ValidationError):
+            Settings(judge_candidates=names)

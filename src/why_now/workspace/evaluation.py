@@ -48,5 +48,5 @@ class EvaluationArea(WorkspaceBase):
 
     def consistency_results(self) -> list[ConsistencyResult]:
         """This profile's consistency results, in the order they were taken."""
-        found = self.store.list(_CONSISTENCY, self.require_profile() + "/")
-        return [ConsistencyResult.model_validate(doc) for _, doc in found]
+        found = self.list_models(_CONSISTENCY, ConsistencyResult, self.require_profile() + "/")
+        return list(found)

@@ -57,15 +57,28 @@ class EvalRun:
 
 def evaluate_pile(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileResult:
     """Score the agent's yes or no against the reviewer's mark on every case in `pile`."""
+    _check_readable(pile)
+    return _evaluate(pile, rules, run, category)
+
+
+def _check_readable(pile: str) -> None:
+    """Refuse the final pile, which only `open_final_pile` may read, and any unknown name."""
     if pile == "final":
         raise ValueError("the final pile can only be read through open_final_pile")
-    return _evaluate(pile, rules, run, category)
+    if pile not in ("practice", "check"):
+        raise ValueError(f"the pile must be practice or check, not {pile!r}")
 
 
 def open_final_pile(run: EvalRun, moment: Moment, reason: str | None) -> PileResult:
     """The only way to read the final pile. Every opening is logged before it is read."""
-    if moment == "extra" and not reason:
+    if moment == "extra" and not (reason and reason.strip()):
         raise ValueError("an extra opening of the final pile needs a reason")
+    judge_key = run.models.judge.answer_key
+    if run.workspace.cutoff(judge_key) is None:
+        # Opened with a guessed cut-off, the one reading of the final pile would be wasted.
+        raise ValueError(
+            f"no cut-off is recorded for {judge_key}: choose one on the practice pile first"
+        )
     run.workspace.record_opening(FinalOpening(moment=moment, reason=reason, opened_at=run.clock()))
     return _evaluate("final", run.workspace.load_rules(), run, CATEGORY)
 
@@ -114,13 +127,20 @@ def _company_and_pack(case: CaseRecord, workspace: Workspace) -> tuple[Company, 
 
 
 def _evaluate(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileResult:
+    recorded = run.workspace.cutoff(run.models.judge.answer_key)
+    cutoff = run.settings.default_cutoff if recorded is None else recorded
     rows: list[CaseRow] = []
     failed_cases: list[str] = []
     for case, reviewer_yes in _marked_cases(run, pile):
         try:
-            rows.append(_grade_case(case, reviewer_yes, rules, run, category))
+            rows.append(_grade_case(case, reviewer_yes, rules, run, category, cutoff))
         except CompanyFailed:
             failed_cases.append(case.case_id)
+    if not rows:
+        raise ValueError(
+            f"no company in the {pile} pile could be graded: {len(failed_cases)} could not be "
+            "answered for, and the rest are not marked yes or no"
+        )
     pairs = [(row.agent_yes, row.reviewer_yes) for row in rows]
     return PileResult(
         pile=pile,
@@ -133,11 +153,18 @@ def _evaluate(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileR
             "quick_look": run.models.quick_look.answer_key,
             "judge": run.models.judge.answer_key,
         },
+        cutoff=cutoff,
+        cutoff_recorded=recorded is not None,
     )
 
 
 def _grade_case(
-    case: CaseRecord, reviewer_yes: bool, rules: RulesFile, run: EvalRun, category: str
+    case: CaseRecord,
+    reviewer_yes: bool,
+    rules: RulesFile,
+    run: EvalRun,
+    category: str,
+    cutoff: float,
 ) -> CaseRow:
     """What the agent says about one company, as the daily run would: quick look, then judge."""
     workspace, settings = run.workspace, run.settings
@@ -160,8 +187,6 @@ def _grade_case(
 
     questions = all_questions(run.profile, rules)
     answers = answer_questions(pack, questions, run.models.judge, workspace, category)
-    cutoff = workspace.cutoff(run.models.judge.answer_key)
-    cutoff = settings.default_cutoff if cutoff is None else cutoff
     return CaseRow(
         case_id=case.case_id,
         agent_yes=combine(questions, answers, cutoff, settings).yes,
@@ -172,17 +197,20 @@ def _grade_case(
 
 
 def baselines(pile: str, run: EvalRun) -> dict[str, ScoreResult]:
-    """Three simple rivals the agent must beat: yes to all, the quick look alone, empty rules."""
-    if pile == "final":
-        raise ValueError("the final pile can only be read through open_final_pile")
-    cases = _marked_cases(run, pile)
+    """Three simple rivals the agent must beat: yes to all, the quick look alone, empty rules.
+
+    All three are scored on the companies the agent itself could be graded on, so the numbers
+    can be put side by side.
+    """
+    _check_readable(pile)
     empty_rules = RulesFile(profile_id=run.profile.id)
+    agent = evaluate_pile(pile, empty_rules, run, CATEGORY)
+    graded = {row.case_id for row in agent.rows}
+    cases = [(case, yes) for case, yes in _marked_cases(run, pile) if case.case_id in graded]
     return {
-        "yes_to_all": score(
-            [(True, reviewer_yes) for _, reviewer_yes in cases], run.settings.score_beta
-        ),
+        "yes_to_all": score([(True, yes) for _, yes in cases], run.settings.score_beta),
         "quick_look_only": _quick_look_only(cases, run),
-        "empty_rules": evaluate_pile(pile, empty_rules, run, CATEGORY).score,
+        "empty_rules": agent.score,
     }
 
 
@@ -203,8 +231,9 @@ def _quick_look_only(cases: list[tuple[CaseRecord, bool]], run: EvalRun) -> Scor
 def compare_judges(run: EvalRun, answerers: list[Answerer]) -> ComparisonResult:
     """Score judges on the same check pile companies, each with its own cut-off.
 
-    The result is kept whichever judge wins. On a tie the first judge listed wins, so the
-    caller lists the current judge first and a tie changes nothing.
+    Each judge's cut-off is chosen again on the practice pile and recorded, replacing the one
+    kept for that judge before. The result is kept whichever judge wins. On a tie the first
+    judge listed wins, so the caller lists the current judge first and a tie changes nothing.
     """
     rules = run.workspace.load_rules()
     results: dict[str, PileResult] = {}
@@ -213,8 +242,11 @@ def compare_judges(run: EvalRun, answerers: list[Answerer]) -> ComparisonResult:
         set_cutoff(judge_run)
         results[answerer.answer_key] = _evaluate("check", rules, judge_run, CATEGORY)
 
-    shared = set.intersection(*({row.case_id for row in r.rows} for r in results.values()))
-
+    answered = [{row.case_id for row in r.rows} for r in results.values()]
+    shared = set.intersection(*answered)
+    if not shared:
+        raise ValueError("the judges answered no company in common, so they cannot be compared")
+    seen = set().union(*answered, *(r.failed_cases for r in results.values()))
     scores = {
         key: score(
             [(row.agent_yes, row.reviewer_yes) for row in r.rows if row.case_id in shared],
@@ -224,7 +256,14 @@ def compare_judges(run: EvalRun, answerers: list[Answerer]) -> ComparisonResult:
     }
 
     winner = max(scores, key=lambda key: scores[key].f)
-    comparison = ComparisonResult(scores=scores, winner=winner, day=run.clock().date())
+    comparison = ComparisonResult(
+        scores=scores,
+        winner=winner,
+        day=run.clock().date(),
+        dropped_cases=sorted(seen - shared),
+        rules_version=rules.version,
+        profile_version=run.profile.version,
+    )
     run.workspace.save_comparison(comparison)
     return comparison
 
@@ -235,7 +274,7 @@ def consistency(
     """Ask every question about each pack `asks` times, with no saved answers, and report
     how far each question's answers move."""
     questions = all_questions(run.profile, run.workspace.load_rules())
-    ranges: dict[str, list[float]] = {q.id: [] for q in questions}
+    spreads: dict[str, list[float]] = {q.id: [] for q in questions}
     failed: list[str] = []
     for pack in packs:
         try:
@@ -245,11 +284,11 @@ def consistency(
             continue
         for position, question in enumerate(questions):
             given = [answers[position].probability for answers in rounds]
-            ranges[question.id].append(max(given) - min(given))
+            spreads[question.id].append(max(given) - min(given))
 
     spread = {
         question_id: QuestionSpread(average=sum(values) / len(values), worst=max(values))
-        for question_id, values in ranges.items()
+        for question_id, values in spreads.items()
         if values
     }
     return ConsistencyResult(

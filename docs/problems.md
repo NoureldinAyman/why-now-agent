@@ -265,3 +265,9 @@ The first version of the grading looked up each case's mark directly, so a compa
 After main was merged into the ticket branch, the copied-repo run of the whole suite failed again, with several tests from `tests/pipeline/test_day.py`. One of them failed once when that file was run alone, and then passed twice when run on its own. This is the same kind of failure as the entry of 10 Nov. Its cause has still not been found, and it is not caused by the evaluation code, which does not touch the daily run.
 
 **What it taught:** nothing new yet. It is still open, and a green full run on this computer should not be trusted until the cause is found.
+
+## 14 Nov 2026: A review of the evaluation code found five gaps that no test had asked about
+
+Two reviewers read the finished code, one against the repo's rules and one against the ticket. Real gaps they found, each now fixed with a test: a judge that failed on every company stopped the comparison with an unhelpful "nothing to score"; the final pile could be opened with only the default cut-off, which would waste its one reading; the three baselines were scored on different companies from the agent when a model failed on one; a reason made only of spaces counted as a reason for an extra opening; and an unknown pile name quietly scored nothing. The comparison also did not record which companies it left out, or the rules and profile versions.
+
+**What it taught:** the tests written first covered the rules in the ticket. The gaps were in the places where two rules meet, such as a failed company and a baseline, so a second reader is worth the time.

@@ -77,6 +77,7 @@ def test_every_final_opening_is_logged(store, settings, make_profile):
     profile = make_profile()
     workspace = Workspace(store, profile.id)
     add_case(workspace, "Acme", "final", "yes")
+    workspace.save_cutoff("fake-1", 0.5)
     run = make_run(workspace, profile, settings, quick={"Acme": 0.9}, judge={"Acme": 0.9})
 
     open_final_pile(run, "first", None)
@@ -311,3 +312,91 @@ def test_the_spread_is_the_highest_answer_minus_the_lowest(one_pack):
     assert result.spread["f1"].worst == pytest.approx(0.8)
     assert result.spread["f1"].average == pytest.approx(0.8)
     assert (result.asks, result.companies) == (5, 1)
+
+
+def test_a_pile_other_than_practice_or_check_is_refused(three_companies):
+    rules = RulesFile(profile_id=three_companies.profile.id)
+
+    with pytest.raises(ValueError, match="practice or check"):
+        evaluate_pile("bogus", rules, three_companies, "evaluation")
+    with pytest.raises(ValueError, match="practice or check"):
+        baselines("bogus", three_companies)
+
+
+def test_a_blank_reason_is_no_reason_and_the_opening_is_not_logged(three_companies):
+    three_companies.workspace.save_cutoff("fake-1", 0.5)
+
+    with pytest.raises(ValueError, match="needs a reason"):
+        open_final_pile(three_companies, "extra", "   ")
+
+    assert three_companies.workspace.final_pile_openings() == []
+
+
+def test_the_final_pile_is_not_opened_without_a_recorded_cutoff(three_companies):
+    with pytest.raises(ValueError, match="cut-off"):
+        open_final_pile(three_companies, "first", None)
+
+    assert three_companies.workspace.final_pile_openings() == []
+
+
+def test_a_result_says_which_cutoff_it_used_and_whether_one_was_recorded(three_companies):
+    rules = RulesFile(profile_id=three_companies.profile.id)
+
+    before = evaluate_pile("check", rules, three_companies, "evaluation")
+    three_companies.workspace.save_cutoff("fake-1", 0.65)
+    after = evaluate_pile("check", rules, three_companies, "evaluation")
+
+    assert (before.cutoff, before.cutoff_recorded) == (0.5, False)
+    assert (after.cutoff, after.cutoff_recorded) == (0.65, True)
+
+
+def test_the_baselines_cover_the_same_companies_as_the_agent(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    add_case(workspace, "Cora", "check", "no")
+    quick = {"Acme": 0.9, "Beta": 0.9, "Cora": 0.9}
+    judge = {"Acme": 0.9, "Beta": None, "Cora": 0.2}  # the judge cannot answer for Beta
+    run = make_run(workspace, profile, settings, quick=quick, judge=judge)
+
+    result = baselines("check", run)
+
+    assert {name: s.n for name, s in result.items()} == {
+        "yes_to_all": 2,
+        "quick_look_only": 2,
+        "empty_rules": 2,
+    }
+
+
+def test_judges_with_no_company_in_common_cannot_be_compared(judging_world):
+    a = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": None, "Cora": None}, "judge-a")
+    b = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": None, "Beta": 0.2, "Cora": None}, "judge-b")
+
+    with pytest.raises(ValueError, match="in common"):
+        compare_judges(judging_world, [a, b])
+
+    assert judging_world.workspace.comparisons() == []
+
+
+def test_a_judge_that_fails_on_every_company_stops_the_comparison_with_a_clear_message(
+    judging_world,
+):
+    a = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": 0.9}, "judge-a")
+    b = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": None, "Beta": None, "Cora": None}, "judge-b")
+
+    with pytest.raises(ValueError, match="could be graded"):
+        compare_judges(judging_world, [a, b])
+
+    assert judging_world.workspace.comparisons() == []
+
+
+def test_a_comparison_records_the_companies_it_left_out_and_the_versions(judging_world):
+    a = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": 0.9}, "judge-a")
+    b = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": None}, "judge-b")
+
+    result = compare_judges(judging_world, [a, b])
+
+    assert result.dropped_cases == ["case-Cora"]
+    assert result.rules_version == 0
+    assert result.profile_version == judging_world.profile.version

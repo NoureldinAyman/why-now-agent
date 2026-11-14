@@ -164,6 +164,12 @@ def compare_models_command(
             f"{key}: {s.n} companies, precision {s.precision:.2f}, recall {s.recall:.2f}, "
             f"F-beta {s.f:.2f} (beta {s.beta:g})."
         )
+    if result.dropped_cases:
+        typer.echo(
+            f"{len(result.dropped_cases)} companies were left out for both, because a judge "
+            "could not answer for them."
+        )
+    typer.echo("Each judge's cut-off was chosen again on the practice pile and recorded.")
     typer.echo(f"Winner: {result.winner}. Set judge_model to it. The result is recorded.")
 
 
@@ -245,6 +251,11 @@ def _show(result: PileResult) -> None:
         f"Precision {s.precision:.2f}, recall {s.recall:.2f}, F-beta {s.f:.2f} "
         f"(beta {s.beta:g}). Rules version {result.rules_version}."
     )
+    if not result.cutoff_recorded:
+        typer.echo(
+            f"No cut-off is recorded for {result.models['judge']}, so the default cut-off "
+            f"{result.cutoff:g} was used. Run set-cutoff first for a score that means more."
+        )
     if result.failed_cases:
         typer.echo(
             f"{len(result.failed_cases)} companies could not be answered for and are left out, "

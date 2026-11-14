@@ -106,9 +106,13 @@ The decision note `docs/decisions/0002-f05-and-required-against-supporting-quest
 
 **Limits we know about.**
 
-- With a check pile of about 75 companies, one company moves precision by about 4 points, so every number is shown with its company count.
+- With few yes answers in a pile, one company moves precision by several points: with 25 yes answers it is 1 in 25. Every number is shown with its company count.
 - The consistency check is rough: its numbers come from 20 packs.
 - The cut-off is chosen on every marked practice company, not only those the quick look passes, so it describes the judge alone.
+- Evaluating the practice or check pile with no recorded cut-off uses the default one, and the result says so. The final pile is never opened without a recorded cut-off.
+- The `empty_rules` baseline uses the cut-off recorded for the judge, which was chosen with the current rules. Before any rule is learned the two are the same.
+- A profile edit does not block scoring. Marks are kept, and every score records the profile version, so scores from different versions are never joined.
+- `compare_judges` chooses each judge's cut-off again on the practice pile and replaces the one recorded for it.
 
 **The hardest question:** "Why is the final pile refused by name, when someone could just edit the workspace files?"
 
