@@ -86,3 +86,30 @@ The decision note `docs/decisions/0002-f05-and-required-against-supporting-quest
 **The hardest question:** "Why not keep the effort and prompt version as fields in the saved answer, instead of squeezing them into the key?"
 
 **The honest answer:** because a field is only a note, while the key decides what gets reused. If the effort were a field, every reader would have to remember to check it, and one forgotten check would mix answers from two setups into one score. With the effort and prompt version inside the key, an answer from another setup is simply never found, so it can't be reused by mistake. The cost is that changing the effort once asks every question again, which is what the design wants.
+
+## Evaluation, judge comparison and consistency (ticket 20)
+
+**What was built.** The code that grades the agent against the reviewer's marks. It is one module, `evaluation/evaluate.py`, with the commands in `cli/evaluation.py`. Nothing here has been run on the real models yet. The live step waits for the reviewer's check pile and for a yes on the cost.
+
+- **`evaluate_pile`** scores the agent on the practice or check pile. For each company the reviewer marked yes or no, it runs the quick look and then the judge, as the daily run does, and compares the agent's answer with the mark. A company the quick look drops counts as a no. A company the models cannot answer for is listed in `failed_cases` and left out of the score, never counted as a no. A company marked can't tell, or not marked yet, is left out.
+- **Rows.** Each graded company is kept as a row: the agent's answer, the reviewer's, whether the quick look passed it, and the judge's answers. The baselines and the improvement loop read rows and need no new model calls.
+- **`open_final_pile`** is the only way to read the final pile. `evaluate_pile` and `baselines` refuse the name `final`. Each opening writes a log entry first, and an `extra` opening needs a reason.
+- **`set_cutoff`** chooses the cut-off from the practice pile only, with the judge answering every marked practice company. It records the cut-off under the judge's answer key. A test proves that no check or final pack is opened.
+- **`baselines`** scores three simple rivals: yes to every company, the quick look alone, and the agent with an empty rules file.
+- **`compare_judges`** gives each judge its own cut-off from the practice pile, scores both on the same check pile companies, and records the winner whichever way it goes. A company either judge cannot answer for is dropped for both. On a tie the first judge listed wins, and the command lists the current judge first, so a tie changes nothing.
+- **`consistency`** asks the same questions again and again on practice packs with no saved answers, and reports for each question how far the answers moved: the highest answer minus the lowest, as an average and a worst case. Fixed answer levels are not built. They are tried only if the spread turns out large.
+- **Records.** Every score, comparison, consistency result and final pile opening is added to the workspace and never edited. Each score records the rules version, the profile version and the model keys, so scores are only joined into a line when all of them match.
+- **Short-list precision** is printed on its own line by `why-now evaluate`, apart from the pile scores.
+- **Settings.** `consistency_asks` (5), `consistency_packs` (20) and `judge_candidates` (the two judges to compare).
+
+**Example.** The check pile holds Acme (marked yes), Beta (no) and Cora (no). The quick look drops Cora. The judge says yes to Acme and no to Beta. The agent's score is one right yes and two right no's. Yes to all would score one right yes and two wrong yeses. The quick look alone would give Beta a wrong yes.
+
+**Limits we know about.**
+
+- With a check pile of about 75 companies, one company moves precision by about 4 points, so every number is shown with its company count.
+- The consistency check is rough: its numbers come from 20 packs.
+- The cut-off is chosen on every marked practice company, not only those the quick look passes, so it describes the judge alone.
+
+**The hardest question:** "Why is the final pile refused by name, when someone could just edit the workspace files?"
+
+**The honest answer:** the refusal stops the commands and the code, not a person editing files by hand. It makes an accidental look impossible and a deliberate one visible, because every opening through the one door is logged and made public. A person who reads the files directly would not be caught, so the rule depends on the owner not doing it.

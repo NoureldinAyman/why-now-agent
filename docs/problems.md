@@ -241,3 +241,27 @@ Running the whole non-live suite four times on the owner's Windows computer gave
 Every setting gained a description, written as `Field(10, description=...)`. The tests passed, but pyright then reported every place that builds settings as missing all those fields. Pyright reads pydantic models through a typing rule that only sees a default written as `default=10`, so a default given by position looked like no default at all. Writing each one as `default=` fixed it, and a check against the old file showed no default had changed.
 
 **What it taught:** run the type checker after a change that touches many fields at once, and compare the values before and after, not only the tests.
+
+## 14 Nov 2026: Two test files with the same name broke the example-profile deletion check
+
+A new test file for the evaluation commands was named `test_commands.py`, the same as an existing one in another folder. Neither folder is a package, so pytest could not tell them apart. The test that copies the repo without the example profiles and runs the whole suite stopped with "import file mismatch". The suite run on its own file by file had passed.
+
+**What it taught:** a test file name has to be unique across the whole `tests` folder. The repo-level check that copies the project is what caught it, so it is worth keeping.
+
+## 14 Nov 2026: The baselines would have read the final pile without a log entry
+
+While building the baselines, yes to all and the quick look alone read the marks of whichever pile they were given. `evaluate_pile` already refused the final pile, but `baselines` did not, so a baseline on `final` would have read the final marks with no opening logged. It was found by reading the plan against the rule, before any run. `baselines` now refuses `final` too, with a test.
+
+**What it taught:** a rule enforced in one function is not enforced for the next function that reads the same data. List every way in, not only the first one.
+
+## 14 Nov 2026: Companies not marked yet would have stopped every evaluation
+
+The first version of the grading looked up each case's mark directly, so a company that was picked but not yet marked, which is the normal state while marking goes on, raised an error. It was caught by writing the test for it before the code was merged into the rest. A case without a mark is now left out, and so is one marked can't tell.
+
+**What it taught:** the test world has to include the half-finished states a real workspace is in most of the time.
+
+## 14 Nov 2026: The unstable full-suite failures came back after merging main
+
+After main was merged into the ticket branch, the copied-repo run of the whole suite failed again with a different single test from `tests/pipeline/test_day.py` each time. That test passes on its own, twice. This is the same kind of failure as the entry of 10 Nov. Its cause has still not been found, and it is not caused by the evaluation code, which does not touch the daily run.
+
+**What it taught:** nothing new yet. It is still open, and a green full run on this computer should not be trusted until the cause is found.
