@@ -170,6 +170,35 @@ The open tickets were merged from 20 into 8. Every feature stays. Each ticket is
 
 Steps that cost money, deploy, or delete anything stop and ask the owner first, with the cost or what will change.
 
+### Update of 14 Nov 2026: ticket 15, marking
+
+Ticket 15 is built in two parts. First a small pull request with the code below. Then marking sittings, which change only the workspace.
+
+**Settings:** `practice_size`, `check_size` and `final_size` become 45. `cutoff_step` becomes 0.1. New: `judged_no_shown = 3`, and `test_case_web_research = false`. Each has its line in the design's numbers table.
+
+**Code:**
+
+- **Pile sizes on each pick.** `PickRecord` records the three sizes it used, so a pile can always be worked out again from the seed.
+- **Ads-only packs.** With `test_case_web_research` off, `prepare` builds each pack from the company's saved job ads only and makes no paid call.
+- **Marking guide.** `Profile.marking_guide`, a short optional text, is part of the profile version. A test fails if it reaches the judge or the rule proposer.
+- **One place for the mark checks.** `new_mark`, `read_form` and `form_error` move from `web/routes_marking.py` to `testset/marking.py`, used by the page and the commands.
+- **Commands:**
+  - `why-now mark-next --profile P` prints the next unmarked case: its card, its full pack inside the untrusted text tags, and the marking guide. It prints nothing from the agent.
+  - `why-now mark CASE yes|no|cant-tell --chip ... --reason "..."` saves through the shared checks.
+  - `why-now unmark CASE` removes a mark made by mistake.
+  - `why-now decide-next --profile P` prints the next undecided company from the short list or the judged-no list, with its brief or card.
+  - `why-now decide COMPANY approve|reject --chip ... --reason "..."` records a decision.
+- **Judged-no list.** `DayResult` keeps the companies researched and judged no that day. The `judged_no_shown` strongest of them, the closest to a yes, are shown on the review page as a small list. A decision on one is recorded with `from_list="judged_no"`.
+
+**Tests:** the same seed and sizes give the same piles; ads-only prepare makes no paid call; `mark-next` shows no agent answer and wraps the pack; the shared checks refuse the same things on the page and the command; `unmark` lets a case be marked again; the judged-no list shows at most the setting, strongest first; the guide never reaches the judge or proposer.
+
+**Marking sittings,** after the code merges. The owner starts each one:
+
+1. The owner approves the marking guide once.
+2. `why-now prepare --profile P --n 20`, which is free with ads-only packs.
+3. A fresh coding agent session, allowed only `mark-next`, `mark` and `unmark`, marks the 20 from the guide. Each pack is untrusted text.
+4. Repeat until `why-now piles` says the loop is ready, about 135 marks.
+
 ### How each ticket ends
 
 Each pull request has a "Try it yourself" section: 2 to 3 commands or clicks, what you should see, and the cost, free or an estimate. At the end, the session explains to the owner in plain words what was built, how it works and why, with a small example.
