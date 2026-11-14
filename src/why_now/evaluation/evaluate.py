@@ -4,8 +4,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from pydantic import BaseModel
-
 from why_now.ai import Models
 from why_now.domain import (
     Answer,
@@ -17,7 +15,8 @@ from why_now.domain import (
     Profile,
     RulesFile,
 )
-from why_now.evaluation.score import ScoreResult, score
+from why_now.evaluation.records import CaseRow, PileResult
+from why_now.evaluation.score import score
 from why_now.pipeline.judge import (
     CompanyFailed,
     all_questions,
@@ -47,12 +46,6 @@ class EvalRun:
     settings: Settings
     tracer: Tracer
     clock: Callable[[], datetime] = _now
-
-
-class PileResult(BaseModel):
-    pile: str
-    score: ScoreResult
-    failed_cases: list[str]
 
 
 def evaluate_pile(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileResult:
@@ -114,31 +107,58 @@ def _company_and_pack(case: CaseRecord, workspace: Workspace) -> tuple[Company, 
 
 
 def _evaluate(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileResult:
-    rows: list[tuple[bool, bool]] = []
+    rows: list[CaseRow] = []
     failed_cases: list[str] = []
     for case, reviewer_yes in _marked_cases(run, pile):
         try:
-            agent_yes = _agent_says_yes(case, rules, run, category)
+            rows.append(_grade_case(case, reviewer_yes, rules, run, category))
         except CompanyFailed:
             failed_cases.append(case.case_id)
-            continue
-        rows.append((agent_yes, reviewer_yes))
-    score_result = score(rows, run.settings.score_beta)
-    return PileResult(pile=pile, score=score_result, failed_cases=failed_cases)
+    pairs = [(row.agent_yes, row.reviewer_yes) for row in rows]
+    return PileResult(
+        pile=pile,
+        score=score(pairs, run.settings.score_beta),
+        rows=rows,
+        failed_cases=failed_cases,
+        rules_version=rules.version,
+        profile_version=run.profile.version,
+        models={
+            "quick_look": run.models.quick_look.answer_key,
+            "judge": run.models.judge.answer_key,
+        },
+    )
 
 
-def _agent_says_yes(case: CaseRecord, rules: RulesFile, run: EvalRun, category: str) -> bool:
+def _grade_case(
+    case: CaseRecord, reviewer_yes: bool, rules: RulesFile, run: EvalRun, category: str
+) -> CaseRow:
+    """What the agent says about one company, as the daily run would: quick look, then judge."""
     workspace, settings = run.workspace, run.settings
     company, pack = _company_and_pack(case, workspace)
 
     looked = quick_look(
         [company], run.profile, run.models.quick_look, settings, workspace, run.tracer
     )[0]
+    if looked.failed:
+        raise CompanyFailed(f"{company.name}: the quick look gave no usable answers")
     if not looked.passed:
-        return False  # the quick look dropped it, which counts as a no
+        # Dropped by the quick look, which counts as a no. The judge is never asked.
+        return CaseRow(
+            case_id=case.case_id,
+            agent_yes=False,
+            reviewer_yes=reviewer_yes,
+            quick_passed=False,
+            answers=[],
+        )
 
     questions = all_questions(run.profile, rules)
     answers = answer_questions(pack, questions, run.models.judge, workspace, category)
     cutoff = workspace.cutoff(run.models.judge.answer_key)
     cutoff = settings.default_cutoff if cutoff is None else cutoff
-    return combine(questions, answers, cutoff, settings).yes
+    return CaseRow(
+        case_id=case.case_id,
+        agent_yes=combine(questions, answers, cutoff, settings).yes,
+        reviewer_yes=reviewer_yes,
+        quick_passed=True,
+        answers=answers,
+    )

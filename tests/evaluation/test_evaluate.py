@@ -1,8 +1,9 @@
 import pytest
-from eval_world import Tracer, add_case, make_run, models_saying
+from eval_world import NOW, Tracer, add_case, make_run, models_saying
 
 from why_now.domain import FitQuestion, RulesFile
 from why_now.evaluation.evaluate import EvalRun, evaluate_pile, open_final_pile, set_cutoff
+from why_now.evaluation.records import ScorePoint
 from why_now.workspace import Workspace
 
 
@@ -139,3 +140,57 @@ def test_the_cutoff_is_chosen_on_the_practice_pile_only(store, settings, make_pr
     assert cutoff == 0.65
     assert workspace.cutoff(run.models.judge.answer_key) == 0.65
     assert sorted(workspace.packs_read) == ["pack-Acme", "pack-Beta"]
+
+
+def test_each_row_shows_what_the_agent_and_the_reviewer_said(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    quick = {"Acme": 0.9, "Beta": 0.1}
+    run = make_run(workspace, profile, settings, quick=quick, judge={"Acme": 0.9})
+
+    result = evaluate_pile("check", RulesFile(profile_id=profile.id), run, "evaluation")
+
+    rows = {row.case_id: row for row in result.rows}
+    acme, beta = rows["case-Acme"], rows["case-Beta"]
+    assert (acme.agent_yes, acme.reviewer_yes, acme.quick_passed) == (True, True, True)
+    assert [a.question_id for a in acme.answers] == ["f1"]
+    # The quick look dropped Beta, so the judge was never asked: it has no answers.
+    assert (beta.agent_yes, beta.reviewer_yes, beta.quick_passed) == (False, False, False)
+    assert beta.answers == []
+
+
+def test_a_score_point_records_rules_version_models_profile_and_pile_size(
+    store, settings, make_profile
+):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Acme", "check", "yes")
+    run = make_run(workspace, profile, settings, quick={"Acme": 0.9}, judge={"Acme": 0.9})
+    rules = RulesFile(profile_id=profile.id, version=3)
+
+    result = evaluate_pile("check", rules, run, "evaluation")
+    workspace.save_score_point(ScorePoint(at=NOW, result=result))
+
+    [point] = workspace.score_points()
+    assert point.result.rules_version == 3
+    assert point.result.models == {"quick_look": "quick-1", "judge": "fake-1"}
+    assert point.result.profile_version == profile.version
+    assert point.result.score.n == 1
+
+
+def test_a_company_the_quick_look_cannot_answer_for_is_reported_not_counted_as_a_no(
+    store, settings, make_profile
+):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "yes")
+    quick = {"Acme": 0.9, "Beta": None}
+    run = make_run(workspace, profile, settings, quick=quick, judge={"Acme": 0.9})
+
+    result = evaluate_pile("check", RulesFile(profile_id=profile.id), run, "evaluation")
+
+    assert result.failed_cases == ["case-Beta"]
+    assert result.score.n == 1
