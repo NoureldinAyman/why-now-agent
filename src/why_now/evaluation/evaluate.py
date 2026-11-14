@@ -15,12 +15,19 @@ from why_now.domain import (
     Profile,
     RulesFile,
 )
-from why_now.evaluation.records import CaseRow, ComparisonResult, PileResult
+from why_now.evaluation.records import (
+    CaseRow,
+    ComparisonResult,
+    ConsistencyResult,
+    PileResult,
+    QuestionSpread,
+)
 from why_now.evaluation.score import ScoreResult, score
 from why_now.pipeline.judge import (
     CompanyFailed,
     all_questions,
     answer_questions,
+    ask_with_one_retry,
     choose_cutoff,
     combine,
 )
@@ -220,3 +227,35 @@ def compare_judges(run: EvalRun, answerers: list[Answerer]) -> ComparisonResult:
     comparison = ComparisonResult(scores=scores, winner=winner, day=run.clock().date())
     run.workspace.save_comparison(comparison)
     return comparison
+
+
+def consistency(
+    run: EvalRun, answerer: Answerer, packs: list[EvidencePack], asks: int
+) -> ConsistencyResult:
+    """Ask every question about each pack `asks` times, with no saved answers, and report
+    how far each question's answers move."""
+    questions = all_questions(run.profile, run.workspace.load_rules())
+    ranges: dict[str, list[float]] = {q.id: [] for q in questions}
+    failed: list[str] = []
+    for pack in packs:
+        try:
+            rounds = [ask_with_one_retry(pack, questions, answerer, CATEGORY) for _ in range(asks)]
+        except CompanyFailed:
+            failed.append(pack.pack_id)
+            continue
+        for position, question in enumerate(questions):
+            given = [answers[position].probability for answers in rounds]
+            ranges[question.id].append(max(given) - min(given))
+
+    spread = {
+        question_id: QuestionSpread(average=sum(values) / len(values), worst=max(values))
+        for question_id, values in ranges.items()
+        if values
+    }
+    return ConsistencyResult(
+        answer_key=answerer.answer_key,
+        asks=asks,
+        companies=len(packs) - len(failed),
+        failed=failed,
+        spread=spread,
+    )

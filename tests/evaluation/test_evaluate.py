@@ -1,11 +1,12 @@
 import pytest
-from eval_world import NOW, ByCompany, Tracer, add_case, make_run, models_saying
+from eval_world import NOW, ByCompany, Sequence, Tracer, add_case, make_run, models_saying
 
 from why_now.domain import FitQuestion, RulesFile
 from why_now.evaluation.evaluate import (
     EvalRun,
     baselines,
     compare_judges,
+    consistency,
     evaluate_pile,
     open_final_pile,
     set_cutoff,
@@ -279,3 +280,34 @@ def test_on_a_tie_the_first_judge_listed_wins(judging_world):
     result = compare_judges(judging_world, [current, challenger])
 
     assert result.winner == "current"
+
+
+@pytest.fixture
+def one_pack(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Pia", "practice", "yes")
+    pack = workspace.load_pack("pack-Pia")
+    assert pack is not None
+    return make_run(workspace, profile, settings, quick={}, judge={}), pack
+
+
+def test_every_ask_goes_to_the_model_and_none_comes_from_saved_answers(one_pack):
+    run, pack = one_pack
+    answerer = Sequence([0.2, 0.4, 0.6, 0.8, 1.0])
+
+    consistency(run, answerer, [pack], asks=5)
+    consistency(run, answerer, [pack], asks=5)
+
+    assert answerer.calls == 10
+
+
+def test_the_spread_is_the_highest_answer_minus_the_lowest(one_pack):
+    run, pack = one_pack
+    answerer = Sequence([0.2, 0.4, 0.6, 0.8, 1.0])
+
+    result = consistency(run, answerer, [pack], asks=5)
+
+    assert result.spread["f1"].worst == pytest.approx(0.8)
+    assert result.spread["f1"].average == pytest.approx(0.8)
+    assert (result.asks, result.companies) == (5, 1)

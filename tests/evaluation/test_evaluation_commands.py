@@ -1,7 +1,7 @@
 import json
 
 import yaml
-from eval_world import NOW, ByCompany, add_case, models_saying
+from eval_world import NOW, ByCompany, Sequence, add_case, models_saying
 from typer.testing import CliRunner
 
 from why_now.ai.budget import Meter
@@ -158,3 +158,22 @@ def test_compare_models_shows_both_scores_and_the_winner(tmp_path, monkeypatch, 
     assert "judge-a: 2 companies" in result.output
     assert "Winner: judge-a" in result.output
     assert [c.winner for c in workspace.comparisons()] == ["judge-a"]
+
+
+def test_consistency_reads_practice_packs_only_and_shows_the_spread(
+    tmp_path, monkeypatch, make_profile
+):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile, quick={}, judge={})
+    add_case(workspace, "Pia", "practice", "yes")
+    add_case(workspace, "Pete", "practice", "yes")
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Dune", "final", "yes")
+    wobbly = Sequence([0.2, 0.4, 0.6, 0.8, 1.0])
+    monkeypatch.setattr(evaluation_command, "make_answerers", lambda *a: [wobbly])
+
+    result = run("consistency", args)
+
+    assert result.exit_code == 0, result.output
+    assert "wobbly-1: 5 asks on 2 companies" in result.output
+    assert "f1: answers moved 0.80 on average, 0.80 at worst." in result.output
+    assert [r.companies for r in workspace.consistency_results()] == [2]

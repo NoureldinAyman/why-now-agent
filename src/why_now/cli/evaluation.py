@@ -20,6 +20,7 @@ from why_now.evaluation.evaluate import (
     EvalRun,
     baselines,
     compare_judges,
+    consistency,
     evaluate_pile,
     open_final_pile,
     set_cutoff,
@@ -164,6 +165,45 @@ def compare_models_command(
             f"F-beta {s.f:.2f} (beta {s.beta:g})."
         )
     typer.echo(f"Winner: {result.winner}. Set judge_model to it. The result is recorded.")
+
+
+@app.command("consistency")
+def consistency_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+    """Ask the same questions again and again on practice packs and show how far the answers
+    move, for each of the two judges. Saved answers are not used. This costs money."""
+    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    run = make_eval_run(settings, workspace, profile)
+    meter = Meter(workspace.store, settings, now)
+    # Practice cases only, in a fixed order, so no check or final pile company is read.
+    cases = sorted(
+        (c for c in workspace.cases() if c.pile == "practice" and c.pack_id is not None),
+        key=lambda c: c.case_id,
+    )[: settings.consistency_packs]
+    packs = [p for c in cases if c.pack_id and (p := workspace.load_pack(c.pack_id)) is not None]
+    if not packs:
+        typer.echo("There are no practice packs yet. Build packs for practice companies first.")
+        raise typer.Exit(1)
+    try:
+        for answerer in make_answerers(settings, meter, os.environ):
+            result = consistency(run, answerer, packs, settings.consistency_asks)
+            workspace.save_consistency(result)
+            typer.echo(
+                f"{result.answer_key}: {result.asks} asks on {result.companies} companies "
+                "(a rough number from this few)."
+            )
+            for question_id, spread in result.spread.items():
+                typer.echo(
+                    f"  {question_id}: answers moved {spread.average:.2f} on average, "
+                    f"{spread.worst:.2f} at worst."
+                )
+            if result.failed:
+                typer.echo(f"  {len(result.failed)} packs left out: no usable answers.")
+    except BudgetExceeded as e:
+        typer.echo(f"Stopped: {e}.")
+        raise typer.Exit(1) from e
+    except ValueError as e:
+        typer.echo(f"Cannot check consistency: {e}")
+        raise typer.Exit(1) from e
 
 
 @app.command("open-final")

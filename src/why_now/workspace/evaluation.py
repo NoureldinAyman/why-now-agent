@@ -1,12 +1,13 @@
 """Evaluation records: the log of final pile openings, and every score taken."""
 
 from why_now.domain import FinalOpening
-from why_now.evaluation.records import ComparisonResult, ScorePoint
+from why_now.evaluation.records import ComparisonResult, ConsistencyResult, ScorePoint
 from why_now.workspace.base import WorkspaceBase
 
 _OPENINGS = "final_openings"
 _SCORES = "score_points"
 _COMPARISONS = "judge_comparisons"
+_CONSISTENCY = "consistency_results"
 
 
 class EvaluationArea(WorkspaceBase):
@@ -39,3 +40,13 @@ class EvaluationArea(WorkspaceBase):
         """This profile's judge comparisons, oldest first."""
         found = self.list_models(_COMPARISONS, ComparisonResult, self.require_profile() + "/")
         return sorted(found, key=lambda c: c.day)
+
+    def save_consistency(self, result: ConsistencyResult) -> None:
+        """Keep a consistency result. Every one is kept, and a model's results stay apart by key."""
+        number = len(self.consistency_results()) + 1
+        self.put_model(_CONSISTENCY, f"{self.require_profile()}/{number:04d}", result)
+
+    def consistency_results(self) -> list[ConsistencyResult]:
+        """This profile's consistency results, in the order they were taken."""
+        found = self.store.list(_CONSISTENCY, self.require_profile() + "/")
+        return [ConsistencyResult.model_validate(doc) for _, doc in found]
