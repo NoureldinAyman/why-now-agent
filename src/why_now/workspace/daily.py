@@ -8,7 +8,7 @@ import hashlib
 from datetime import date, datetime, timedelta
 
 from why_now.day_result import DayResult, ListEntry
-from why_now.domain import Decision, JobAd
+from why_now.domain import Decision, JobAd, ListName
 from why_now.workspace.base import WorkspaceBase
 
 _LISTS = "daily_lists"
@@ -17,6 +17,11 @@ _LISTS = "daily_lists"
 def ad_ref(ad: JobAd) -> tuple[str, str, str]:
     """What names one ad: its job source, its careers page (lower case) and its id."""
     return (ad.source, ad.board.lower(), ad.ad_id)
+
+
+def closest_to_yes(entries: list[ListEntry]) -> list[ListEntry]:
+    """Strongest first. On equal strength the company key decides the order."""
+    return sorted(entries, key=lambda e: (-(e.strength or 0), e.company_key))
 
 
 class DailyArea(WorkspaceBase):
@@ -53,7 +58,10 @@ class DailyArea(WorkspaceBase):
         days = self.list_models("days", DayResult, self.require_profile() + "/")
         return any(
             day.day <= by.date()
-            and any(e.company_key == company_key for e in [*day.short_list, *day.more_list])
+            and any(
+                e.company_key == company_key
+                for e in [*day.short_list, *day.more_list, *day.judged_no]
+            )
             for day in days
         )
 
@@ -65,6 +73,25 @@ class DailyArea(WorkspaceBase):
         """Companies on the more list that nobody has decided yet."""
         return self._waiting("more")
 
+    def judged_no_list(self, limit: int | None = None) -> list[ListEntry]:
+        """Researched companies the judge said no to that nobody has decided yet, closest to a
+        yes first, at most `limit` of them."""
+        return closest_to_yes(self._waiting("judged_no"))[:limit]
+
+    def awaiting_decision(
+        self, company_key: str, preferred: ListName
+    ) -> tuple[ListName, ListEntry] | None:
+        """The company on the `preferred` list or, failing that, another list, if it awaits a
+        decision. A company can be on more than one list, and where it was decided from says
+        which list the decision counts for."""
+        names: list[ListName] = ["short", "more", "judged_no"]
+        names.sort(key=lambda name: name != preferred)
+        for name in names:
+            for entry in self._waiting(name):
+                if entry.company_key == company_key:
+                    return name, entry
+        return None
+
     def save_day(self, result: DayResult) -> None:
         """Keep the day, and make its two lists the current ones."""
         profile = self.require_profile()
@@ -72,6 +99,7 @@ class DailyArea(WorkspaceBase):
         doc = {
             "short": [e.model_dump(mode="json") for e in result.short_list],
             "more": [e.model_dump(mode="json") for e in result.more_list],
+            "judged_no": [e.model_dump(mode="json") for e in result.judged_no],
         }
         self.store.put(_LISTS, profile, doc)
 
@@ -83,9 +111,11 @@ class DailyArea(WorkspaceBase):
         days = self.list_models("days", DayResult, self.require_profile() + "/")
         return max(days, key=lambda d: d.day, default=None)
 
-    def _waiting(self, which: str) -> list[ListEntry]:
+    def _waiting(self, which: ListName) -> list[ListEntry]:
         doc = self.store.get(_LISTS, self.require_profile())
-        entries = [] if doc is None else [ListEntry.model_validate(e) for e in doc[which]]
+        # Lists saved before the judged-no list existed have none.
+        saved = [] if doc is None else doc.get(which, [])
+        entries = [ListEntry.model_validate(e) for e in saved]
         decided: dict[str, date] = {}
         for d in self.decisions():
             day = d.decided_at.date()

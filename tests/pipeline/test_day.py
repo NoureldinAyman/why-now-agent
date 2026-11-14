@@ -542,3 +542,81 @@ def test_a_run_on_the_saved_read_with_nothing_saved_says_so(make_world):
     r = make_world(3).day(saved_read=True)
     assert r.short_list == []
     assert any("saved read" in s for s in r.skipped)
+
+
+class Recording:
+    """Passes every call on to `inner`, keeping the text of what was sent."""
+
+    def __init__(self, inner, sent: list[str]):
+        self.inner, self.sent = inner, sent
+        self.model = self.answer_key = inner.model
+
+    def answer(self, state, questions, category):
+        self.sent.append(repr((state, [q.model_dump() for q in questions])))
+        return self.inner.answer(state, questions, category)
+
+    def structured(self, *, system, untrusted, schema, category):
+        self.sent.append(repr((system, untrusted)))
+        return self.inner.structured(
+            system=system, untrusted=untrusted, schema=schema, category=category
+        )
+
+    def step(self, conversation, category):
+        self.sent.append(repr(conversation))
+        return self.inner.step(conversation, category)
+
+
+def test_the_marking_guide_never_reaches_a_model(store, settings, tmp_path, make_profile):
+    guide = "Marking guide 7f3a: a recruitment agency is always a no."
+    profile = make_profile(marking_guide=guide)
+    boards = {f"co{i}": [make_ad(f"co{i}")] for i in (0, 1)}
+    world = World(store, settings, tmp_path, profile, boards)
+    world.judge.chance = lambda board, category: 0.9 if board == "co0" else 0.1
+    sent: list[str] = []
+    ctx = world.context()
+    m = ctx.models
+    ctx.models = Models(
+        quick_look=Recording(m.quick_look, sent), judge=Recording(m.judge, sent),
+        writer=Recording(m.writer, sent), research=Recording(m.research, sent),
+    )  # fmt: skip
+    r = run_day(ctx, profile, TODAY)
+    assert [e.company_key for e in r.short_list] == ["co0"]  # one yes, one researched no
+    assert len(sent) >= 6  # quick look, research and judge for both, and a brief
+    assert all("7f3a" not in text for text in sent)
+
+
+JUDGED = {"co0": 0.9, "co1": 0.4, "co2": 0.3, "co3": 0.45, "co4": 0.2}  # only co0 is a yes
+
+
+def test_researched_companies_judged_no_go_on_a_small_list_closest_to_a_yes_first(make_world):
+    world = make_world(5)
+    world.judge.chance = lambda board, category: JUDGED[board]
+    r = world.day()
+    assert [e.company_key for e in r.short_list] == ["co0"]
+    assert [(e.company_key, e.strength) for e in r.judged_no] == [
+        ("co3", 0.45), ("co1", 0.4), ("co2", 0.3)
+    ]  # fmt: skip
+    assert all(e.brief is None and e.pack_id for e in r.judged_no)
+    assert [e.company_key for e in world.workspace.judged_no_list()] == ["co3", "co1", "co2"]
+
+
+def test_the_judged_no_list_follows_its_setting(make_world, settings):
+    world = make_world(5)
+    world.settings = settings.model_copy(update={"judged_no_shown": 1})
+    world.judge.chance = lambda board, category: JUDGED[board]
+    assert [e.company_key for e in world.day().judged_no] == ["co3"]
+
+
+def test_judged_no_companies_wait_for_a_decision_on_later_days(make_world):
+    world = make_world(5)
+    world.judge.chance = lambda board, category: JUDGED[board]
+    world.day()
+    world.workspace.save_decision(
+        Decision(
+            profile_id=world.profile.id, company_key="co3", approved=True, reason="Missed one.",
+            decided_at=world.clock(), from_list="judged_no",
+        )
+    )  # fmt: skip
+    later = world.day(TODAY + timedelta(days=1))
+    assert [e.company_key for e in later.judged_no] == ["co1", "co2"]
+    assert [e.company_key for e in world.workspace.judged_no_list()] == ["co1", "co2"]

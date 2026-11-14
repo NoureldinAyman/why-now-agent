@@ -22,6 +22,7 @@ from why_now.settings import Settings, load_settings
 from why_now.store import Store
 from why_now.testset.packs import SEED_LIMIT, BuildResult, build_packs, new_case, prepare
 from why_now.testset.picking import eligible_companies, pick_cases
+from why_now.testset.piles import pile_sizes
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
 
@@ -138,7 +139,7 @@ def pick_cases_command(
     picked = pick_cases(eligible, n, seed, picked_before)
     for company in picked:
         workspace.save_case(new_case(profile.id, company, seed, settings), company)
-    workspace.record_pick(seed, n, [c.key for c in picked], now())
+    workspace.record_pick(seed, n, pile_sizes(settings), [c.key for c in picked], now())
     typer.echo(
         f"Picked {len(picked)} of {len(eligible)} companies with a relevant ad in the last "
         f"{settings.new_ad_days} days, with seed {seed}. {len(picked_before)} were picked before."

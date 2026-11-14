@@ -63,6 +63,12 @@ def unused_reader(settings) -> PageReader:
 
 
 @pytest.fixture
+def settings(settings: Settings) -> Settings:
+    """Web research on: these tests are about the paid build, its budget and its failures."""
+    return settings.model_copy(update={"test_case_web_research": True})
+
+
+@pytest.fixture
 def workspace(store, make_profile):
     return Workspace(store, make_profile().id)
 
@@ -191,9 +197,12 @@ def test_a_case_keeps_the_seed_and_the_company_it_was_picked_with(workspace, pro
 
 
 def test_picks_are_recorded_with_their_seed(workspace):
-    workspace.record_pick(seed=42, n=10, picked=["acme"], at=NOW)
-    workspace.record_pick(seed=7, n=5, picked=[], at=NOW)
-    assert [(p.seed, p.n) for p in workspace.picks()] == [(42, 10), (7, 5)]
+    workspace.record_pick(seed=42, n=10, sizes=(45, 45, 45), picked=["acme"], at=NOW)
+    workspace.record_pick(seed=7, n=5, sizes=(150, 75, 75), picked=[], at=NOW)
+    assert [(p.seed, p.n, p.sizes) for p in workspace.picks()] == [
+        (42, 10, (45, 45, 45)),
+        (7, 5, (150, 75, 75)),
+    ]
 
 
 def test_cases_and_packs_are_kept_per_profile(store, workspace, profile):

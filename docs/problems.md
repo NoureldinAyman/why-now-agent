@@ -271,3 +271,9 @@ After main was merged into the ticket branch, the copied-repo run of the whole s
 Two reviewers read the finished code, one against the repo's rules and one against the ticket. Real gaps they found, each now fixed with a test: a judge that failed on every company stopped the comparison with an unhelpful "nothing to score"; the final pile could be opened with only the default cut-off, which would waste its one reading; the three baselines were scored on different companies from the agent when a model failed on one; a reason made only of spaces counted as a reason for an extra opening; and an unknown pile name quietly scored nothing. The comparison also did not record which companies it left out, or the rules and profile versions.
 
 **What it taught:** the tests written first covered the rules in the ticket. The gaps were in the places where two rules meet, such as a failed company and a baseline, so a second reader is worth the time.
+
+## 14 Nov 2026: Changing a default broke tests that had quietly relied on it
+
+Setting `cutoff_step` to 0.1 and turning web research off for test cases made ten older tests fail. None of them was about those settings: the cut-off examples had been worked out by hand on a 0.05 grid, and the pack tests counted research calls. Each now sets the value it depends on, with a line saying why.
+
+**What it taught:** a test that depends on a setting should say so, rather than lean on the default. Otherwise a reasoned change to the default looks like a broken feature.

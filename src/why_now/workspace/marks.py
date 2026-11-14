@@ -25,6 +25,16 @@ class MarksArea(WorkspaceBase):
             self.put_model(_COLLECTION, key, mark)
         return True
 
+    def delete_mark(self, round: Literal["first", "repeat"], case_id: str) -> bool:
+        """Remove a mark made by mistake, so the case can be marked again. Returns False if
+        that case and round has no mark."""
+        key = self._mark_key(round, case_id)
+        with _SAVE:
+            if self.store.get(_COLLECTION, key) is None:
+                return False
+            self.store.delete(_COLLECTION, key)
+        return True
+
     def marks(self, round: Literal["first", "repeat"]) -> list[Mark]:
         """This profile's marks for a round, in the order the cases were marked."""
         found = self.list_models(_COLLECTION, Mark, f"{self.require_profile()}/{round}/")
