@@ -120,21 +120,21 @@ class Settings(BaseModel):
     )
 
     practice_size: int = Field(
-        default=150,
+        default=45,
         description=(
-            "Measurement quality within the reviewer's time. The practice pile is largest, because"
-            " the loop learns from it."
+            "Measurement quality within the reviewer's time. The fewest that give each pile about "
+            "15 yes answers at 1 company in 3."
         ),
     )
     check_size: int = Field(
-        default=75,
+        default=45,
         description=(
             "Measurement quality within the reviewer's time. Equal to the final pile, so their "
             "numbers are about as reliable."
         ),
     )
     final_size: int = Field(
-        default=75,
+        default=45,
         description=(
             "Measurement quality within the reviewer's time. Equal to the check pile, so their "
             "numbers are about as reliable."
@@ -158,6 +158,20 @@ class Settings(BaseModel):
         description=(
             "A marking card short enough to read in seconds. The full pack is one tap away. "
             "Starting guess."
+        ),
+    )
+    judged_no_shown: int = Field(
+        default=3,
+        ge=0,
+        description=(
+            "Showing wrong no's without adding much to the reviewer's day. Starting guess."
+        ),
+    )
+    test_case_web_research: bool = Field(
+        default=False,
+        description=(
+            "Test case packs hold job ads only, so preparing costs nothing. The daily list keeps "
+            "web research for the companies it shows."
         ),
     )
     preview_companies: int = Field(
@@ -226,10 +240,10 @@ class Settings(BaseModel):
         ),
     )
     target_yes_per_pile: int = Field(
-        default=25,
+        default=15,
         description=(
-            "Against precision that swings too much. With 25, one company moves precision by about"
-            " 4 points."
+            "Against precision that swings too much. With 15, one company moves precision by about"
+            " 7 points, so numbers are reported as rough."
         ),
     )
     floor_yes_per_pile: int = Field(
@@ -325,12 +339,12 @@ class Settings(BaseModel):
         ),
     )
     cutoff_step: float = Field(
-        default=0.05,
+        default=0.1,
         gt=0,
         le=1,
         description=(
             "Against a cut-off fitted too closely to the practice pile. Cut-offs are tried this "
-            "far apart. Starting guess."
+            "far apart. With about 15 yes answers on the practice pile, finer steps fit luck."
         ),
     )
     default_cutoff: float = Field(

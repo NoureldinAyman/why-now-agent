@@ -9,7 +9,7 @@ from why_now.domain import JobAd
 from why_now.pipeline.reader import PageReader
 from why_now.run_context import RunContext
 from why_now.testset.packs import prepare
-from why_now.testset.piles import pile_for
+from why_now.testset.piles import pile_for, pile_sizes
 from why_now.tracing import LocalLogTracer, UnitCounter
 from why_now.workspace import Workspace
 
@@ -69,6 +69,8 @@ def profile(workspace, make_profile):
 
 @pytest.fixture
 def ctx(store, settings, research, tmp_path) -> RunContext:
+    """A run with web research on, so the paid path can be tested. See the ads-only tests."""
+    settings = settings.model_copy(update={"test_case_web_research": True})
     refuse = httpx.MockTransport(lambda r: pytest.fail("no page should be read"))
     meter = Meter(store, settings, lambda: NOW)
     return RunContext(
@@ -100,10 +102,22 @@ def test_prepare_picks_decides_the_pile_and_researches_each_company(
     assert len(cases) == 4 and research.calls == 4
     assert all(c.pack_id and workspace.load_pack(c.pack_id) for c in cases)
     assert {c.company_key: c.pile for c in cases} == {
-        c.company_key: pile_for(7, c.company_key, settings) for c in cases
+        c.company_key: pile_for(7, c.company_key, pile_sizes(settings)) for c in cases
     }
-    assert [(p.seed, p.n) for p in workspace.picks()] == [(7, 4)]
+    assert [(p.seed, p.n, p.sizes) for p in workspace.picks()] == [(7, 4, (45, 45, 45))]
     assert not workspace.one_time_research_active()
+
+
+def test_a_pick_keeps_its_sizes_so_its_piles_can_be_worked_out_after_the_settings_change(
+    ctx, workspace, profile, six_companies, settings
+):
+    ctx.settings = settings.model_copy(update={"practice_size": 1, "check_size": 5})
+    prepare(ctx, profile, 6, seed=3)
+    (pick,) = workspace.picks()
+    assert pick.sizes == (1, 5, 45)
+    assert {c.company_key: c.pile for c in workspace.cases()} == {
+        key: pile_for(pick.seed, key, pick.sizes) for key in pick.picked
+    }
 
 
 def test_a_rerun_with_the_same_seed_pays_for_nothing_twice(
@@ -137,7 +151,9 @@ def test_prepare_stops_cleanly_at_the_budget_and_a_rerun_finishes_without_paying
     assert len(workspace.cases()) == 3  # picked and kept, waiting for money
     assert not workspace.one_time_research_active()
 
-    settings_more = settings.model_copy(update={"budget_limit_usd": settings.budget_limit_usd * 2})
+    settings_more = ctx.settings.model_copy(
+        update={"budget_limit_usd": settings.budget_limit_usd * 2}
+    )
     ctx.meter.settings = ctx.settings = settings_more
     resumed = prepare(ctx, profile, 3, seed=9)
     assert (resumed.picked, resumed.built, resumed.stopped) == (0, 3, None)
@@ -148,3 +164,32 @@ def test_prepare_with_nothing_to_pick_from_says_so(ctx, workspace, profile, rese
     result = prepare(ctx, profile, 3, seed=1)
     assert (result.picked, result.eligible, result.built) == (0, 0, 0)
     assert research.calls == 0
+
+
+def test_ads_only_packs_make_no_paid_call(ctx, workspace, profile, research, six_companies):
+    ctx.settings = ctx.settings.model_copy(update={"test_case_web_research": False})
+    result = prepare(ctx, profile, 4, seed=7)
+    assert (result.picked, result.built) == (4, 4)
+    assert research.calls == 0
+    assert ctx.meter.status().spent_usd == 0
+    for case in workspace.cases():
+        pack = workspace.load_pack(case.pack_id or "")
+        assert pack is not None and pack.research_steps == 0
+        assert [s.kind for s in pack.sources] == ["job_ad"]
+        assert pack.ad_titles == ["Sales Rep"] and pack.relevant_ad_count == 1
+        assert "Sell things." in pack.sources[0].text
+
+
+def test_an_ads_only_pack_holds_the_newest_ads_within_the_limits(
+    ctx, workspace, profile, research, settings
+):
+    ctx.settings = settings.model_copy(update={"newest_ads_read": 2, "max_ad_chars": 30})
+    ads = [ad("acme", age).model_copy(update={"ad_id": str(age)}) for age in (1, 2, 3)]
+    workspace.save_board_ads("greenhouse", "acme", ads)
+    prepare(ctx, profile, 1, seed=1)
+    (case,) = workspace.cases()
+    pack = workspace.load_pack(case.pack_id or "")
+    assert pack is not None and research.calls == 0
+    assert [s.url for s in pack.sources] == ["https://jobs.test/acme/1"] * 2
+    assert all(len(s.text) <= 30 for s in pack.sources)
+    assert pack.relevant_ad_count == 3  # every relevant ad is counted, as in a researched pack

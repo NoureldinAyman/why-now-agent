@@ -9,18 +9,18 @@ from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from why_now.domain import CaseRecord, Profile
+from why_now.testset.marking import read_form
 from why_now.web.routes_marking import (
     Progress,
     Reviewer,
     _choose_profile,
     _ctx,
     _find_case,
+    _new_mark,
     _page,
     _profile_query,
     _show_case,
     check_form_token,
-    new_mark,
-    read_form,
 )
 from why_now.workspace import Workspace
 
@@ -63,12 +63,12 @@ def save_repeat(
     if case.case_id not in (workspace.repeat_selection() or []):
         raise HTTPException(status_code=404, detail="This case was not picked to be marked again")
 
-    reason, picked, error = read_form(ctx, answer, reason, chips)
+    reason, picked, error = read_form(answer, reason, chips, ctx.settings.reason_chips)
     if error is not None:
         return _show_repeat(request, workspace, profile, case, error, reason, picked, 422)
 
     # A second copy of the same form changes nothing.
-    workspace.save_mark(new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
+    workspace.save_mark(_new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
     return RedirectResponse("/repeat" + _profile_query(ctx, profile), status_code=303)
 
 

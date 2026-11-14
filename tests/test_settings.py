@@ -14,8 +14,8 @@ def test_defaults_match_the_design():
     assert (s.short_list_size, s.hide_days, s.new_ad_days) == (10, 90, 14)
     assert (s.research_per_day, s.research_steps, s.keep_min_gain) == (12, 5, 2)
     assert s.tries_per_check_pile == 50
-    assert (s.practice_size, s.check_size, s.final_size) == (150, 75, 75)
-    assert (s.target_yes_per_pile, s.floor_yes_per_pile) == (25, 15)
+    assert (s.practice_size, s.check_size, s.final_size) == (45, 45, 45)
+    assert (s.target_yes_per_pile, s.floor_yes_per_pile) == (15, 15)
     assert (s.pilot_size, s.marking_ceiling, s.remark_size) == (40, 500, 30)
     assert s.request_delay_seconds == 1.0
     assert s.dead_after_days == 7
@@ -30,7 +30,7 @@ def test_numbers_added_to_the_design_table_have_its_values():
     assert (s.outage_share, s.retry_dead_after_days) == (0.9, 30)
     assert (s.request_attempts, s.max_retry_wait_seconds, s.source_timeout_seconds) == (3, 60, 30)
     assert s.fixed_monthly_costs_usd == 0
-    assert (s.quick_look_pass, s.required_pass, s.cutoff_step) == (0.3, 0.5, 0.05)
+    assert (s.quick_look_pass, s.required_pass, s.cutoff_step) == (0.3, 0.5, 0.1)
     assert s.default_cutoff == 0.5
     assert s.score_beta == 1
     assert (s.max_page_bytes, s.page_timeout_seconds) == (2_000_000, 15)
@@ -43,6 +43,7 @@ def test_numbers_added_to_the_design_table_have_its_values():
 def test_prepare_and_card_settings_have_the_designs_values():
     s = load_settings(None, env={})
     assert (s.prepare_batch, s.card_page_chars) == (20, 400)
+    assert (s.judged_no_shown, s.test_case_web_research) == (3, False)
     assert s.reason_chips == [
         "recruitment agency", "competitor", "not hiring the right people",
         "too big", "too small", "good timing",

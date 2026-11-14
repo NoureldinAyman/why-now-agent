@@ -8,13 +8,14 @@ import secrets
 import threading
 from collections import Counter
 from dataclasses import dataclass
-from typing import Annotated, Final, Literal, get_args
+from typing import Annotated, Final, Literal
 
 from fastapi import APIRouter, Depends, Form, HTTPException
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from why_now.domain import CaseRecord, Mark, Profile, Source
+from why_now.testset.marking import new_mark, read_form
 from why_now.testset.packs import SEED_LIMIT, card
 from why_now.testset.repeat import can_repeat
 from why_now.web.app import AppContext
@@ -25,7 +26,6 @@ router = APIRouter()
 
 ROUND: Final = "first"
 TOKEN_NAME: Final = "form_token"
-ANSWERS: Final = get_args(Mark.model_fields["answer"].annotation)
 
 # Held while companies are being prepared, so a second press, or a second tab, cannot start
 # a second run that researches and pays for the same companies. It covers one process, which
@@ -142,12 +142,12 @@ def save_mark(
         raise HTTPException(status_code=404, detail="No such case")
     workspace, profile, case = found
 
-    reason, picked, error = read_form(ctx, answer, reason, chips)
+    reason, picked, error = read_form(answer, reason, chips, ctx.settings.reason_chips)
     if error is not None:
         return _show_case(request, workspace, profile, case, error, reason, picked, status=422)
 
     # A second copy of the same form changes nothing.
-    workspace.save_mark(new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
+    workspace.save_mark(_new_mark(ctx, workspace, case, answer, reason, picked, ROUND))
     return RedirectResponse(_mark_url(ctx, profile), status_code=303)
 
 
@@ -158,38 +158,7 @@ def check_form_token(request: Request, form_token: str) -> None:
         raise HTTPException(status_code=403, detail="The form has expired. Go back and reload it.")
 
 
-def read_form(
-    ctx: AppContext, answer: str, reason: str, chips: list[str] | None
-) -> tuple[str, list[str], str | None]:
-    """The reason and chips of a sent mark form, tidied, and what is wrong with it if anything.
-    Both the marking and the repeat page read their form here, so they cannot drift apart."""
-    reason, picked = tidy_reason(reason, chips)
-    return reason, picked, form_error(answer, reason, picked, ctx.settings.reason_chips)
-
-
-def tidy_reason(reason: str, chips: list[str] | None) -> tuple[str, list[str]]:
-    """The sentence without stray spacing, and each chip once, in the order sent."""
-    return reason.strip(), list(dict.fromkeys(chips or []))
-
-
-def form_error(answer: str, reason: str, chips: list[str], allowed: list[str]) -> str | None:
-    """What is wrong with a submitted answer and reason, or None if all is fine."""
-    if answer not in ANSWERS:
-        return "Choose yes, no or can't tell."
-    return reason_error(reason, chips, allowed)
-
-
-def reason_error(reason: str, chips: list[str], allowed: list[str]) -> str | None:
-    """What is wrong with a reason, or None if it is fine. A reason is one or more chips from
-    the list, a sentence, or both, and at least one is needed. Marks and decisions share it."""
-    if any(chip not in allowed for chip in chips):
-        return "One of the reasons is not on the list. Pick from the short choices."
-    if not reason and not chips:
-        return "Give a reason: tap a short choice or write a sentence."
-    return None
-
-
-def new_mark(
+def _new_mark(
     ctx: AppContext,
     workspace: Workspace,
     case: CaseRecord,
@@ -198,20 +167,11 @@ def new_mark(
     chips: list[str],
     round: Literal["first", "repeat"],
 ) -> Mark:
-    """The mark for a checked answer, noting whether the company was on a daily list before."""
-    now = ctx.clock()
-    return Mark.model_validate(
-        {
-            "case_id": case.case_id,
-            "answer": answer,
-            "reason": reason,
-            "chips": chips,
-            "seen_on_list": workspace.was_listed(case.company_key, now),
-            "marked_at": now,
-            "round": round,
-            "profile_version": _profile_version(ctx, case.profile_id),
-        }
-    )
+    """The mark for a checked answer, made by the shared checks with the page's clock."""
+    return new_mark(
+        workspace, case, answer, reason, chips, round,
+        now=ctx.clock(), profile_version=_profile_version(ctx, case.profile_id),
+    )  # fmt: skip
 
 
 def _profile_version(ctx: AppContext, profile_id: str) -> str | None:

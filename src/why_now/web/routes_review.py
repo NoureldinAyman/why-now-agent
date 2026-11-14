@@ -6,7 +6,7 @@ Approving only records a decision. Nothing is sent to anyone from here.
 import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from typing import Annotated, Final, Literal, TypedDict
+from typing import Annotated, TypedDict
 from urllib.parse import quote
 
 from fastapi import APIRouter, Form, HTTPException
@@ -15,8 +15,9 @@ from starlette.responses import HTMLResponse, RedirectResponse, Response
 
 from why_now.ai.budget import LOOP
 from why_now.day_result import ListEntry
-from why_now.domain import Claim, Decision, Profile, Source
+from why_now.domain import Claim, Decision, ListName, Profile, Source
 from why_now.evaluation.short_list import ShortListPrecision, short_list_precision
+from why_now.testset.marking import CHOICES, decision_error, tidy_reason
 from why_now.web.app import AppContext
 from why_now.web.routes_marking import (
     Reviewer,
@@ -27,16 +28,13 @@ from why_now.web.routes_marking import (
     _profile_query,
     _web_href,
     check_form_token,
-    reason_error,
-    tidy_reason,
 )
 from why_now.web.visuals import slices, tile
 from why_now.workspace import Workspace
 
 router = APIRouter()
 
-Which = Literal["short", "more"]
-CHOICES: Final = {"approve": True, "reject": False}
+Which = ListName
 
 # Held while a decision is checked and saved, so two copies of one form sent at the same
 # moment cannot both pass the check. It covers one process, which is how the page runs.
@@ -97,18 +95,15 @@ def decide(
     workspace = Workspace(ctx.store, chosen.id)
     reason, picked = tidy_reason(reason, chips)
     with _DECIDING:
-        found = _waiting(workspace, company_key, "more" if from_list == "more" else "short")
+        preferred: Which = from_list if from_list in ("more", "judged_no") else "short"
+        found = workspace.awaiting_decision(company_key, preferred)
         if found is None:
             if workspace.hidden_until(company_key, ctx.settings.hide_days) is None:
                 raise HTTPException(status_code=404, detail="That company is not on a list")
             # The company has been decided already, so this is the same form sent again.
             return RedirectResponse("/" + _profile_query(ctx, chosen), status_code=303)
         which, entry = found
-        error = (
-            "Choose approve or reject."
-            if decision not in CHOICES
-            else reason_error(reason, picked, ctx.settings.reason_chips)
-        )
+        error = decision_error(decision, reason, picked, ctx.settings.reason_chips)
         if error is not None:
             attempt = Attempt(company_key, error, reason, picked)
             return _show_list(request, which, chosen.id, attempt, status=422)
@@ -127,24 +122,6 @@ def decide(
     return RedirectResponse(_path(which) + _profile_query(ctx, chosen), status_code=303)
 
 
-def _waiting(
-    workspace: Workspace, company_key: str, preferred: Which
-) -> tuple[Which, ListEntry] | None:
-    """The company on the list the form came from or, failing that, the other list, if it
-    awaits a decision. A company can be on both lists, and the page it was decided on says
-    which list the decision counts for."""
-    lists: list[tuple[Which, list[ListEntry]]] = [
-        ("short", workspace.short_list()),
-        ("more", workspace.more_list()),
-    ]
-    lists.sort(key=lambda pair: pair[0] != preferred)
-    for which, entries in lists:
-        for entry in entries:
-            if entry.company_key == company_key:
-                return which, entry
-    return None
-
-
 def _show_list(
     request: Request,
     which: Which,
@@ -159,14 +136,18 @@ def _show_list(
             request, "choose.html", profiles=list(ctx.profiles.values()), choose_to=_path(which)
         )
     workspace = Workspace(ctx.store, chosen.id)
-    entries = workspace.short_list() if which == "short" else workspace.more_list()
+    page: Which = "more" if which == "more" else "short"  # the judged-no list is on the short page
+    entries = workspace.short_list() if page == "short" else workspace.more_list()
+    # Never more than the setting, even from days saved with a larger one.
+    judged_no = [] if page == "more" else workspace.judged_no_list(ctx.settings.judged_no_shown)
     return _form_page(
         request,
         "review.html",
         status=status,
         profile=chosen,
-        which=which,
+        which=page,
         entries=[_entry_view(ctx, workspace, chosen, e, attempt) for e in entries],
+        judged_no=[_entry_view(ctx, workspace, chosen, e, attempt) for e in judged_no],
         all_chips=ctx.settings.reason_chips,
         today=_today(ctx),
         hide_days=ctx.settings.hide_days,
@@ -175,7 +156,7 @@ def _show_list(
 
 
 def _path(which: Which) -> str:
-    return "/" if which == "short" else "/more"
+    return "/more" if which == "more" else "/"
 
 
 def _today(ctx: AppContext) -> str:

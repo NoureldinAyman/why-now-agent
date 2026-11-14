@@ -1,4 +1,7 @@
-"""Building test case packs: research runs once per picked company, and the pack is frozen.
+"""Building test case packs: each picked company's pack is built once, and frozen.
+
+- With `test_case_web_research` off, the default, a pack holds the company's job ads only.
+  No model is called, so preparing costs nothing. With it on, research runs once per company.
 
 - Packs are saved one at a time, so a stop loses at most the company in progress.
 - A case that already has a saved pack is skipped, so a rerun never pays twice.
@@ -23,12 +26,12 @@ from why_now.ai import ResearchModel
 from why_now.ai.budget import TEST_CASES, BudgetExceeded
 from why_now.domain import CaseRecord, Company, EvidencePack, Profile
 from why_now.pipeline.reader import PageReader
-from why_now.pipeline.research import research_company
+from why_now.pipeline.research import ads_only_pack, research_company
 from why_now.pipeline.search import search_ads
 from why_now.run_context import RunContext, metered
 from why_now.settings import Settings
 from why_now.testset.picking import eligible_companies, pick_cases
-from why_now.testset.piles import pile_for
+from why_now.testset.piles import pile_for, pile_sizes
 from why_now.tracing import Tracer
 from why_now.workspace import Workspace
 
@@ -55,7 +58,7 @@ def new_case(profile_id: str, company: Company, seed: int, settings: Settings) -
         profile_id=profile_id,
         company_key=company.key,
         seed=seed,
-        pile=pile_for(seed, company.key, settings),
+        pile=pile_for(seed, company.key, pile_sizes(settings)),
     )
 
 
@@ -83,16 +86,19 @@ def build_packs(
                 _fail(workspace, result, case, "the picked company was not saved", clock)
                 continue
             try:
-                pack = research_company(
-                    company,
-                    profile,
-                    model,
-                    reader,
-                    settings,
-                    tracer,
-                    category=TEST_CASES,
-                    now=clock(),
-                )
+                if settings.test_case_web_research:
+                    pack = research_company(
+                        company,
+                        profile,
+                        model,
+                        reader,
+                        settings,
+                        tracer,
+                        category=TEST_CASES,
+                        now=clock(),
+                    )
+                else:
+                    pack = ads_only_pack(company, profile, settings, now=clock())
             except BudgetExceeded as e:
                 result.stopped = f"Stopped: {e}. Packs built so far are saved."
                 result.left = sum(not _has_pack(workspace, c) for c in cases[i:])
@@ -126,7 +132,9 @@ def prepare(ctx: RunContext, profile: Profile, n: int, seed: int) -> BuildResult
         chosen = pick_cases(pool, n, seed, before)
         for company in chosen:
             workspace.save_case(new_case(profile.id, company, seed, ctx.settings), company)
-        workspace.record_pick(seed, n, [c.key for c in chosen], ctx.clock())
+        workspace.record_pick(
+            seed, n, pile_sizes(ctx.settings), [c.key for c in chosen], ctx.clock()
+        )
         picked, eligible = len(chosen), len(pool)
     waiting = [c for c in workspace.cases() if not _has_pack(workspace, c)]
     result = build_packs(
@@ -172,9 +180,9 @@ class Card(BaseModel):
     page_url: str | None
 
 
-def card(case: CaseRecord, pack: EvidencePack, settings: Settings) -> Card:
+def card(case: CaseRecord | None, pack: EvidencePack, settings: Settings) -> Card:
     """Build the marking card from the pack alone. `case` is taken so the card is made for a
-    case, but nothing on it is read from there."""
+    case, but nothing on it is read from there, so a daily company's pack has a card too."""
     page = next((s for s in pack.sources if s.kind == "page"), None)
     limit = settings.card_page_chars
     return Card(

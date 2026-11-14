@@ -70,4 +70,17 @@ fit_questions:
 why_now: >-
   A new ad for a salesperson shows the team is growing, and new hires will need to be
   trained before they talk to customers.
+
+# How the reviewer marks test cases, so marks stay the same across sittings. Only the marking
+# page and the marking commands show it. The judge and the rule proposer never see it.
+# A draft for the owner to approve. Editing it makes a new profile version.
+marking_guide: >-
+  Mark from the job ads in the pack only, as of the newest ad. Yes: the company hires
+  salespeople for its own team, does not sell sales training, coaching or practice software,
+  and the ads show new salespeople who will need training soon, such as several open sales
+  roles at once or a junior or entry-level role. No: a recruitment or staffing agency hiring
+  for clients, a company selling sales training or practice products, or ads that say the
+  company already runs its own sales academy or training programme. Can't tell: the ads do
+  not say who the salespeople will work for, or are too short to judge. One experienced sales
+  role with nothing else is a no unless the ads say the team is new or growing.
 public: false

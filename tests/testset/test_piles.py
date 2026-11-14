@@ -11,6 +11,7 @@ from why_now.testset.piles import (
     loop_ready,
     pile_for,
     pile_report,
+    pile_sizes,
     yes_share,
 )
 from why_now.workspace import Workspace
@@ -24,14 +25,19 @@ def mark(n: int, answer: str) -> Mark:
     )
 
 
-def test_the_same_seed_and_key_always_give_the_same_pile(settings):
-    piles = [pile_for(7, f"company-{i}", settings) for i in range(200)]
-    assert piles == [pile_for(7, f"company-{i}", settings) for i in range(200)]
-    assert piles != [pile_for(8, f"company-{i}", settings) for i in range(200)]
+def test_the_same_seed_and_sizes_always_give_the_same_pile():
+    piles = [pile_for(7, f"company-{i}", (45, 45, 45)) for i in range(200)]
+    assert piles == [pile_for(7, f"company-{i}", (45, 45, 45)) for i in range(200)]
+    assert piles != [pile_for(8, f"company-{i}", (45, 45, 45)) for i in range(200)]
+    assert piles != [pile_for(7, f"company-{i}", (150, 75, 75)) for i in range(200)]
 
 
-def test_over_many_keys_the_shares_match_150_75_75(settings):
-    counts = Counter(pile_for(7, f"company-{i}", settings) for i in range(10_000))
+def test_the_sizes_come_from_the_settings(settings: Settings):
+    assert pile_sizes(settings) == (45, 45, 45)
+
+
+def test_over_many_keys_the_shares_match_the_sizes():
+    counts = Counter(pile_for(7, f"company-{i}", (150, 75, 75)) for i in range(10_000))
     assert set(counts) == {"practice", "check", "final"}
     assert counts["practice"] / 10_000 == pytest.approx(0.50, abs=0.02)
     assert counts["check"] / 10_000 == pytest.approx(0.25, abs=0.02)
@@ -40,7 +46,7 @@ def test_over_many_keys_the_shares_match_150_75_75(settings):
 
 def test_the_ratio_follows_the_settings(settings: Settings):
     even = settings.model_copy(update={"practice_size": 1, "check_size": 1, "final_size": 1})
-    counts = Counter(pile_for(3, f"company-{i}", even) for i in range(10_000))
+    counts = Counter(pile_for(3, f"company-{i}", pile_sizes(even)) for i in range(10_000))
     assert all(c / 10_000 == pytest.approx(1 / 3, abs=0.02) for c in counts.values())
 
 
@@ -64,7 +70,7 @@ def picked(workspace: Workspace, n: int, seed: int, settings: Settings) -> list[
             profile_id="p",
             company_key=f"company-{i:04d}",
             seed=seed,
-            pile=pile_for(seed, f"company-{i:04d}", settings),
+            pile=pile_for(seed, f"company-{i:04d}", pile_sizes(settings)),
         )  # fmt: skip
         for i in range(n)
     ]
@@ -121,7 +127,11 @@ def test_no_mark_marking_order_or_cant_tell_moves_a_company(workspace, settings)
     for i in reversed(range(30)):  # marked in reverse, with every kind of answer
         workspace.save_mark(mark(i, ["cant_tell", "yes", "no"][i % 3]))
     after = {c.case_id: c.pile for c in workspace.cases()}
-    assert after == before == {c.case_id: pile_for(11, c.company_key, settings) for c in cases}
+    assert (
+        after
+        == before
+        == {c.case_id: pile_for(11, c.company_key, pile_sizes(settings)) for c in cases}
+    )
 
 
 def test_a_saved_case_cannot_change_pile(workspace, settings):

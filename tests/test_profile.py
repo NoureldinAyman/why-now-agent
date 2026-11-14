@@ -93,3 +93,13 @@ def test_editing_a_profile_changes_its_version(profile_file, tmp_path):
 
     assert before.version == load_profile(same).version
     assert before.version != load_profile(edited).version
+
+
+def test_a_marking_guide_is_optional_and_part_of_the_profile_version(tmp_path, profile_file):
+    without = load_profile(profile_file)
+    assert without.marking_guide == ""
+    p = tmp_path / "guided.yaml"
+    p.write_text(COMPLETE + "marking_guide: An agency is a no.\n", encoding="utf-8")
+    guided = load_profile(p)
+    assert guided.marking_guide == "An agency is a no."
+    assert guided.version != without.version

@@ -29,6 +29,18 @@
     {% set message = "No companies are waiting for a decision." if which == "short" else "Nothing is on the more list." %}
     {% include "_empty.html" %}
     {% endif %}
+    {% if judged_no %}
+    <section class="judged-no" aria-labelledby="judged-no-heading">
+      <h2 id="judged-no-heading">Judged no</h2>
+      <p class="lede">Researched and turned down by the agent, closest to a yes first. Approve any it got wrong.</p>
+      <ol class="entries">
+        {% for e in judged_no %}
+        {% set rank = loop.index %}
+        {% with which = "judged_no" %}<li>{% include "_entry.html" %}</li>{% endwith %}
+        {% endfor %}
+      </ol>
+    </section>
+    {% endif %}
   </div>
 </div>
 {% endblock %}

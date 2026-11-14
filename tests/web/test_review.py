@@ -34,10 +34,11 @@ def an_ad(name: str, title: str = "Head of Sales") -> JobAd:
 
 def a_day(
     short: Sequence[ListEntry] = (), more: Sequence[ListEntry] = (), skipped: Sequence[str] = (),
-    day: date = TODAY,
+    day: date = TODAY, judged_no: Sequence[ListEntry] = (),
 ) -> DayResult:  # fmt: skip
     return DayResult(
-        day=day, short_list=list(short), more_list=list(more), failed=[], skipped=list(skipped),
+        day=day, short_list=list(short), more_list=list(more), judged_no=list(judged_no),
+        failed=[], skipped=list(skipped),
         costs=BudgetStatus(
             month="2026-11", spent_usd=0, by_category={}, warning=False, stopped=False,
             loop_stopped=False,
@@ -331,3 +332,54 @@ def test_a_decision_records_the_profile_version(decide, listed_company, workspac
     decide("acme")
     [decision] = workspace.decisions()
     assert decision.profile_version == profile.version
+
+
+def turned_down(key: str, strength: float) -> ListEntry:
+    """A researched company the judge said no to: a pack and a strength, no brief."""
+    return ListEntry(
+        company_key=key, company_name=key.title(), strength=strength, brief=None,
+        ads=[an_ad(key, "Sales Lead")], pack_id=f"pack-{key}", first_listed=TODAY,
+    )  # fmt: skip
+
+
+@pytest.fixture
+def judged_no(workspace, listed_company) -> list[ListEntry]:
+    entries = [
+        turned_down("initech", 0.45),
+        turned_down("hooli", 0.4),
+        turned_down("umbrella", 0.3),
+    ]
+    workspace.save_day(a_day(short=[listed_company], judged_no=entries))
+    return entries
+
+
+def test_the_short_list_page_shows_the_judged_no_list_closest_to_a_yes_first(client, judged_no):
+    html = client.get("/").text
+    assert "Judged no" in html
+    places = [html.index(name) for name in ("Acme", "Initech", "Hooli", "Umbrella")]
+    assert places == sorted(places)
+
+
+def test_the_page_shows_no_more_judged_no_companies_than_the_setting(make_ctx, settings, judged_no):
+    ctx = make_ctx(settings.model_copy(update={"judged_no_shown": 1}))
+    client = TestClient(
+        create_app(ctx, LocalAuth()), client=("127.0.0.1", 5000), base_url="http://localhost"
+    )
+    html = client.get("/").text
+    assert "Initech" in html and "Hooli" not in html
+
+
+def test_a_decision_on_a_judged_no_company_is_recorded_as_such(
+    client, decide, judged_no, workspace
+):
+    assert decide("hooli", from_list="judged_no", reason="They do fit.").status_code == 303
+    [decision] = workspace.decisions()
+    assert (decision.company_key, decision.approved, decision.from_list) == (
+        "hooli", True, "judged_no"
+    )  # fmt: skip
+    assert "Hooli" not in client.get("/").text
+    assert decide("acme", reason="").status_code == 422  # the short list still checks reasons
+
+
+def test_no_judged_no_section_when_there_are_none(client, listed_company):
+    assert "Judged no" not in client.get("/").text

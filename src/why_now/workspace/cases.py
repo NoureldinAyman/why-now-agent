@@ -7,7 +7,7 @@ because the budget it protects is shared.
 
 from datetime import datetime
 
-from why_now.domain import CaseRecord, Company, EvidencePack, PickRecord
+from why_now.domain import CaseRecord, Company, EvidencePack, PickRecord, PileSizes
 from why_now.workspace.base import WorkspaceBase
 
 _FLAGS = "one_time_research"
@@ -59,13 +59,15 @@ class CasesArea(WorkspaceBase):
         found = self.store.list("pack_failures", self.require_profile() + "/")
         return {doc["case_id"]: doc["reason"] for _, doc in found}
 
-    def record_pick(self, seed: int, n: int, picked: list[str], at: datetime) -> None:
-        """Add a pick to the profile's record of picks, so every seed used is kept."""
+    def record_pick(
+        self, seed: int, n: int, sizes: PileSizes, picked: list[str], at: datetime
+    ) -> None:
+        """Add a pick to the profile's record of picks, so every seed and the pile sizes it
+        used are kept."""
         key = self.require_profile()
         doc = self.store.get("picks", key) or {"picks": []}
-        doc["picks"].append(
-            PickRecord(seed=seed, n=n, picked=picked, at=at).model_dump(mode="json")
-        )
+        record = PickRecord(seed=seed, n=n, sizes=sizes, picked=picked, at=at)
+        doc["picks"].append(record.model_dump(mode="json"))
         self.store.put("picks", key, doc)
 
     def picks(self) -> list[PickRecord]:

@@ -146,8 +146,8 @@ def test_the_cutoff_is_chosen_on_the_practice_pile_only(store, settings, make_pr
 
     cutoff = set_cutoff(run)
 
-    assert cutoff == 0.65
-    assert workspace.cutoff(run.models.judge.answer_key) == 0.65
+    assert cutoff == 0.7  # the lowest point above Beta's 0.6, on a grid 0.1 apart
+    assert workspace.cutoff(run.models.judge.answer_key) == 0.7
     assert sorted(workspace.packs_read) == ["pack-Acme", "pack-Beta"]
 
 

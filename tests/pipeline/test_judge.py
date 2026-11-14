@@ -11,11 +11,18 @@ from why_now.pipeline.judge import (
     choose_cutoff,
     combine,
 )
+from why_now.settings import Settings
 from why_now.workspace import Workspace
 
 REQUIRED = FitQuestion(id="r", text="Does it sell to businesses?", kind="required")
 SUPPORTING = FitQuestion(id="s", text="Is the sales team growing?")
 AGAINST = FitQuestion(id="a", text="Does it already use a tool like this?", direction="against")
+
+
+@pytest.fixture
+def settings(settings: Settings) -> Settings:
+    """The cut-off examples below were worked by hand with cut-offs 0.05 apart."""
+    return settings.model_copy(update={"cutoff_step": 0.05})
 
 
 def answers(**probabilities: float) -> list[Answer]:

@@ -10,7 +10,7 @@ from why_now.cli import testset as testset_command
 from why_now.domain import JobAd
 from why_now.settings import Settings
 from why_now.store.local import LocalStore
-from why_now.testset.piles import pile_for
+from why_now.testset.piles import pile_for, pile_sizes
 from why_now.workspace import Workspace
 
 NOW = datetime(2026, 11, 6, 9, 0, tzinfo=UTC)
@@ -50,7 +50,10 @@ def setup(tmp_path, monkeypatch, make_profile):
     profile_file = tmp_path / "profile.yaml"
     profile_file.write_text(yaml.safe_dump(profile.model_dump(mode="json")), encoding="utf-8")
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    # Web research on: these tests are about the paid build and paying nothing twice.
+    settings.write_text(
+        f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\ntest_case_web_research = true\n"
+    )
     ws = Workspace(LocalStore(tmp_path / "ws"), profile.id)
     for board, days_ago, title in [
         ("acme", 1, "Sales Rep"),
@@ -93,7 +96,7 @@ def test_each_case_gets_its_pile_when_it_is_picked_and_keeps_it(
     runner.invoke(app, ["pick-cases", *args, "--n", "1", "--seed", "1"])
     runner.invoke(app, ["pick-cases", *args, "--n", "1", "--seed", "2"])
     seed_of = {pick.picked[0]: pick.seed for pick in ws.picks()}
-    expected = {key: pile_for(seed, key, settings) for key, seed in seed_of.items()}
+    expected = {key: pile_for(seed, key, pile_sizes(settings)) for key, seed in seed_of.items()}
     assert {c.company_key: c.pile for c in ws.cases()} == expected
 
     runner.invoke(app, ["build-packs", *args])

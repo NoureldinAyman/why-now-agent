@@ -36,7 +36,7 @@
     {% endfor %}
   </ul>
   {% endif %}
-  {% if which == "more" %}
+  {% if which != "short" %}
   <details class="decide-more"{% if e.error %} open{% endif %}>
     <summary>{{ ic("plus") }}Decide on this company</summary>
     {% include "_decide.html" %}

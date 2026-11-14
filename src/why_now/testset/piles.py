@@ -12,7 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-from why_now.domain import CaseRecord, Mark
+from why_now.domain import CaseRecord, Mark, PileSizes
 from why_now.settings import Settings
 from why_now.workspace import Workspace
 
@@ -20,9 +20,14 @@ type Pile = Literal["practice", "check", "final"]
 PILES: tuple[Pile, ...] = ("practice", "check", "final")
 
 
-def pile_for(seed: int, company_key: str, settings: Settings) -> Pile:
-    """The pile for a company picked with `seed`. It depends on nothing else."""
-    sizes = (settings.practice_size, settings.check_size, settings.final_size)
+def pile_sizes(settings: Settings) -> PileSizes:
+    """The pile sizes in the settings. Each pick records the sizes it used."""
+    return (settings.practice_size, settings.check_size, settings.final_size)
+
+
+def pile_for(seed: int, company_key: str, sizes: PileSizes) -> Pile:
+    """The pile for a company picked with `seed`, with piles of `sizes`. It depends on nothing
+    else, so the pick's recorded seed and sizes always give the same pile again."""
     digest = hashlib.sha256(f"{seed}|{company_key}".encode()).digest()
     # 64 bits taken modulo a few hundred: the bias is far too small to see.
     point = int.from_bytes(digest[:8], "big") % sum(sizes)
