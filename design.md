@@ -44,7 +44,7 @@ A day's run can be scheduled, which is the normal use, or started at any time wi
 6. **Judge.** The agent answers the fit questions, from both the profile and the rules file, using only the evidence pack. Code combines the answers into yes or no and a strength. Companies judged no don't appear on either list.
 7. **Write the brief.** For each yes, Claude writes a short brief made of claims. Each claim carries a quote and the source of that quote.
 8. **Fact check.** A script confirms that every quote appears in the saved evidence pack and that the why-now quote comes from a job ad. A brief that fails gets one more attempt. If it fails again, the company is dropped and the failure is recorded.
-9. **Show.** Up to 10 companies go on the short list, strongest first. Other companies that passed the quick look go on the more list, with no research and no brief.
+9. **Show.** Up to 10 companies go on the short list, strongest first. Other companies that passed the quick look go on the more list, with no research and no brief. A few companies that were researched and judged no go on a small judged-no list, so the reviewer can catch good companies the agent wrongly turned down.
 10. **Decide.** The reviewer approves or rejects on a private web page, with a reason picked from short choices, plus an optional sentence.
 
 "No clear reason" is a normal answer. A day can produce fewer than 10 companies.
@@ -117,20 +117,20 @@ The score doesn't cover two things, and we say so openly:
 Marking happens in sittings of any size, whenever the reviewer has time.
 
 1. **Lock the profile.** It is locked at the first mark. A later edit starts a new profile version. Marks are kept, because a mark is about the company and not about the questions, but scores from different profile versions are never joined as one line. If what counts as a yes changes, the affected companies are marked again.
-2. **Prepare companies.** "Prepare 20" picks companies at random from everyone with a relevant ad from the last 14 days, the same rule the daily list uses, so the test matches the real job, and researches each one. They aren't picked from what the agent chose, because otherwise the test could never reveal good companies the agent wrongly skipped. Preparing costs money and is charged to the test case budget. The random seed is recorded.
-3. **Decide the pile at once.** When a company is picked, its pile is worked out from the seed and the company's key by a fixed calculation (a hash), in the ratio 150 to 75 to 75. The reviewer is never shown it. Nothing the reviewer does, including the order of marking or a can't tell, can move a company between piles.
-4. **Freeze an evidence pack.** The research step runs once for each company, and the result never changes. Websites change, and a test has to stay the same over time.
-5. **Mark without seeing the agent's answer.** The reviewer sees a short card built by code from the evidence pack alone: the company, its job titles and how many, the date of the newest ad, and the start of any company page in the pack. The full pack is one tap away. The answer is one tap, yes, no or can't tell, and the reason is picked from short choices plus an optional sentence. A "can't tell" doesn't count. If the reviewer had already seen the company on a daily list, the mark records that. The company is kept, because dropping it would bias the random pick. Marks don't hide a company from daily lists. Only daily decisions do that.
+2. **Prepare companies.** "Prepare 20" picks companies at random from everyone with a relevant ad from the last 14 days, the same rule the daily list uses, so the test matches the real job. They aren't picked from what the agent chose, because otherwise the test could never reveal good companies the agent wrongly skipped. The random seed and the pile sizes are recorded with each pick.
+3. **Decide the pile at once.** When a company is picked, its pile is worked out from the seed and the company's key by a fixed calculation (a hash), in the ratio 45 to 45 to 45. The reviewer is never shown it. Nothing the reviewer does, including the order of marking or a can't tell, can move a company between piles.
+4. **Freeze an evidence pack.** A test case's pack holds the company's job ads only, with no web research. The ads are already saved by the free read, so preparing costs nothing, and most of what decides a company, such as being an agency or hiring several salespeople, is in its ads. The pack never changes, because a test has to stay the same over time. The daily list keeps web research for the companies it shows.
+5. **Mark without seeing the agent's answer, following the marking guide.** The profile holds a short marking guide saying what makes a company a yes, a no or a can't tell, so marks stay consistent across sittings. The judge and the rule proposer never see it. The reviewer sees a short card built by code from the evidence pack alone: the company, its job titles and how many, the date of the newest ad, and the start of any company page in the pack. The full pack is one tap away. The answer is one tap, yes, no or can't tell, and the reason is picked from short choices plus an optional sentence. A "can't tell" doesn't count. If the reviewer had already seen the company on a daily list, the mark records that. The company is kept, because dropping it would bias the random pick. Marks don't hide a company from daily lists. Only daily decisions do that.
 6. **Measure the reviewer.** Once 30 first marks are at least 7 days old, the marking page suggests a repeat round: those 30 companies, marked again on the same card without the first answers. How often the two answers agree is a real number that shows about how high any agent could score. It is optional. If it is never done, the score page says the ceiling was not measured.
 
 **What a yes means:** "the founder would want to look at this company this week, based on this evidence." A company that has been hiring for years can still be a yes if the evidence supports it. That is the reviewer's judgement, guided by the profile.
 
-**If too few companies are a yes.** The aim is about 25 yes answers in each of the check and final piles, which needs about 1 company in 3 to be a yes. The real share isn't known yet, so:
+**If too few companies are a yes.** The aim is about 15 yes answers in each of the check and final piles, which needs about 1 company in 3 to be a yes. The real share isn't known yet, so:
 
 1. The first 40 marks measure it.
 2. If the share is low, narrow the search words in the profile, which starts a new profile version, and prepare a new random sample.
 3. Mark at most 500 companies in total, over as many sittings as needed.
-4. If that still falls short, lower the aim to 15 yes answers per pile and say publicly that the numbers are rougher.
+4. Numbers from piles of this size are rough, and public numbers say so.
 
 Companies are never picked because they look likely to be a yes. The test would stop being random and could no longer reveal good companies the agent misses.
 
@@ -138,9 +138,9 @@ Companies are never picked because they look likely to be a yes. The test would 
 
 | Pile | Aim | Used for |
 |---|---|---|
-| Practice | 150 | The loop reads its mistakes here, and cut-offs and tuning are chosen here |
-| Check | 75 | Decides keep or discard. The loop sees only the score |
-| Final | 75 | Opened only at big milestones. Only these numbers are quoted as results |
+| Practice | 45 | The loop reads its mistakes here, and cut-offs and tuning are chosen here |
+| Check | 45 | Decides keep or discard. The loop sees only the score |
+| Final | 45 | Opened only at big milestones. Only these numbers are quoted as results |
 
 - The piles fill together as the reviewer marks, because each company's pile is decided when it is picked. The sizes are the aim, not a requirement, and every number shows the real counts. Yes answers are not dealt out evenly, so check and final can hold different numbers of yes answers.
 - Each company appears in only one pile and never moves.
@@ -154,7 +154,7 @@ Companies are never picked because they look likely to be a yes. The test would 
 
 **What goes public.** Only final pile numbers are quoted as results. The README links to them and holds no run data of its own. The public score page also shows check pile scores, labelled as working numbers, because they are the record of what the loop did. The model comparison is published with the same label.
 
-**Small test sets can mislead.** With 75 companies, a small rise can be luck. That is why the keep rule needs 2 more companies right and not only a higher score. Public numbers always show the number of companies behind them.
+**Small test sets can mislead.** With 45 companies, a small rise can be luck. That is why the keep rule needs 2 more companies right and not only a higher score. Public numbers always show the number of companies behind them.
 
 ### Comparisons
 
@@ -172,6 +172,7 @@ Judging models are also compared directly. See "AI models" below.
 
 1. As a reviewer, I want at most 10 companies a day, strongest first, so that the list fits into my day.
 2. As a reviewer, I want a separate more list, so that I can look further when I have time without being asked to decide.
+2a. As a reviewer, I want to see a few companies the agent researched and turned down, so that I can catch good companies it wrongly rejected.
 3. As a reviewer, I want each brief to quote its sources with links, so that I can check any fact in seconds.
 4. As a reviewer, I want the why-now reason to come from a job ad, so that I know why this company is appearing now.
 5. As a reviewer, I want to approve or reject with a reason I pick from short choices or dictate, so that decisions are quick and the agent can learn from them.
@@ -186,7 +187,7 @@ Judging models are also compared directly. See "AI models" below.
 11. As a reviewer, I want to mark test cases without seeing the agent's answer, so that my marking can't be influenced.
 12. As a reviewer, I want to mark from the same evidence pack the agent uses, so that the comparison is fair.
 13. As a reviewer, I want a "can't tell" answer, so that I'm not forced to guess.
-14. As a reviewer, I want to prepare and mark companies in sittings of any size, each in seconds from a short card, so that 300 companies is manageable.
+14. As a reviewer, I want to prepare and mark companies in sittings of any size, each in seconds from a short card, so that about 135 companies is manageable.
 15. As a reviewer, I want the option to re-mark 30 companies at least a week later without seeing my old answers, so that we know how consistent I am.
 16. As a reviewer, I want to approve rule changes before they go public, so that nothing leaves the system unseen.
 
@@ -389,7 +390,7 @@ Limits, covering AI calls, AWS and Langfuse together:
 - A hard limit of $70 a month, with a warning at $50.
 - All AI calls go through one place that records their cost. At the limit, paid calls stop. The daily read still runs, and the page says what was skipped.
 - Research is limited to about 12 companies a day and the loop to about $25 a month. Both are worked out from the $70 limit, so that the loop can't spend the money research needs.
-- Preparing companies for marking is research too. It is charged to its own category, counts towards the same limit, and daily research is paused while it runs.
+- Preparing companies for marking costs nothing, because test case packs hold job ads only.
 - These limits are reviewed once real costs are measured.
 - The account owner also sets a spending limit with each provider. Warnings appear on the review page. Any AWS billing alert goes only to the owner's own address, set by the owner.
 
@@ -444,11 +445,12 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 3 tries per improvement run | A run started on demand ending quickly, and one run using up the check pile | Starting guess |
 | 15 yes answers in the check pile before the loop starts | Against keeping changes on a pile too small to judge | The lowest aim per pile, below |
 | 20 companies prepared at a time | Marking sittings having companies ready, without paying for research nobody marks | Starting guess, about one short sitting |
-| 400 characters of a company page on the marking card | A card short enough to read in seconds | Starting guess. The full pack is one tap away |
+| 400 characters of a company page on the marking card | A card short enough to read in seconds | Starting guess. The full pack is one tap away. Test case packs hold ads only, so this applies to daily packs |
 | 20 companies in a profile preview | A preview short enough to scan after each edit | Starting guess. The total count is always shown |
 | 50 careers pages per job source read by "Run now" | A run started on demand ending in minutes, not hours | Starting guess |
-| 150, 75 and 75 companies, the aim for each pile | Measurement quality within the reviewer's time | About 5 to 10 hours of marking. Practice is largest because the loop needs examples to learn from. Check and final are equal so their numbers are about as reliable |
-| About 25 yes answers per pile, or 15 at least | Against precision that swings too much | A judgement. With 25, one company moves precision by about 4 points |
+| 45, 45 and 45 companies, the aim for each pile | Measurement quality within the reviewer's time | The fewest that give each pile about 15 yes answers at 1 company in 3. About 135 marks in all. Daily decisions and the judged-no list add learning material to the practice pile |
+| About 15 yes answers per pile | Against precision that swings too much | A judgement. With 15, one company moves precision by about 7 points, so numbers are reported as rough |
+| 3 companies on the judged-no list | Showing wrong no's without adding much to the reviewer's day | Starting guess |
 | 40 companies marked first | Knowing the share of yes answers early | Enough to tell 1 in 3 (about 13 yes) from 1 in 10 (about 4 yes) |
 | 500 companies marked at most | The reviewer's time | The owner's choice |
 | 2 judge setups compared | Against fitting the check pile by trying many setups and keeping the best | The design's own rule, enforced by the `judge_candidates` setting, which must hold exactly two |
@@ -473,7 +475,7 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 0.3 to pass the quick look | Good companies being dropped before research | Starting guess. Low on purpose, because the quick look only decides what gets researched |
 | 0.5 for a required question | A yes needing each required question to be more likely yes than no | Even odds |
 | 0.5 cut-off before any is chosen | The daily list working before anyone has marked a test case | Even odds. Replaced by the cut-off chosen on the practice pile once there is one |
-| Cut-offs tried 0.05 apart | Against a cut-off fitted too closely to the practice pile | Starting guess. Finer steps let the cut-off fall between two single companies, which fits luck on the practice pile rather than a pattern |
+| Cut-offs tried 0.1 apart | Against a cut-off fitted too closely to the practice pile | With about 15 yes answers on the practice pile, finer steps let the cut-off fall between two single companies, which fits luck rather than a pattern |
 | 2 MB and 15 seconds per page | The page reader, against huge or slow pages. The 15 seconds also limits each call the login makes to Cognito | Starting guess |
 | 5 redirects per page | The page reader, against redirect loops and long chains | The robots standard (RFC 9309) asks readers to follow at least 5 redirects for a robots file, and we use the same number for pages |
 | 20,000 characters per ad, 60,000 per evidence pack | The cost of each model call | Starting guess |
@@ -577,7 +579,7 @@ The agent can be used from stage 6, and the build keeps going until all stages a
 ## Further Notes
 
 - **What the project should be able to show someone walking through it:** the architecture and the reasons for it, rejected options, traces of real runs, scores across versions including rejected changes, real problems and lessons, tested Python, the coding agent setup, the daily run on AWS, and tests against hidden instructions.
-- **Known limits to state openly:** one reviewer with no sales background marks everything, the piles are small, the score is agreement and not buying, and job sources cover only companies that use them.
+- **Known limits to state openly:** one reviewer with no sales background marks everything, the piles are small, test case packs hold job ads only, the score is agreement and not buying, and job sources cover only companies that use them.
 - **Why three piles and frozen packs matter:** the promise that a change is kept only if it does better on cases the agent never saw is easy to weaken without noticing. These two rules are what keep it honest.
 
 ## Revision of 8 Nov 2026
@@ -595,3 +597,15 @@ After 22 tickets were built, the owner read the design closely and raised points
 - **The web page becomes where a person does everything after entering keys.**
 - **The owner builds AWS by hand first,** then the setup as code replaces it.
 - **The simulation page** carries one small label that stays visible, rather than labels on every heading.
+
+## Update of 14 Nov 2026: marking
+
+Marking about 300 companies was too much work for one person. What changed:
+
+- **Piles of 45 each,** about 135 marks in all, with about 15 yes answers per pile. Numbers are reported as rough.
+- **Test case packs hold job ads only.** Preparing costs nothing, and the score measures judging from ads. Daily packs keep web research.
+- **A small judged-no list** on the review page shows a few researched companies the agent turned down, so wrong no's that the loop can fix are seen.
+- **A marking guide in the profile** keeps marks consistent, and is never shown to the judge or the rule proposer.
+- **Marking and deciding also work through two commands each,** for developers and coding agents, with the same checks as the page.
+
+See `docs/decisions/0008-smaller-test-set-from-ads.md`.

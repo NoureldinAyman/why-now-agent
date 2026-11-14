@@ -2,6 +2,8 @@
 
 Decided 8 Nov 2026. Replaces "How the split is made", "Frozen once the loop starts" and the refresh rule in `0005-three-piles.md`. Why there are three piles still holds.
 
+**Note:** test case packs and pile sizes changed on 14 Nov 2026. See `0008-smaller-test-set-from-ads.md`.
+
 ## What changed
 
 Before, the reviewer marked about 300 companies, then one command split them into practice, check and final, and the split was frozen once the loop started. Now each company's pile is decided the moment it is picked, and the piles fill together as the reviewer marks, in sittings of any size.

@@ -2,6 +2,8 @@
 
 Decided 6 Nov 2026 (ticket 11).
 
+**Note:** test case packs and pile sizes changed on 14 Nov 2026. See `0008-smaller-test-set-from-ads.md`.
+
 ## What a pack is
 
 An evidence pack is everything the agent knows about one company when it judges it:
