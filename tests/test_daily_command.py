@@ -110,3 +110,40 @@ def test_daily_explains_missing_board_lists(tmp_path, monkeypatch):
         app, ["daily", "--profile", str(profile_file), "--settings", str(settings)]
     )
     assert result.exit_code != 0 and "board_lists" in result.output
+
+
+def test_daily_on_the_saved_read_reads_no_careers_page(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+    args = ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    assert CliRunner().invoke(app, ["read", "--settings", str(settings)]).exit_code == 0
+    asked: list[str] = []
+
+    def refuse(request: httpx.Request) -> httpx.Response:
+        asked.append(request.url.path)
+        return httpx.Response(500)
+
+    monkeypatch.setattr(
+        read_command,
+        "make_http",
+        lambda settings: httpx.Client(transport=httpx.MockTransport(refuse)),
+    )
+    result = CliRunner().invoke(app, args + ["--saved-read"])
+
+    assert result.exit_code == 0, result.output
+    assert "Short list for 2026-11-06: 2 companies" in result.output
+    assert not [p for p in asked if "/boards/" in p]
+
+
+def test_daily_can_read_a_sample_of_careers_pages(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+    args = ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    result = CliRunner().invoke(app, args + ["--sample-boards", "1"])
+    assert result.exit_code == 0, result.output
+    assert "Short list for 2026-11-06: 1 companies" in result.output
+
+
+def test_saved_read_and_a_sample_cannot_be_asked_for_together(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+    args = ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    result = CliRunner().invoke(app, args + ["--saved-read", "--sample-boards", "1"])
+    assert result.exit_code != 0

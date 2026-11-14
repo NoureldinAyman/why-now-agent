@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% from "_icons.html" import ic %}
+{% block title %}Run now{% endblock %}
+{% block content %}
+<h1>Run now</h1>
+{% if problem %}<p class="error" role="alert">{{ problem }}</p>{% endif %}
+{% if can_run %}
+<p class="lede">Starts a daily run for {{ profile.product_name }} now, as a separate program. A full read of every careers page takes hours, so a run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
+{% if state and state.running %}
+<p class="note">A run is going. Reload this page to see when it ends.</p>
+{% else %}
+<form method="post" action="{{ post_to }}" class="prepare-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <p><label><input type="radio" name="mode" value="saved" checked> On the last saved read. Reads no careers page.</label></p>
+  <p><label><input type="radio" name="mode" value="sample"> Read {{ sample_boards }} careers pages per job source at random, then run.</label></p>
+  {% if "improve" in modes %}<p><label><input type="radio" name="mode" value="improve"> Improve now: try to improve the rules from recent mistakes.</label></p>{% endif %}
+  <button type="submit">Start</button>
+</form>
+{% endif %}
+{% else %}
+<p class="lede">Run now works only on your own computer, where the keys and the budget are your own. Here the scheduled run does the daily work.</p>
+{% endif %}
+{% if state and (state.running or state.output) %}
+<section class="tile">
+  <h2>{{ ic("clock") }}{% if state.running %}Running{% elif state.exit_code == 0 %}Finished{% elif state.exit_code is none %}Last run{% else %}Stopped with an error{% endif %}</h2>
+  {% if state.started_at %}<p class="note">Started {{ state.started_at.strftime("%d %b %Y %H:%M") }} UTC{% if state.mode == "saved" %}, on the last saved read{% elif state.mode == "sample" %}, on a sample of careers pages{% elif state.mode == "improve" %}, improving the rules{% endif %}.</p>{% endif %}
+  {% if state.output %}<pre class="text run-log">{{ state.output }}</pre>{% endif %}
+</section>
+{% endif %}
+{% endblock %}

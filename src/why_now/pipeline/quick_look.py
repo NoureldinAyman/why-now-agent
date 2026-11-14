@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from why_now.ai import Answerer, BadModelOutput
 from why_now.domain import Answer, Company, FitQuestion, Profile
+from why_now.profile import quick_look_questions
 from why_now.settings import Settings
 from why_now.tracing import Tracer
 from why_now.workspace import Workspace
@@ -32,7 +33,7 @@ def quick_look(
     tracer: Tracer,
 ) -> list[QuickResult]:
     """Strongest first. Failed companies come last, so they can be retried."""
-    questions = profile.quick_look_questions
+    questions = quick_look_questions(profile)
     results: list[QuickResult] = []
     # One light trace for the whole run, because the quick look covers many companies.
     with tracer.trace(

@@ -376,3 +376,16 @@ main > h1:first-child { margin-top: var(--s-5); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Control pages: the settings table, the profile box and a run's output. */
+.settings { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.settings th, .settings td { text-align: left; vertical-align: top; padding: var(--s-2) var(--s-3); border-bottom: 1px solid var(--line); }
+.settings thead th { color: var(--muted); font-weight: 600; }
+.settings td code { overflow-wrap: anywhere; }
+.profile-box { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 0.9rem; width: 100%; }
+.run-log { max-height: 28rem; overflow: auto; background: var(--surface); border: 1px solid var(--line); padding: var(--s-3); }
+@media (max-width: 40rem) {
+  .settings thead { display: none; }
+  .settings tr, .settings th, .settings td { display: block; border: 0; padding: var(--s-1) 0; }
+  .settings tr { border-bottom: 1px solid var(--line); padding: var(--s-3) 0; }
+}

@@ -121,6 +121,7 @@ def decide(
                 chips=picked,
                 decided_at=ctx.clock(),
                 from_list=which,
+                profile_version=chosen.version,
             )
         )
     return RedirectResponse(_path(which) + _profile_query(ctx, chosen), status_code=303)

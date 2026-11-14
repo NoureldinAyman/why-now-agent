@@ -53,6 +53,7 @@ def test_documents_are_plain_json_in_the_store(store):
         "round": "first",
         "chips": [],
         "seen_on_list": False,
+        "profile_version": None,
     }
 
 

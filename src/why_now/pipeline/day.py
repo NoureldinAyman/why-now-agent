@@ -18,6 +18,7 @@ leaves the companies it did not get to unseen, so the next day tries them again.
 The day means the UTC date the caller passes in. See docs/decisions/0004.
 """
 
+from collections import Counter
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -30,7 +31,7 @@ from why_now.pipeline.judge import all_questions, answer_questions, combine
 from why_now.pipeline.quick_look import QuickResult, quick_look
 from why_now.pipeline.read import ReadResult, read_all
 from why_now.pipeline.research import research_company
-from why_now.pipeline.search import search_ads
+from why_now.pipeline.search import company_key, search_ads
 from why_now.run_context import RunContext, metered
 from why_now.settings import Settings
 from why_now.workspace import Workspace
@@ -42,6 +43,18 @@ JUDGE = "judge"
 OVERRIDABLE = frozenset({"short_list_size", "new_ad_days"})
 
 
+def _saved_read(workspace: Workspace) -> ReadResult:
+    """The ads saved at the last read of every careers page, as if they were read now."""
+    ads = workspace.all_board_ads()
+    return ReadResult(
+        ads=ads,
+        new_ad_count=0,
+        failed_boards={},
+        outage_sources=[],
+        open_job_counts=dict(Counter(company_key(a.board) for a in ads)),
+    )
+
+
 @dataclass
 class _Outcome:
     entry: ListEntry | None = None
@@ -50,15 +63,30 @@ class _Outcome:
 
 
 def run_day(
-    ctx: RunContext, profile: Profile, today: date, overrides: dict | None = None
+    ctx: RunContext,
+    profile: Profile,
+    today: date,
+    overrides: dict | None = None,
+    *,
+    saved_read: bool = False,
 ) -> DayResult:
+    """One day for `profile`. With `saved_read`, no careers page is read: the ads saved at
+    the last read are used, because a full read takes hours and a run started on demand
+    should not wait for one."""
     settings = _settings_for_run(ctx.settings, overrides or {})
     workspace = Workspace(ctx.store, profile.id)
     models = metered(ctx.models, ctx.meter)
     failed: list[str] = []
     skipped: list[str] = []
 
-    read = read_all(ctx.sources, ctx.boards, workspace, today, outage_share=settings.outage_share)
+    if saved_read:
+        read = _saved_read(workspace)
+        if not read.ads:
+            skipped.append("Reading: there is no saved read yet, so there was nothing to search.")
+    else:
+        read = read_all(
+            ctx.sources, ctx.boards, workspace, today, outage_share=settings.outage_share
+        )
     failed += _read_problems(read)
     companies = search_ads(read.ads, profile, read.open_job_counts)
     candidates = find_new(companies, workspace, settings, today)
