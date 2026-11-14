@@ -52,9 +52,7 @@ def research_company(
     with tracer.trace(
         "research", profile_id=profile.id, rules_version=None, models={"research": model.answer_key}
     ) as trace:
-        pack = _PackBuilder(settings.max_pack_chars)
-        for job_ad in _newest(company.ads, settings.newest_ads_read):
-            pack.add(_ad_source(job_ad, settings.max_ad_chars, now))
+        pack = _ads_only(company, settings, now)
         prompt = _research_prompt(company, profile, pack, settings.research_steps)
         conversation: list[dict] = [{"role": "user", "content": prompt}]
         steps = 0
@@ -79,19 +77,41 @@ def research_company(
             if results:
                 conversation.append({"role": "user", "content": results})
         trace.step("evidence_pack", company.key, {"sources": len(pack.sources), "steps": steps})
-        return EvidencePack(
-            pack_id=_pack_id(company.key, profile.id, now),
-            profile_id=profile.id,
-            company_key=company.key,
-            company_name=company.name,
-            created_at=now,
-            sources=pack.sources,
-            relevant_ad_count=len(company.ads),
-            ad_titles=[remove_contacts(a.title) for a in company.ads],
-            newest_ad_at=max((a.published_at for a in company.ads), default=None),
-            total_open_jobs=company.total_open_jobs,
-            research_steps=steps,
-        )
+        return _evidence_pack(company, profile, pack, steps, now)
+
+
+def ads_only_pack(
+    company: Company, profile: Profile, settings: Settings, *, now: datetime
+) -> EvidencePack:
+    """The evidence pack research starts from: the company's newest relevant job ads, and no
+    web research. It makes no model call, so it costs nothing. Test case packs are built this
+    way, because the ads are saved by the free read and hold most of what decides a company."""
+    return _evidence_pack(company, profile, _ads_only(company, settings, now), 0, now)
+
+
+def _ads_only(company: Company, settings: Settings, now: datetime) -> "_PackBuilder":
+    pack = _PackBuilder(settings.max_pack_chars)
+    for job_ad in _newest(company.ads, settings.newest_ads_read):
+        pack.add(_ad_source(job_ad, settings.max_ad_chars, now))
+    return pack
+
+
+def _evidence_pack(
+    company: Company, profile: Profile, pack: "_PackBuilder", steps: int, now: datetime
+) -> EvidencePack:
+    return EvidencePack(
+        pack_id=_pack_id(company.key, profile.id, now),
+        profile_id=profile.id,
+        company_key=company.key,
+        company_name=company.name,
+        created_at=now,
+        sources=pack.sources,
+        relevant_ad_count=len(company.ads),
+        ad_titles=[remove_contacts(a.title) for a in company.ads],
+        newest_ad_at=max((a.published_at for a in company.ads), default=None),
+        total_open_jobs=company.total_open_jobs,
+        research_steps=steps,
+    )
 
 
 class _PackBuilder:

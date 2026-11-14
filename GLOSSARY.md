@@ -126,6 +126,14 @@ _Avoid_: Sample, queue, fetch
 The short read a reviewer sees before marking, built by code from the evidence pack alone: the company, its relevant job titles with counts, the open jobs, the newest ad's date and the start of a company page. The full pack opens below it. It never holds an agent answer.
 _Avoid_: Preview, summary
 
+**Marking guide**:
+A short text in the profile saying what makes a company a yes, a no or a can't tell, so marks stay consistent across sittings. Only the marking page and the marking commands show it. The judge and the rule proposer never see it.
+_Avoid_: Rubric, instructions
+
+**Judged-no list**:
+A few companies the daily run researched and the judge turned down, closest to a yes first, shown on the review page so the reviewer can catch good companies the agent wrongly rejected. A decision on one is recorded as coming from this list.
+_Avoid_: Rejected list, near misses
+
 **Reason chip**:
 A short reason the reviewer taps instead of typing, such as "too big". A reason is one or more chips, a sentence, or both, and at least one is needed.
 _Avoid_: Tag, label

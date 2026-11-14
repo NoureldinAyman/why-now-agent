@@ -27,6 +27,13 @@
   {% endif %}
 </section>
 
+{% if profile and profile.marking_guide %}
+<details class="guide">
+  <summary>Marking guide</summary>
+  <p>{{ profile.marking_guide }}</p>
+</details>
+{% endif %}
+
 <details class="pack">
   <summary>Open the full evidence pack</summary>
   {% for source in sources %}

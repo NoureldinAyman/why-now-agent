@@ -10,7 +10,8 @@ In order:
    finish, so a rerun after a crash picks up where it stopped and pays for nothing twice.
 4. The short list is the companies already waiting for a decision plus the new ones, so
    it never grows past `short_list_size`. Companies that passed the quick look but were
-   not researched go on the more list.
+   not researched go on the more list. The `judged_no_shown` researched companies judged no
+   that are closest to a yes go on the judged-no list.
 
 A spent budget does not stop the read. The run stops paying, says what it skipped, and
 leaves the companies it did not get to unseen, so the next day tries them again.
@@ -35,6 +36,7 @@ from why_now.pipeline.search import company_key, search_ads
 from why_now.run_context import RunContext, metered
 from why_now.settings import Settings
 from why_now.workspace import Workspace
+from why_now.workspace.daily import closest_to_yes
 
 RESEARCH = "research"  # the budget category daily research is charged to, and its step name
 BRIEF = "brief"  # the step name for a saved brief
@@ -58,6 +60,7 @@ def _saved_read(workspace: Workspace) -> ReadResult:
 @dataclass
 class _Outcome:
     entry: ListEntry | None = None
+    judged_no: ListEntry | None = None  # researched, and the judge said no
     failure: str | None = None
     retry: bool = False  # leave the company's ads unseen, so the next day tries again
 
@@ -122,6 +125,7 @@ def run_day(
                     ranked.append(r)
 
     accepted: list[ListEntry] = []
+    turned_down: list[ListEntry] = []
     left = list(ranked)  # passed the quick look, not yet tried
     room = settings.short_list_size - len(waiting)
     tried = 0
@@ -148,6 +152,8 @@ def run_day(
             retry.add(company.key)
         if outcome.entry:
             accepted.append(outcome.entry)
+        if outcome.judged_no:
+            turned_down.append(outcome.judged_no)
 
     short, pushed_down = _short_list(waiting + accepted, settings.short_list_size)
     more = _more_list(
@@ -162,6 +168,15 @@ def run_day(
         today,
     )
 
+    judged_no = _judged_no_list(
+        turned_down,
+        workspace.judged_no_list(),
+        {e.company_key for e in short},
+        {c.key for c in new if c.key not in retry},
+        settings,
+        today,
+    )
+
     # Finished companies are marked seen, so they are not new tomorrow.
     waiting_now = [c for c in candidates if c.key in waiting_keys]
     workspace.mark_ads_seen([a for c in [*new, *waiting_now] if c.key not in retry for a in c.ads])
@@ -169,6 +184,7 @@ def run_day(
         day=today,
         short_list=short,
         more_list=more,
+        judged_no=judged_no,
         failed=failed,
         skipped=skipped,
         costs=ctx.meter.status(),
@@ -214,7 +230,7 @@ def _process(
         pack = _research(ctx, models, workspace, profile, settings, company, run)
         verdict = _judge(ctx, models, workspace, profile, rules, settings, company, pack)
         if not verdict.yes:
-            return _Outcome()
+            return _Outcome(judged_no=_entry(company, verdict.strength, None, pack, today))
         brief = _brief(ctx, models, workspace, profile, settings, pack, verdict, run)
     except BudgetExceeded:
         raise
@@ -224,16 +240,21 @@ def _process(
         return _Outcome(
             failure=f"{company.name}: the brief failed the fact check twice, so it was dropped"
         )
-    entry = ListEntry(
+    return _Outcome(entry=_entry(company, verdict.strength, brief, pack, today))
+
+
+def _entry(
+    company: Company, strength: float, brief: Brief | None, pack: EvidencePack, today: date
+) -> ListEntry:
+    return ListEntry(
         company_key=company.key,
         company_name=company.name,
-        strength=verdict.strength,
+        strength=strength,
         brief=brief,
         ads=company.ads,
         pack_id=pack.pack_id,
         first_listed=today,
     )
-    return _Outcome(entry=entry)
 
 
 def _research(ctx, models, workspace, profile, settings, company, run) -> EvidencePack:
@@ -301,6 +322,31 @@ def _short_list(entries: list[ListEntry], size: int) -> tuple[list[ListEntry], l
     ordered = sorted(entries, key=lambda e: (-(e.strength or 0), e.company_key))
     pushed = [e.model_copy(update={"brief": None}) for e in ordered[size:]]
     return ordered[:size], pushed
+
+
+def _judged_no_list(
+    fresh: list[ListEntry],
+    carried: list[ListEntry],
+    on_short_list: set[str],
+    looked_at_again: set[str],
+    settings: Settings,
+    today: date,
+) -> list[ListEntry]:
+    """The `judged_no_shown` companies judged no that are closest to a yes, from today's and
+    those still waiting from earlier days, strongest first.
+
+    An older entry stays only while one of its ads is inside the new-ad window, and not once
+    the company was judged again today. On equal strength the company key decides the order.
+    """
+    oldest = today - timedelta(days=settings.new_ad_days - 1)
+    kept = {e.company_key: e for e in fresh}
+    for entry in carried:
+        if entry.company_key in looked_at_again:
+            continue
+        if any(a.published_at.date() >= oldest for a in entry.ads):
+            kept.setdefault(entry.company_key, entry)
+    entries = [e for key, e in kept.items() if key not in on_short_list]
+    return closest_to_yes(entries)[: settings.judged_no_shown]
 
 
 def _more_list(

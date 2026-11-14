@@ -33,17 +33,21 @@ keep_min_gain = 2
 tries_per_check_pile = 50
 
 # Companies in the practice pile.
-practice_size = 150
+practice_size = 45
 # Companies in the check pile.
-check_size = 75
+check_size = 45
 # Companies in the final pile.
-final_size = 75
+final_size = 45
 # Companies marked first, to learn the share of yes answers early.
 pilot_size = 40
 # Companies "Prepare" picks and researches at a time, about one short marking sitting.
 prepare_batch = 20
 # Characters of a company page shown on the marking card. The full pack is one tap away.
 card_page_chars = 400
+# Researched companies judged no shown on the review page, closest to a yes first.
+judged_no_shown = 3
+# Whether test case packs get web research. Off, they hold job ads only and cost nothing.
+test_case_web_research = false
 # Companies a profile preview lists, with the most relevant ads first. The total is always shown.
 preview_companies = 20
 # Careers pages per job source that "Run now" reads at random, so it ends in minutes.
@@ -68,7 +72,7 @@ consistency_packs = 20
 # Days to wait before re-marking, so the first answers are not remembered.
 remark_after_days = 7
 # Yes answers wanted in each pile.
-target_yes_per_pile = 25
+target_yes_per_pile = 15
 # Fewest yes answers a pile may have.
 floor_yes_per_pile = 15
 
@@ -103,7 +107,7 @@ quick_look_pass = 0.3
 # Probability a required question needs for a yes.
 required_pass = 0.5
 # Gap between the cut-offs tried when choosing one on the practice pile.
-cutoff_step = 0.05
+cutoff_step = 0.1
 # Strength a company needs for a yes before a cut-off has been chosen on the practice pile.
 default_cutoff = 0.5
 # Weighting of the score: 1 gives F1, which counts a missed company as much as a wrong yes.

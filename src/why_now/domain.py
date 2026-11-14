@@ -63,6 +63,10 @@ class Profile(BaseModel):
     fit_questions: list[FitQuestion]
     why_now: str
     public: bool = False
+    # What makes a company a yes, a no or a can't tell, so marks stay consistent across
+    # sittings. Only the marking page and commands show it: the judge, the rule proposer and
+    # every other model never see it.
+    marking_guide: str = ""
 
     @property
     def version(self) -> str:
@@ -120,13 +124,19 @@ class Brief(BaseModel):
     claims: list[Claim]
 
 
+# The lists a company can wait for a decision on.
+type ListName = Literal["short", "more", "judged_no"]
+# The practice, check and final pile sizes a pick worked out its piles with.
+type PileSizes = tuple[int, int, int]
+
+
 class Decision(BaseModel):
     profile_id: str
     company_key: str
     approved: bool
     reason: str  # may be empty when chips give the reason
     decided_at: datetime
-    from_list: Literal["short", "more"]
+    from_list: ListName
     chips: list[str] = []  # the short reasons the reviewer tapped, as when marking
     profile_version: str | None = None  # the profile's version when it was decided
 
@@ -160,6 +170,9 @@ class PickRecord(BaseModel):
     n: int
     picked: list[str]
     at: datetime
+    # The practice, check and final sizes the piles were worked out with. None for picks
+    # made before the sizes were kept.
+    sizes: PileSizes | None = None
 
 
 type Moment = Literal["first", "after_loop", "publishing", "extra"]
