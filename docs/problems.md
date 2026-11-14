@@ -244,7 +244,7 @@ Every setting gained a description, written as `Field(10, description=...)`. The
 
 ## 14 Nov 2026: Two test files with the same name broke the example-profile deletion check
 
-A new test file for the evaluation commands was named `test_commands.py`, the same as an existing one in another folder. Neither folder is a package, so pytest could not tell them apart. The test that copies the repo without the example profiles and runs the whole suite stopped with "import file mismatch". The suite run on its own file by file had passed.
+A new test file for the evaluation commands was named `test_commands.py`, the same as an existing one in another folder. Neither folder is a package, so pytest could not tell them apart. The test that copies the repo without the example profiles and runs the whole suite stopped with "import file mismatch". The new test files had passed when run on their own.
 
 **What it taught:** a test file name has to be unique across the whole `tests` folder. The repo-level check that copies the project is what caught it, so it is worth keeping.
 
@@ -256,12 +256,12 @@ While building the baselines, yes to all and the quick look alone read the marks
 
 ## 14 Nov 2026: Companies not marked yet would have stopped every evaluation
 
-The first version of the grading looked up each case's mark directly, so a company that was picked but not yet marked, which is the normal state while marking goes on, raised an error. It was caught by writing the test for it before the code was merged into the rest. A case without a mark is now left out, and so is one marked can't tell.
+The first version of the grading looked up each case's mark directly, so a company that was picked but not yet marked, which is the normal state while marking goes on, raised an error. It was found while planning the tests, and fixed with a test. A case without a mark is now left out, and so is one marked can't tell.
 
 **What it taught:** the test world has to include the half-finished states a real workspace is in most of the time.
 
 ## 14 Nov 2026: The unstable full-suite failures came back after merging main
 
-After main was merged into the ticket branch, the copied-repo run of the whole suite failed again with a different single test from `tests/pipeline/test_day.py` each time. That test passes on its own, twice. This is the same kind of failure as the entry of 10 Nov. Its cause has still not been found, and it is not caused by the evaluation code, which does not touch the daily run.
+After main was merged into the ticket branch, the copied-repo run of the whole suite failed again, with several tests from `tests/pipeline/test_day.py`. One of them failed once when that file was run alone, and then passed twice when run on its own. This is the same kind of failure as the entry of 10 Nov. Its cause has still not been found, and it is not caused by the evaluation code, which does not touch the daily run.
 
 **What it taught:** nothing new yet. It is still open, and a green full run on this computer should not be trusted until the cause is found.
