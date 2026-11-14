@@ -46,3 +46,22 @@ class ComparisonResult(BaseModel):
     scores: dict[str, ScoreResult]  # by the judge's answer key
     winner: str  # the answer key of the judge with the higher score
     day: date
+
+
+class QuestionSpread(BaseModel):
+    """How far one question's answers moved when it was asked again and again.
+
+    On one company the spread is the highest answer minus the lowest. `average` is the mean
+    of that over the companies asked about, and `worst` is the largest.
+    """
+
+    average: float
+    worst: float
+
+
+class ConsistencyResult(BaseModel):
+    answer_key: str
+    asks: int
+    companies: int  # how many companies were asked about
+    failed: list[str]  # packs left out because the model could not answer one of the asks
+    spread: dict[str, QuestionSpread]  # by question id

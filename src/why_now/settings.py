@@ -203,6 +203,22 @@ class Settings(BaseModel):
             "A rough measure of consistency. This many companies are marked again. Optional."
         ),
     )
+    consistency_asks: int = Field(
+        default=5,
+        gt=1,
+        description=(
+            "How many times each question is asked again, with no saved answers, to see how much "
+            "a model's answers move. Two asks are the least that can show any difference."
+        ),
+    )
+    consistency_packs: int = Field(
+        default=20,
+        gt=0,
+        description=(
+            "How many practice packs the consistency check asks about. Practice only, so no "
+            "check or final pile company is read."
+        ),
+    )
     remark_after_days: int = Field(
         default=7,
         description=(

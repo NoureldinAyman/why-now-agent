@@ -50,6 +50,22 @@ class ByCompany:
         raise AssertionError(f"no company from {list(self.by_company)} is in the text shown")
 
 
+class Sequence:
+    """A pretend AI whose answer changes on every call. It gives each number in turn, the same
+    number for every question, and starts again from the first when it runs out."""
+
+    def __init__(self, numbers: list[float], answer_key: str = "wobbly-1"):
+        self.model = answer_key
+        self.answer_key = answer_key
+        self.numbers = numbers
+        self.calls = 0
+
+    def answer(self, state: str, questions: list[FitQuestion], category: str) -> list[Answer]:
+        p = self.numbers[self.calls % len(self.numbers)]
+        self.calls += 1
+        return [Answer(question_id=q.id, probability=p, model=self.model) for q in questions]
+
+
 class Handle:
     def step(self, name, input, output):
         pass

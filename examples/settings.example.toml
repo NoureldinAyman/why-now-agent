@@ -61,6 +61,10 @@ reason_chips = [
 marking_ceiling = 500
 # Companies marked a second time, to measure the reviewer's consistency.
 remark_size = 30
+# Times each question is asked again, with no saved answers, to see how much answers move.
+consistency_asks = 5
+# Practice packs the consistency check asks about.
+consistency_packs = 20
 # Days to wait before re-marking, so the first answers are not remembered.
 remark_after_days = 7
 # Yes answers wanted in each pile.
