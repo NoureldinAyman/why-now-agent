@@ -162,6 +162,17 @@ class PickRecord(BaseModel):
     at: datetime
 
 
+type Moment = Literal["first", "after_loop", "publishing", "extra"]
+
+
+class FinalOpening(BaseModel):
+    """One time the final pile was opened. The log of these is public."""
+
+    moment: Moment
+    reason: str | None
+    opened_at: datetime
+
+
 class BoardHealth(BaseModel):
     """How reading one careers page has gone lately, so dead pages can be set aside."""
 

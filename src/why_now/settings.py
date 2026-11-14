@@ -203,6 +203,22 @@ class Settings(BaseModel):
             "A rough measure of consistency. This many companies are marked again. Optional."
         ),
     )
+    consistency_asks: int = Field(
+        default=5,
+        gt=1,
+        description=(
+            "How many times each question is asked again, with no saved answers, to see how much "
+            "a model's answers move. Two asks are the least that can show any difference."
+        ),
+    )
+    consistency_packs: int = Field(
+        default=20,
+        gt=0,
+        description=(
+            "How many practice packs the consistency check asks about. Practice only, so no "
+            "check or final pile company is read."
+        ),
+    )
     remark_after_days: int = Field(
         default=7,
         description=(
@@ -437,6 +453,16 @@ class Settings(BaseModel):
     judge_model: str = Field(
         default="claude-sonnet-5-5",
         description="The model that answers the fit questions. Locked to one version.",
+    )
+    judge_candidates: list[str] = Field(
+        default_factory=lambda: ["jev-1.14.0", "claude-sonnet-5-5"],
+        min_length=2,
+        max_length=2,
+        description=(
+            "The two judge setups the comparison runs on the check pile. Only two, because "
+            "comparing many and keeping the best would fit the score to that pile. With no Jev "
+            "key, a Jev entry is replaced by the quick look's Claude fallback model."
+        ),
     )
     # Effort per Claude job. Jev has no effort, so `quick_look_effort` is used only
     # when the quick look falls back to Claude.

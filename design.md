@@ -451,6 +451,8 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | About 25 yes answers per pile, or 15 at least | Against precision that swings too much | A judgement. With 25, one company moves precision by about 4 points |
 | 40 companies marked first | Knowing the share of yes answers early | Enough to tell 1 in 3 (about 13 yes) from 1 in 10 (about 4 yes) |
 | 500 companies marked at most | The reviewer's time | The owner's choice |
+| 2 judge setups compared | Against fitting the check pile by trying many setups and keeping the best | The design's own rule, enforced by the `judge_candidates` setting, which must hold exactly two |
+| 5 asks on 20 practice packs | Telling real answers from noise in a model's probabilities | The design's own consistency check. Five asks give a visible spread at a small cost, and twenty packs cover several kinds of company. Starting guess |
 | 30 companies re-marked | A rough measure of consistency | A few minutes on the short card. Optional. The result is rough and is reported as rough |
 | F1 (`score_beta` 1) | Weighing a missed company the same as a wrong one | The short list limit already protects the reviewer's time, and a wrong no is the harder mistake to see. See `docs/decisions/0006-f1-replaces-f05.md` |
 | Effort: low, medium or high per job | Cost, against thinking too little on hard steps | See the AI models table. Starting choices, tuned on the practice pile only |
