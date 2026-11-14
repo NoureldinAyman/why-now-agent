@@ -4,7 +4,7 @@ Kept apart from `evaluate.py` so the workspace can save these without importing 
 that makes them, which itself imports the workspace.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel
 
@@ -38,3 +38,11 @@ class ScorePoint(BaseModel):
 
     at: datetime
     result: PileResult
+
+
+class ComparisonResult(BaseModel):
+    """Two judges scored on the same check pile companies. Kept whichever way it goes."""
+
+    scores: dict[str, ScoreResult]  # by the judge's answer key
+    winner: str  # the answer key of the judge with the higher score
+    day: date

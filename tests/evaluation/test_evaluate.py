@@ -1,8 +1,15 @@
 import pytest
-from eval_world import NOW, Tracer, add_case, make_run, models_saying
+from eval_world import NOW, ByCompany, Tracer, add_case, make_run, models_saying
 
 from why_now.domain import FitQuestion, RulesFile
-from why_now.evaluation.evaluate import EvalRun, evaluate_pile, open_final_pile, set_cutoff
+from why_now.evaluation.evaluate import (
+    EvalRun,
+    baselines,
+    compare_judges,
+    evaluate_pile,
+    open_final_pile,
+    set_cutoff,
+)
 from why_now.evaluation.records import ScorePoint
 from why_now.workspace import Workspace
 
@@ -194,3 +201,81 @@ def test_a_company_the_quick_look_cannot_answer_for_is_reported_not_counted_as_a
 
     assert result.failed_cases == ["case-Beta"]
     assert result.score.n == 1
+
+
+@pytest.fixture
+def three_companies(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    add_case(workspace, "Cora", "check", "no")
+    quick = {"Acme": 0.9, "Beta": 0.9, "Cora": 0.1}
+    judge = {"Acme": 0.9, "Beta": 0.2}
+    return make_run(workspace, profile, settings, quick=quick, judge=judge)
+
+
+def test_yes_to_all_says_yes_to_every_company(three_companies):
+    result = baselines("check", three_companies)["yes_to_all"]
+
+    assert (result.tp, result.fp, result.n) == (1, 2, 3)
+
+
+def test_quick_look_alone_decides_with_the_first_glance_only(three_companies):
+    result = baselines("check", three_companies)["quick_look_only"]
+
+    assert (result.tp, result.fp, result.n) == (1, 1, 3)
+
+
+def test_empty_rules_is_the_agent_with_only_the_profiles_own_questions(three_companies):
+    result = baselines("check", three_companies)["empty_rules"]
+
+    assert (result.tp, result.fp, result.n) == (1, 0, 3)
+
+
+def test_baselines_refuse_the_final_pile(three_companies):
+    add_case(three_companies.workspace, "Dune", "final", "yes")
+
+    with pytest.raises(ValueError):
+        baselines("final", three_companies)
+
+
+@pytest.fixture
+def judging_world(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Pia", "practice", "yes")
+    add_case(workspace, "Pete", "practice", "no")
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    add_case(workspace, "Cora", "check", "yes")
+    quick = {name: 0.9 for name in ["Pia", "Pete", "Acme", "Beta", "Cora"]}
+    return make_run(workspace, profile, settings, quick=quick, judge={})
+
+
+def test_both_judges_are_scored_on_the_same_companies(judging_world):
+    a = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": 0.9}, "judge-a")
+    b = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": None}, "judge-b")
+
+    result = compare_judges(judging_world, [a, b])
+
+    assert {key: s.n for key, s in result.scores.items()} == {"judge-a": 2, "judge-b": 2}
+
+
+def test_the_better_judge_wins_and_the_result_is_recorded(judging_world):
+    a = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": 0.9}, "judge-a")
+    b = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.9, "Cora": 0.9}, "judge-b")
+
+    result = compare_judges(judging_world, [a, b])
+
+    assert result.winner == "judge-a"
+    assert [c.winner for c in judging_world.workspace.comparisons()] == ["judge-a"]
+
+
+def test_on_a_tie_the_first_judge_listed_wins(judging_world):
+    numbers = {"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2, "Cora": 0.9}
+    current, challenger = ByCompany(numbers, "current"), ByCompany(numbers, "challenger")
+
+    result = compare_judges(judging_world, [current, challenger])
+
+    assert result.winner == "current"

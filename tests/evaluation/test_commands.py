@@ -1,9 +1,10 @@
 import json
 
 import yaml
-from eval_world import NOW, add_case, models_saying
+from eval_world import NOW, ByCompany, add_case, models_saying
 from typer.testing import CliRunner
 
+from why_now.ai.budget import Meter
 from why_now.cli import app
 from why_now.cli import evaluation as evaluation_command
 from why_now.store.local import LocalStore
@@ -96,3 +97,64 @@ def test_an_extra_opening_without_a_reason_is_refused_and_not_logged(
     assert result.exit_code == 1
     assert "needs a reason" in result.output
     assert workspace.final_pile_openings() == []
+
+
+def test_baselines_shows_the_three_rivals(tmp_path, monkeypatch, make_profile):
+    quick = {"Acme": 0.9, "Beta": 0.9, "Cora": 0.1}
+    workspace, args = setup(
+        tmp_path, monkeypatch, make_profile, quick=quick, judge={"Acme": 0.9, "Beta": 0.2}
+    )
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    add_case(workspace, "Cora", "check", "no")
+
+    result = run("baselines", args, "--pile", "check")
+
+    assert result.exit_code == 0, result.output
+    for name in ("yes to all", "quick look only", "empty rules"):
+        assert name in result.output
+
+
+def test_baselines_refuse_the_final_pile_on_the_command_line(tmp_path, monkeypatch, make_profile):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile, quick={}, judge={})
+    add_case(workspace, "Acme", "final", "yes")
+
+    result = run("baselines", args, "--pile", "final")
+
+    assert result.exit_code == 1
+    assert "open_final_pile" in result.output
+
+
+def test_without_a_jev_key_the_comparison_uses_the_fallback_and_keeps_the_current_judge_first(
+    store, settings
+):
+    meter = Meter(store, settings, lambda: NOW)
+    env = {"ANTHROPIC_API_KEY": "test-key"}
+
+    answerers = evaluation_command.make_answerers(settings, meter, env)
+
+    assert [a.model for a in answerers] == ["claude-sonnet-5-5", "claude-haiku-5-5"]
+
+
+def test_compare_models_shows_both_scores_and_the_winner(tmp_path, monkeypatch, make_profile):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile, quick={}, judge={})
+    names = ["Pia", "Pete", "Acme", "Beta"]
+    add_case(workspace, "Pia", "practice", "yes")
+    add_case(workspace, "Pete", "practice", "no")
+    add_case(workspace, "Acme", "check", "yes")
+    add_case(workspace, "Beta", "check", "no")
+    right = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.2}, "judge-a")
+    wrong = ByCompany({"Pia": 0.9, "Pete": 0.2, "Acme": 0.9, "Beta": 0.9}, "judge-b")
+    monkeypatch.setattr(evaluation_command, "make_answerers", lambda *a: [right, wrong])
+    monkeypatch.setattr(
+        evaluation_command,
+        "make_models",
+        lambda settings, meter: models_saying(quick={n: 0.9 for n in names}, judge={}),
+    )
+
+    result = run("compare-models", args)
+
+    assert result.exit_code == 0, result.output
+    assert "judge-a: 2 companies" in result.output
+    assert "Winner: judge-a" in result.output
+    assert [c.winner for c in workspace.comparisons()] == ["judge-a"]

@@ -1,11 +1,12 @@
 """Evaluation records: the log of final pile openings, and every score taken."""
 
 from why_now.domain import FinalOpening
-from why_now.evaluation.records import ScorePoint
+from why_now.evaluation.records import ComparisonResult, ScorePoint
 from why_now.workspace.base import WorkspaceBase
 
 _OPENINGS = "final_openings"
 _SCORES = "score_points"
+_COMPARISONS = "judge_comparisons"
 
 
 class EvaluationArea(WorkspaceBase):
@@ -28,3 +29,13 @@ class EvaluationArea(WorkspaceBase):
         """This profile's scores, oldest first."""
         found = self.list_models(_SCORES, ScorePoint, self.require_profile() + "/")
         return sorted(found, key=lambda p: p.at)
+
+    def save_comparison(self, result: ComparisonResult) -> None:
+        """Keep a judge comparison. Every one is kept, so a result is never quietly replaced."""
+        number = len(self.comparisons()) + 1
+        self.put_model(_COMPARISONS, f"{self.require_profile()}/{number:04d}", result)
+
+    def comparisons(self) -> list[ComparisonResult]:
+        """This profile's judge comparisons, oldest first."""
+        found = self.list_models(_COMPARISONS, ComparisonResult, self.require_profile() + "/")
+        return sorted(found, key=lambda c: c.day)

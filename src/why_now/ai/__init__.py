@@ -130,6 +130,29 @@ def check_answers(
     return [Answer(question_id=q, probability=by_id[q], model=model) for q in wanted]
 
 
+def build_answerer(
+    model: str, effort: Effort, settings: Settings, meter: Meter, env: Mapping[str, str]
+) -> Answerer:
+    """One real answerer for `model`: Claude, or Jev when the name starts with `jev-`.
+
+    A Jev model needs a Jev key in `TYPESAFE_API_KEY`. The Claude and Jev parts are imported
+    here, so the Jev library is only needed when a Jev model is used.
+    """
+    if not model.startswith("jev-"):
+        import anthropic
+
+        from why_now.ai.claude import ClaudeAnswerer
+
+        claude = anthropic.Anthropic(api_key=env.get("ANTHROPIC_API_KEY"))
+        return ClaudeAnswerer(claude, model, settings, meter, effort=effort)
+    jev_key = env.get("TYPESAFE_API_KEY")
+    if not jev_key:
+        raise UnknownModel(f"{model!r} needs a Jev key in TYPESAFE_API_KEY")
+    from why_now.ai.jev import JevAnswerer, jev_client
+
+    return JevAnswerer(jev_client(jev_key, model), model, settings, meter)
+
+
 def build_models(settings: Settings, meter: Meter, env: Mapping[str, str]) -> Models:
     """The real models, from keys in `env`. Without a Jev key the quick look uses Claude.
 
@@ -138,24 +161,15 @@ def build_models(settings: Settings, meter: Meter, env: Mapping[str, str]) -> Mo
     """
     import anthropic
 
-    from why_now.ai.claude import ClaudeAnswerer, ClaudeResearchModel, ClaudeWriter
+    from why_now.ai.claude import ClaudeResearchModel, ClaudeWriter
 
     claude = anthropic.Anthropic(api_key=env.get("ANTHROPIC_API_KEY"))
     jev_key = env.get("TYPESAFE_API_KEY")
 
-    def answerer(model: str, effort: Effort) -> Answerer:
-        if not model.startswith("jev-"):
-            return ClaudeAnswerer(claude, model, settings, meter, effort=effort)
-        if not jev_key:
-            raise UnknownModel(f"{model!r} needs a Jev key in TYPESAFE_API_KEY")
-        from why_now.ai.jev import JevAnswerer, jev_client
-
-        return JevAnswerer(jev_client(jev_key, model), model, settings, meter)
-
     quick_look = settings.quick_look_model if jev_key else settings.quick_look_fallback_model
     return Models(
-        quick_look=answerer(quick_look, settings.quick_look_effort),
-        judge=answerer(settings.judge_model, settings.judge_effort),
+        quick_look=build_answerer(quick_look, settings.quick_look_effort, settings, meter, env),
+        judge=build_answerer(settings.judge_model, settings.judge_effort, settings, meter, env),
         writer=ClaudeWriter(
             claude, settings.writer_model, settings, meter, effort=settings.writer_effort
         ),

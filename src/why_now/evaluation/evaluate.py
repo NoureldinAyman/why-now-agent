@@ -1,10 +1,10 @@
 """Grade a pile of test cases against the reviewer's marks."""
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 
-from why_now.ai import Models
+from why_now.ai import Answerer, Models
 from why_now.domain import (
     Answer,
     CaseRecord,
@@ -15,8 +15,8 @@ from why_now.domain import (
     Profile,
     RulesFile,
 )
-from why_now.evaluation.records import CaseRow, PileResult
-from why_now.evaluation.score import score
+from why_now.evaluation.records import CaseRow, ComparisonResult, PileResult
+from why_now.evaluation.score import ScoreResult, score
 from why_now.pipeline.judge import (
     CompanyFailed,
     all_questions,
@@ -162,3 +162,61 @@ def _grade_case(
         quick_passed=True,
         answers=answers,
     )
+
+
+def baselines(pile: str, run: EvalRun) -> dict[str, ScoreResult]:
+    """Three simple rivals the agent must beat: yes to all, the quick look alone, empty rules."""
+    if pile == "final":
+        raise ValueError("the final pile can only be read through open_final_pile")
+    cases = _marked_cases(run, pile)
+    empty_rules = RulesFile(profile_id=run.profile.id)
+    return {
+        "yes_to_all": score(
+            [(True, reviewer_yes) for _, reviewer_yes in cases], run.settings.score_beta
+        ),
+        "quick_look_only": _quick_look_only(cases, run),
+        "empty_rules": evaluate_pile(pile, empty_rules, run, CATEGORY).score,
+    }
+
+
+def _quick_look_only(cases: list[tuple[CaseRecord, bool]], run: EvalRun) -> ScoreResult:
+    """Score the quick look's pass or drop alone, as if there were no judge."""
+    pairs: list[tuple[bool, bool]] = []
+    for case, reviewer_yes in cases:
+        company, _ = _company_and_pack(case, run.workspace)
+        looked = quick_look(
+            [company], run.profile, run.models.quick_look, run.settings, run.workspace, run.tracer
+        )[0]
+        if looked.failed:
+            continue  # no answer: left out, never counted as a no
+        pairs.append((looked.passed, reviewer_yes))
+    return score(pairs, run.settings.score_beta)
+
+
+def compare_judges(run: EvalRun, answerers: list[Answerer]) -> ComparisonResult:
+    """Score judges on the same check pile companies, each with its own cut-off.
+
+    The result is kept whichever judge wins. On a tie the first judge listed wins, so the
+    caller lists the current judge first and a tie changes nothing.
+    """
+    rules = run.workspace.load_rules()
+    results: dict[str, PileResult] = {}
+    for answerer in answerers:
+        judge_run = replace(run, models=replace(run.models, judge=answerer))
+        set_cutoff(judge_run)
+        results[answerer.answer_key] = _evaluate("check", rules, judge_run, CATEGORY)
+
+    shared = set.intersection(*({row.case_id for row in r.rows} for r in results.values()))
+
+    scores = {
+        key: score(
+            [(row.agent_yes, row.reviewer_yes) for row in r.rows if row.case_id in shared],
+            run.settings.score_beta,
+        )
+        for key, r in results.items()
+    }
+
+    winner = max(scores, key=lambda key: scores[key].f)
+    comparison = ComparisonResult(scores=scores, winner=winner, day=run.clock().date())
+    run.workspace.save_comparison(comparison)
+    return comparison

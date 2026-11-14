@@ -158,6 +158,9 @@ quick_look_model = "jev-1.14.0"
 quick_look_fallback_model = "claude-haiku-5-5"
 # Model that judges each evidence pack.
 judge_model = "claude-sonnet-5-5"
+# The two judges the comparison runs on the check pile. Only two, so the check pile is not
+# fitted by choosing among many. With no Jev key a Jev entry becomes the quick look fallback.
+judge_candidates = ["jev-1.14.0", "claude-sonnet-5-5"]
 # Effort is low, medium or high: more thinks harder and costs more. Changing
 # one asks the saved questions again. Tune effort on the practice pile only.
 # Effort for the quick look, used only when it falls back to Claude.

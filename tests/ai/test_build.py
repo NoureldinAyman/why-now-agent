@@ -1,7 +1,7 @@
 import pytest
 from pydantic import BaseModel
 
-from why_now.ai import BadModelOutput, ResearchStep, UnknownModel, build_models
+from why_now.ai import BadModelOutput, ResearchStep, UnknownModel, build_answerer, build_models
 from why_now.ai.claude import ClaudeAnswerer
 from why_now.domain import FitQuestion
 from why_now.sample.models import Script, scripted_models
@@ -83,3 +83,15 @@ def test_a_scripted_writer_with_nothing_scripted_gives_bad_output():
         scripted_models(Script()).writer.structured(
             system="s", untrusted="u", schema=Brief, category="brief"
         )
+
+
+def test_build_answerer_gives_one_claude_answerer_with_the_effort_asked_for(settings, meter):
+    env = {"ANTHROPIC_API_KEY": "test-key"}
+    answerer = build_answerer("claude-sonnet-5-5", "high", settings, meter, env)
+    assert isinstance(answerer, ClaudeAnswerer)
+    assert answerer.answer_key.startswith("claude-sonnet-5-5@high#p")
+
+
+def test_build_answerer_refuses_a_jev_model_without_a_jev_key(settings, meter):
+    with pytest.raises(UnknownModel):
+        build_answerer("jev-1.14.0", "medium", settings, meter, env={})

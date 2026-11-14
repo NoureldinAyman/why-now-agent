@@ -438,6 +438,14 @@ class Settings(BaseModel):
         default="claude-sonnet-5-5",
         description="The model that answers the fit questions. Locked to one version.",
     )
+    judge_candidates: list[str] = Field(
+        default_factory=lambda: ["jev-1.14.0", "claude-sonnet-5-5"],
+        description=(
+            "The two judge setups the comparison runs on the check pile. Only two, because "
+            "comparing many and keeping the best would fit the score to that pile. With no Jev "
+            "key, a Jev entry is replaced by the quick look's Claude fallback model."
+        ),
+    )
     # Effort per Claude job. Jev has no effort, so `quick_look_effort` is used only
     # when the quick look falls back to Claude.
     quick_look_effort: Effort = Field(
