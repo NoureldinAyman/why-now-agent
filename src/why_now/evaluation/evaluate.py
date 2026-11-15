@@ -39,6 +39,13 @@ from why_now.workspace import Workspace
 CATEGORY = "evaluation"  # the budget category every evaluation call is charged to
 
 
+type ProgressFn = Callable[[str, int, int], None]
+
+
+def _no_progress(label: str, done: int, total: int) -> None:
+    """The default: say nothing. A command passes a function that shows the progress."""
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -53,6 +60,8 @@ class EvalRun:
     settings: Settings
     tracer: Tracer
     clock: Callable[[], datetime] = _now
+    # Called as (label, done, total) after each company, so a long run can show how far it is.
+    progress: ProgressFn = _no_progress
 
 
 def evaluate_pile(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileResult:
@@ -93,13 +102,17 @@ def set_cutoff(run: EvalRun) -> float:
     workspace, judge = run.workspace, run.models.judge
     questions = all_questions(run.profile, workspace.load_rules())
     rows: list[tuple[list[Answer], bool]] = []
-    for case, reviewer_yes in _marked_cases(run, "practice"):
+    cases = _marked_cases(run, "practice")
+    label = f"{judge.answer_key} cut-off, practice pile"
+    for done, (case, reviewer_yes) in enumerate(cases, start=1):
         _, pack = _company_and_pack(case, workspace)
         try:
             answers = answer_questions(pack, questions, judge, workspace, CATEGORY)
         except CompanyFailed:
-            continue
-        rows.append((answers, reviewer_yes))
+            pass  # left out of the cut-off, and counted as done
+        else:
+            rows.append((answers, reviewer_yes))
+        run.progress(label, done, len(cases))
     cutoff = choose_cutoff(rows, questions, run.settings)
     workspace.save_cutoff(judge.answer_key, cutoff)
     return cutoff
@@ -131,11 +144,14 @@ def _evaluate(pile: str, rules: RulesFile, run: EvalRun, category: str) -> PileR
     cutoff = run.settings.default_cutoff if recorded is None else recorded
     rows: list[CaseRow] = []
     failed_cases: list[str] = []
-    for case, reviewer_yes in _marked_cases(run, pile):
+    cases = _marked_cases(run, pile)
+    label = f"{run.models.judge.answer_key} scoring, {pile} pile"
+    for done, (case, reviewer_yes) in enumerate(cases, start=1):
         try:
             rows.append(_grade_case(case, reviewer_yes, rules, run, category, cutoff))
         except CompanyFailed:
             failed_cases.append(case.case_id)
+        run.progress(label, done, len(cases))
     if not rows:
         raise ValueError(
             f"no company in the {pile} pile could be graded: {len(failed_cases)} could not be "
@@ -276,15 +292,17 @@ def consistency(
     questions = all_questions(run.profile, run.workspace.load_rules())
     spreads: dict[str, list[float]] = {q.id: [] for q in questions}
     failed: list[str] = []
-    for pack in packs:
+    label = f"{answerer.answer_key} consistency"
+    for done, pack in enumerate(packs, start=1):
         try:
             rounds = [ask_with_one_retry(pack, questions, answerer, CATEGORY) for _ in range(asks)]
         except CompanyFailed:
             failed.append(pack.pack_id)
-            continue
-        for position, question in enumerate(questions):
-            given = [answers[position].probability for answers in rounds]
-            spreads[question.id].append(max(given) - min(given))
+        else:
+            for position, question in enumerate(questions):
+                given = [answers[position].probability for answers in rounds]
+                spreads[question.id].append(max(given) - min(given))
+        run.progress(label, done, len(packs))
 
     spread = {
         question_id: QuestionSpread(average=sum(values) / len(values), worst=max(values))

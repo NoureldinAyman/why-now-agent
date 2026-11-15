@@ -157,6 +157,7 @@ def test_compare_models_shows_both_scores_and_the_winner(tmp_path, monkeypatch, 
 
     assert result.exit_code == 0, result.output
     assert "judge-a: 2 companies" in result.output
+    assert "judge-a cut-off, practice pile: 2 of 2" in result.output  # the live progress
     assert "Winner: judge-a" in result.output
     assert [c.winner for c in workspace.comparisons()] == ["judge-a"]
 
@@ -188,3 +189,11 @@ def test_evaluate_says_when_it_used_the_default_cutoff(tmp_path, monkeypatch, ma
     result = run("evaluate", args, "--pile", "check")
 
     assert "default cut-off 0.5" in result.output
+
+
+def test_progress_lines_are_not_printed_for_every_company(capsys):
+    for done in range(1, 13):
+        evaluation_command.show_progress("judge-a scoring, check pile", done, 12)
+
+    shown = [line.split(": ")[1] for line in capsys.readouterr().out.splitlines()]
+    assert shown == ["1 of 12", "5 of 12", "10 of 12", "12 of 12"]
