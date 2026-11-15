@@ -277,3 +277,9 @@ Two reviewers read the finished code, one against the repo's rules and one again
 Setting `cutoff_step` to 0.1 and turning web research off for test cases made ten older tests fail. None of them was about those settings: the cut-off examples had been worked out by hand on a 0.05 grid, and the pack tests counted research calls. Each now sets the value it depends on, with a line saying why.
 
 **What it taught:** a test that depends on a setting should say so, rather than lean on the default. Otherwise a reasoned change to the default looks like a broken feature.
+
+## 15 Nov 2026: The quick look sent every ad a company had, and the first real comparison crashed
+
+The first real run of the judge comparison stopped on a company with many job ads. The quick look sent all of a company's relevant ads, each cut to 20,000 characters, with no limit on the total. On the owner's marked companies the largest text was over 800,000 characters and 46 of 140 were over 60,000. Jev refused the request (`max_tokens_exceeded`), and the error was not caught, so the whole run stopped. The judge had not met this, because it reads the evidence pack, which is capped. The same crash would have hit the daily run on any company with many ads. The quick look now reads the same newest ads, cut the same way, as an evidence pack, and a request Jev refuses fails that company only, which is reported and never counted as a no.
+
+**What it taught:** every model call needs the same size limit, not only the one that was looked at first. The tests used small invented companies, so no test could meet a company with 200 ads. Real data found it on the first run.

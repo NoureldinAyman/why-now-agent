@@ -7,7 +7,13 @@ and warns that irrelevant text lowers accuracy, so callers keep the text short.
 
 from typing import Any
 
-from typesafe_sdk import Noul, NoulCriteria, SystemOneResponse, TypeSafeClient
+from typesafe_sdk import (
+    Noul,
+    NoulCriteria,
+    SystemOneResponse,
+    TypeSafeBadRequestError,
+    TypeSafeClient,
+)
 
 from why_now.ai import (
     UNTRUSTED_NOTE,
@@ -41,11 +47,16 @@ class JevAnswerer:
 
     def answer(self, state: str, questions: list[FitQuestion], category: str) -> list[Answer]:
         self.meter.ensure(category)
-        reply: SystemOneResponse = self.client.system_one(
-            state=f"{UNTRUSTED_NOTE}\n\n{mark_untrusted(state)}",
-            questions={q.id: _noul(q) for q in questions},
-            model=self.model,
-        )
+        try:
+            reply: SystemOneResponse = self.client.system_one(
+                state=f"{UNTRUSTED_NOTE}\n\n{mark_untrusted(state)}",
+                questions={q.id: _noul(q) for q in questions},
+                model=self.model,
+            )
+        except TypeSafeBadRequestError as e:
+            # A request Jev refuses, such as one that is too long, fails this company only.
+            # A wrong key or a service that is down is another error and still stops the run.
+            raise BadModelOutput(f"{self.model} refused the request: {e}") from e
         tokens = reply.usage.input_tokens
         if tokens is None:
             # Still recorded, so a call that could not be costed shows in the spending list.

@@ -400,3 +400,34 @@ def test_a_comparison_records_the_companies_it_left_out_and_the_versions(judging
     assert result.dropped_cases == ["case-Cora"]
     assert result.rules_version == 0
     assert result.profile_version == judging_world.profile.version
+
+
+def test_the_evaluation_reports_its_progress_one_company_at_a_time(store, settings, make_profile):
+    profile = make_profile()
+    workspace = Workspace(store, profile.id)
+    add_case(workspace, "Pia", "practice", "yes")
+    add_case(workspace, "Pete", "practice", "no")
+    add_case(workspace, "Acme", "check", "yes")
+    numbers = {"Pia": 0.9, "Pete": 0.2, "Acme": 0.9}
+    run = make_run(workspace, profile, settings, quick=numbers, judge=numbers)
+    events: list[tuple[str, int, int]] = []
+    run.progress = lambda label, done, total: events.append((label, done, total))
+
+    set_cutoff(run)
+    evaluate_pile("check", RulesFile(profile_id=profile.id), run, "evaluation")
+
+    assert events == [
+        ("fake-1 cut-off, practice pile", 1, 2),
+        ("fake-1 cut-off, practice pile", 2, 2),
+        ("fake-1 scoring, check pile", 1, 1),
+    ]
+
+
+def test_consistency_reports_its_progress_one_pack_at_a_time(one_pack):
+    run, pack = one_pack
+    events: list[tuple[str, int, int]] = []
+    run.progress = lambda label, done, total: events.append((label, done, total))
+
+    consistency(run, Sequence([0.5]), [pack, pack], asks=2)
+
+    assert events == [("wobbly-1 consistency", 1, 2), ("wobbly-1 consistency", 2, 2)]

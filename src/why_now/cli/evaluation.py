@@ -54,6 +54,12 @@ def make_answerers(settings: Settings, meter: Meter, env: Mapping[str, str]) -> 
     return [build_answerer(n, settings.judge_effort, settings, meter, env) for n in names]
 
 
+def show_progress(label: str, done: int, total: int) -> None:
+    """Print how far a long run is: the first company, every fifth, and the last."""
+    if done in (1, total) or done % 5 == 0:
+        typer.echo(f"  {label}: {done} of {total}")
+
+
 def make_eval_run(settings: Settings, workspace: Workspace, profile: Profile) -> EvalRun:
     """An evaluation with the real models, each checking the budget before it is called."""
     store = workspace.store
@@ -67,6 +73,7 @@ def make_eval_run(settings: Settings, workspace: Workspace, profile: Profile) ->
             settings.workspace_path / "traces", UnitCounter(store, settings, now), now, os.environ
         ),
         clock=now,
+        progress=show_progress,
     )
 
 

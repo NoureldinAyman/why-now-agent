@@ -91,7 +91,7 @@ def ads_only_pack(
 
 def _ads_only(company: Company, settings: Settings, now: datetime) -> "_PackBuilder":
     pack = _PackBuilder(settings.max_pack_chars)
-    for job_ad in _newest(company.ads, settings.newest_ads_read):
+    for job_ad in newest_ads(company.ads, settings.newest_ads_read):
         pack.add(_ad_source(job_ad, settings.max_ad_chars, now))
     return pack
 
@@ -134,7 +134,7 @@ class _PackBuilder:
         return next((s for s in self.sources if s.id == source_id), None)
 
 
-def _newest(ads: list[JobAd], n: int) -> list[JobAd]:
+def newest_ads(ads: list[JobAd], n: int) -> list[JobAd]:
     # The ad id breaks ties, so ads published at the same moment come in a fixed order.
     return sorted(ads, key=lambda a: (a.published_at, a.ad_id), reverse=True)[:n]
 

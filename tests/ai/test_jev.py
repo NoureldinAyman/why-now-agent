@@ -86,3 +86,16 @@ def test_bad_jev_output_is_rejected(settings, meter, reply):
 def test_a_jev_answer_key_has_no_effort(settings, meter):
     answerer = JevAnswerer(FakeJev(jev_reply({})), "jev-1.14.0", settings, meter)
     assert answerer.answer_key == f"jev-1.14.0#p{JEV_PROMPT_VERSION}"
+
+
+def test_a_request_jev_refuses_fails_that_company_and_does_not_stop_the_run(settings, meter):
+    from httpx2 import Headers
+    from typesafe_sdk import TypeSafeBadRequestError
+
+    class Refusing:
+        def system_one(self, state: Any, questions: dict[str, Any], **kwargs: Any):
+            body = {"detail": {"error_type": "max_tokens_exceeded"}}
+            raise TypeSafeBadRequestError(400, body, Headers())
+
+    with pytest.raises(BadModelOutput, match="max_tokens_exceeded"):
+        JevAnswerer(Refusing(), "jev-1.14.0", settings, meter).answer("An ad.", QUESTIONS, "x")
