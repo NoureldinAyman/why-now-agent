@@ -8,6 +8,7 @@ from pydantic import BaseModel
 
 from why_now.ai import Answerer, BadModelOutput
 from why_now.domain import Answer, Company, FitQuestion, Profile
+from why_now.pipeline.research import newest_ads
 from why_now.profile import quick_look_questions
 from why_now.settings import Settings
 from why_now.tracing import Tracer
@@ -44,7 +45,7 @@ def quick_look(
         detail="light",
     ) as trace:
         for company in companies:
-            state = _state(company, settings.max_ad_chars)
+            state = _state(company, settings)
             try:
                 answers = _answers(company.key, state, questions, answerer, workspace)
             except BadModelOutput as e:
@@ -66,12 +67,19 @@ def quick_look(
     return sorted(results, key=lambda r: (r.failed, -r.order))
 
 
-def _state(company: Company, max_ad_chars: int) -> str:
-    # Only the relevant ads, each cut short: the library's documentation warns that
-    # irrelevant text costs accuracy, and long ads cost money.
-    return "\n\n".join(
-        f"{ad.title} ({ad.location})\n{ad.text[:max_ad_chars]}" for ad in company.ads
+def _state(company: Company, settings: Settings) -> str:
+    """The text the quick look reads, kept within the limits of an evidence pack.
+
+    Only the newest relevant ads, each cut short, and the whole text cut to `max_pack_chars`:
+    the library's documentation warns that irrelevant text costs accuracy, and long ads cost
+    money. Without the overall limit, a company with 200 ads sent over 800,000 characters,
+    which the model refused.
+    """
+    ads = newest_ads(company.ads, settings.newest_ads_read)
+    text = "\n\n".join(
+        f"{ad.title} ({ad.location})\n{ad.text[: settings.max_ad_chars]}" for ad in ads
     )
+    return text[: settings.max_pack_chars]
 
 
 def _answers(

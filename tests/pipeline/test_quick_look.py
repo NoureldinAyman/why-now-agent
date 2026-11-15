@@ -200,3 +200,28 @@ def test_one_trace_per_run_with_light_detail(profile, settings, workspace):
     )
     assert len(tracer.traces) == 1
     assert tracer.traces[0]["detail"] == "light"
+
+
+def test_a_company_with_many_long_ads_is_read_within_the_pack_limits(profile, settings, workspace):
+    base = make_company("a")
+    ads = [
+        base.ads[0].model_copy(
+            update={
+                "ad_id": str(i),
+                "title": f"Ad {i}",
+                "published_at": datetime(2026, 11, 1 + i, tzinfo=UTC),
+                "text": "0.9 " + "x" * 30_000,
+            }
+        )
+        for i in range(8)
+    ]
+    company = base.model_copy(update={"ads": ads})
+    answerer = ScriptedAnswerer()
+
+    run([company], profile, answerer, settings, workspace)
+
+    state = answerer.states[0]
+    assert len(state) <= settings.max_pack_chars  # the same cap as an evidence pack
+    assert state.count(" (Berlin)") <= settings.newest_ads_read  # the newest ads only
+    assert "Ad 7" in state  # the newest ad is read
+    assert "Ad 2" not in state  # the sixth newest and older are not
