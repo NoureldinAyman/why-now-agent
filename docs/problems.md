@@ -283,3 +283,16 @@ Setting `cutoff_step` to 0.1 and turning web research off for test cases made te
 The first real run of the judge comparison stopped on a company with many job ads. The quick look sent all of a company's relevant ads, each cut to 20,000 characters, with no limit on the total. On the owner's marked companies the largest text was over 800,000 characters and 46 of 140 were over 60,000. Jev refused the request (`max_tokens_exceeded`), and the error was not caught, so the whole run stopped. The judge had not met this, because it reads the evidence pack, which is capped. The same crash would have hit the daily run on any company with many ads. The quick look now reads the same newest ads, cut the same way, as an evidence pack, and a request Jev refuses fails that company only, which is reported and never counted as a no.
 
 **What it taught:** every model call needs the same size limit, not only the one that was looked at first. The tests used small invented companies, so no test could meet a company with 200 ads. Real data found it on the first run.
+
+## 15 Nov 2026: The first real run of the evaluation, and what it taught
+
+The live step of the evaluation ran on the owner's marked companies: the consistency check, the judge comparison, the baselines and the first reading of the final pile. All the numbers are saved in the workspace and none are copied here. The whole run cost under five dollars, and the first reading of the final pile is in the log.
+
+- **Both judges answered steadily.** Asked the same questions again and again with no saved answers, neither judge moved its probabilities far, so the five fixed answer levels were not needed and were not built. The one larger swing was a single company on the most subjective question.
+- **The judge choice was clear, and the cheaper judge was not the better buy.** On the same check companies the stronger judge was never beaten, and it was right on several companies the cheaper one got wrong. The cheaper judge scored below saying yes to every company: it said yes to almost all of them and caught almost none of the no's. A judge that costs about eighty times less per call saves nothing if it adds nothing.
+- **Saying yes to everything is a strong rival on these marks,** because most of the companies are marked yes. The agent beat it on the check pile and on the final pile, but narrowly, so every number is shown with its company count.
+- **The final pile scored lower than the check pile,** as expected after choosing the judge on the check pile. The final number is the one to quote.
+- **The agent's weak side is the no's.** It catches only between a third and two fifths of them, so most of its mistakes are wrong yeses. The practice pile holds few no's, so the improvement loop will have few wrong yeses to learn from. Ticket 29 should plan for that.
+- **The quick look dropped no company on the check pile.** On this kind of company it is a pass-through, and the judge does all the work.
+
+**What it taught:** the first real numbers are small differences on small piles, and the baselines are what make them readable. Without the yes-to-all rival the cheaper judge's score would have looked fine. A second lesson is about order: the fix for the quick look crash was merged before the final pile was opened, so the number comes from code that is on `main`.
