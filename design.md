@@ -487,6 +487,9 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | Signed in for 12 hours | Someone else using a forgotten open session | Starting guess. One working day, so the reviewer signs in about once a day |
 | 10 minutes to finish signing in | A stolen half-finished sign-in being used later | Starting guess. Long enough to type a password and a code |
 | Session secret of 32 characters at least | Someone guessing the secret and making their own session cookie | 32 random characters are far too many to guess |
+| 2 copies of the web page at once | A flood of bad requests running up a bill | Starting guess. One person uses the page, so two is plenty |
+| 30 seconds for a web page request | A stuck request being billed for minutes | Starting guess. The same as the hand-made web function |
+| 1,024 MB for the web function | The review page starting slowly | Starting guess. The same as the hand-made web function. More memory also gives more computing power |
 | Model prices | Charging each call at its real cost | Anthropic's and TypeSafe's published prices, checked on 6 Nov 2026. A model with no price is refused |
 
 ### Records

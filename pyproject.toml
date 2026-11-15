@@ -38,6 +38,7 @@ packages = ["src/why_now"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 markers = ["live: calls real services and costs money. Run only on purpose, after the owner's yes."]
 addopts = "-ra"
 

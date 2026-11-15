@@ -141,3 +141,8 @@ def test_exactly_two_judge_candidates_are_allowed():
     for names in (["only-one"], ["a", "b", "c"]):
         with pytest.raises(ValidationError):
             Settings(judge_candidates=names)
+
+
+def test_web_function_numbers_have_the_designs_values():
+    s = load_settings(None, env={})
+    assert (s.aws_web_max_copies, s.aws_web_timeout_seconds, s.aws_web_memory_mb) == (2, 30, 1024)

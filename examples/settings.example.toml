@@ -149,6 +149,12 @@ cognito_domain = ""
 cognito_user_pool_id = ""
 # Cognito login client. Left empty, it is read from Parameter Store at start-up.
 cognito_client_id = ""
+# Most copies of the web page that may run at once. A cap on what a flood of requests can cost.
+aws_web_max_copies = 2
+# Seconds one web page request may take before AWS stops it.
+aws_web_timeout_seconds = 30
+# Memory in megabytes for the web page. More memory also gives more computing power.
+aws_web_memory_mb = 1024
 # Hours a sign-in lasts before signing in again.
 session_hours = 12
 # Minutes allowed to finish signing in on Cognito's page.

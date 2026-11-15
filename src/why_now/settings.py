@@ -428,6 +428,24 @@ class Settings(BaseModel):
     cognito_client_id: str = Field(
         default="", description="The login client. Read from Parameter Store when left empty."
     )  # read from Parameter Store when left empty
+    aws_web_max_copies: int = Field(
+        default=2,
+        description=(
+            "A flood of bad requests running up a bill. The review page is for one person, so two"
+            " copies at once is plenty."
+        ),
+    )
+    aws_web_timeout_seconds: int = Field(
+        default=30,
+        description="A stuck page request being billed for minutes. Starting guess.",
+    )
+    aws_web_memory_mb: int = Field(
+        default=1024,
+        description=(
+            "The review page starting slowly. More memory also gives more computing power."
+            " Starting guess."
+        ),
+    )
     session_hours: int = Field(
         default=12,
         description="Someone else using a forgotten open session. One working day. Starting guess.",
