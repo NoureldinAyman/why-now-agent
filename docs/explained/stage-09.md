@@ -58,21 +58,27 @@ The four new numbers (350 KB, 12 hours, 10 minutes, 32 characters) are settings,
 
 Eight new settings carry the sizes, the hour, the log days and the zones, each in the example settings file. The numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
 
+**What the real deploy taught.** Deploying found five things that no test could, each fixed or recorded in `docs/problems.md`:
+
+- A preview, run before the first deploy, warned that the budget resource does not exist in the owner's region. The alarm was left out of the stack.
+- The image build failed until the Dockerfile was on the `.dockerignore` list, because the CDK builds from a staging folder that holds only the files that list lets through.
+- The account allows 10 copies in all, and AWS refuses to reserve any when fewer than 10 would stay free, so reserving two failed. A setting of 0 now means no reservation.
+- The web page stopped at start-up until it was given a profile, as the scheduled run had been given.
+- A running copy of the web function keeps the secrets it read when it started. After the login client's secret was replaced, sign-in failed until the function was restarted, which a harmless change to its configuration does.
+
+**What was checked on AWS.** Signing in works, with the authenticator app. A signed-out visitor is sent to the sign-in from every private page, and the public pages are off. One run started by hand and one started by the schedule rule each finished cleanly and put their results on the review page. The schedule was then switched off by hand, so that it does not spend every night on example data. Last, the hand-made parts were checked against the account and deleted, and the new stack, its data, the login and the site were confirmed untouched.
+
 **Limits we know about.**
 
-- The budget alarm is not in the stack. CloudFormation has no budget resource in the owner's region, which a preview found before any deploy, so the hand-made budget stays and is the one hand-made part that is not deleted.
-- Nothing has been deployed yet. The tests show what the stack asks AWS for, not that AWS accepts it or that the app works on it.
-- The CDK has not built and pushed the image yet. Docker is not needed to run the tests.
-- The scheduled run uses a profile and board lists that exist inside the image, which today means the examples. There is no tool yet to put the owner's own profile on AWS.
+- The budget alarm is not in the stack. CloudFormation has no budget resource in the owner's region, so the hand-made budget stays and is the one hand-made part that is not deleted.
+- The schedule rule is switched off. It is turned on again with `aws events enable-rule`, and a later deploy that changes the rule switches it on too.
+- The scheduled run uses a profile and board lists that exist inside the image, which today means the examples. There is no tool yet to put the owner's own profile on AWS, and nothing here shows a week of nightly runs or the cost of a day.
 - The bucket, the table and the user pool are kept when the stack is deleted, which is the CDK's safe default, so deleting the stack alone does not remove them. The log groups are deleted.
-- Reading the encrypted parameters should work through the default key, but that is not proven until a deploy.
-- The owner's account allows 10 copies in all, and AWS refuses to reserve any when fewer than 10 would stay free, so the first deploy failed on the reservation of two. The owner deploys with `aws_web_max_copies` set to 0, which reserves none, and AWS's own limit of 10 copies at once then caps a flood. Once AWS raises the limit, the default of two can be used.
-- The review page needs a profile to start, so the web function gets the same `daily_profiles` setting as the run, and for now both use the example profile in the image.
-- The recipe makes only the client ID's parameter. The owner enters the session secret and the login client's secret in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values.
-- Leave `aws_bucket` and `aws_table` empty in the owner's settings on the first deploy, so the stack picks fresh names. Names that match the hand-made bucket and table would make the deploy fail, and the stack does not copy any data across.
-- The hand-made image registry has no counterpart, because the CDK uses its own, so it is deleted with the other hand-made parts.
-- The run gets its two model keys from Parameter Store, under the names `anthropic-api-key` and `typesafe-api-key` below the prefix. The stack only names them, and the owner enters the values, so a run fails at its first model call until they exist. A real run has not been tried.
+- The owner enters the session secret, the login client's secret and the two model keys in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values. After changing one of them, the web function has to be restarted.
+- Leave `aws_bucket` and `aws_table` empty on a first deploy, so the stack picks fresh names. Names that match existing parts make the deploy fail, and the stack copies no data across.
+- A run that the model provider refuses, for example because the account's credit is low, records that company as failed and carries on.
+- The ticket 48 list of hand-made parts was incomplete. A schedule and its role were not on it, and the web function used a shared sign-in role that had to be left alone, so the deletion was checked against the account first.
 
-**The hardest question:** "You never deployed it. How do you know it builds what you say?"
+**The hardest question:** "You say it is deployed. What did you actually prove?"
 
-**The honest answer:** we know what it asks for, not what AWS does with it. The tests read the same description the CDK hands to AWS, so they catch a paid network part, a public bucket, a self sign-up, a secret in the text or a log that never expires. They cannot show that the sign-in works, that the image starts, or that the run finishes. Those are checked by deploying, with the owner's yes, and the limits above are the places most likely to need a change.
+**The honest answer:** that the stack builds on AWS, that the owner can sign in and a signed-out visitor sees nothing private, that the web page and the scheduled task start and finish, and that the results reach the review page. We did not prove that the owner's own profile can run there, what a day costs over time, or that the schedule keeps working for a week. Each of the five things the deploy found was invisible to the tests, which check what the stack asks for and not what an account and a running program do with it.
