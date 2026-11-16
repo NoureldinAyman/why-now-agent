@@ -296,3 +296,21 @@ The live step of the evaluation ran on the marked test companies: the consistenc
 - **The quick look dropped no company on the check pile.** On this kind of company it is a pass-through, and the judge does all the work.
 
 **What it taught:** the first real numbers are small differences on small piles, and the baselines are what make them readable. Without the yes-to-all rival the cheaper judge's score would have looked fine. A second lesson is about order: the fix for the quick look crash was merged before the final pile was opened, so the number comes from code that is on `main`.
+
+## 16 Nov 2026: The easy way to ask for a network builds paid parts nobody asked for
+
+Asked for a network in the plainest way, the CDK built four subnets and two NAT gateways, a part AWS charges for by the hour whether or not anything uses it. Nothing in the request mentioned them. The stack now asks for two public subnets and no NAT gateway, and a test counts the NAT gateways in the finished description.
+
+**What it taught:** a library's defaults are choices someone else made. For anything that bills by the hour, read what the default builds before using it, and put the count in a test.
+
+## 16 Nov 2026: A test folder named like the code folder hid the code
+
+The first stack test failed with "No module named `infra.stack`". The tests live in `tests/infra`, and that folder was found first, so Python took it for the `infra` package. The fix was one line in the test settings, `pythonpath = ["."]`, and no `__init__.py` file in either folder, so the two folders merge into one package.
+
+**What it taught:** two folders with the same name on the search path can hide each other. The error names the missing file, not the folder that got in the way.
+
+## 16 Nov 2026: Installing one optional group took out the others
+
+Running tests with `uv run --extra infra` installed the CDK libraries and removed the `aws` group, so three older test files could no longer import their libraries and the repo-rules check failed. Syncing every group with `uv sync --all-extras` fixed it, and plain `uv run` is used after that.
+
+**What it taught:** a command that names one optional group means exactly that group. When a test fails with a missing library, check which groups are installed before looking at the code.

@@ -44,3 +44,33 @@ The four new numbers (350 KB, 12 hours, 10 minutes, 32 characters) are settings,
 **The hardest question:** "You say the review page works on AWS. What did you actually prove?"
 
 **The honest answer:** that a signed-out visitor is sent to the sign-in, that the owner can sign in with a password and a second factor and reach the marking page, and that the page reads from the real table and bucket. We did not prove a real run end to end, a schedule, or how the setup behaves over a week. The deployment ticket does those with measured numbers.
+
+## The AWS setup as code (ticket 32)
+
+**What was built.** One stack written with the AWS CDK in Python, `infra/stack.py`, that describes every part the hand-made setup had. `infra/app.py` builds it from the settings, and `infra/cdk.json` tells the CDK tool how to start it. The tests build the stack on the computer and look inside the result, so they need no AWS account.
+
+- **Storage.** A private bucket with all four public-access blocks on, AWS-managed encryption and encrypted connections only. A table with the same two keys as the hand-made one, charged per request.
+- **The login.** A user pool with no self sign-up and an authenticator app as the only second step, with no text-message codes, not even for recovering an account. A sign-in domain, and an app client that uses the code flow with the `openid` permission only. Cognito makes the client's secret, so it never appears in the stack. The client's ID is written to Parameter Store, because the client's return address needs the web address, and the web function would otherwise wait for a client that waits for it.
+- **The web page.** A Lambda function from the same image, with its own web address that needs no AWS sign-in, because the app checks the login itself. Its copies at once, timeout and memory come from settings. Its role can use only this bucket, this table and the parameters under the prefix.
+- **The network.** Two public subnets, no private ones and no NAT gateway. The daily run gets a public address behind a firewall with no inbound rules, so nothing from outside can connect to it.
+- **The daily run.** A Fargate task from the same image, started by a schedule at the hour in the settings. Its command is `daily` with the first profile in `daily_profiles`, and it will change to `night-run` when that command exists. It has its own role with the same three permissions as the web function.
+- **Logs and money.** Both log groups expire and are deleted with the stack. A budget alarm copies the hand-made one: a monthly limit, alerts at a set percent and at 100 percent of what is spent, and an alert at 100 percent of what AWS forecasts. The address comes from the settings, and the stack will not build without one.
+
+Ten new settings carry the sizes, the hour, the log days and the budget, each in the example settings file. The numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
+
+**Limits we know about.**
+
+- Nothing has been deployed yet. The tests show what the stack asks AWS for, not that AWS accepts it or that the app works on it.
+- The CDK has not built and pushed the image yet. Docker is not needed to run the tests.
+- The scheduled run uses a profile and board lists that exist inside the image, which today means the examples. There is no tool yet to put the owner's own profile on AWS.
+- The bucket, the table and the user pool are kept when the stack is deleted, which is the CDK's safe default, so deleting the stack alone does not remove them. The log groups are deleted.
+- Reading the encrypted parameters should work through the default key, but that is not proven until a deploy.
+- A brand-new AWS account may allow too few web copies to reserve two. The deploy would say so.
+- The recipe makes only the client ID's parameter. The owner enters the session secret and the login client's secret in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values.
+- Leave `aws_bucket` and `aws_table` empty in the owner's settings on the first deploy, so the stack picks fresh names. Names that match the hand-made bucket and table would make the deploy fail, and the stack does not copy any data across.
+- The hand-made image registry has no counterpart, because the CDK uses its own, so it is deleted with the other hand-made parts.
+- The recipe passes the run no model keys. The run's role may read the parameters, but a real run has not been tried.
+
+**The hardest question:** "You never deployed it. How do you know it builds what you say?"
+
+**The honest answer:** we know what it asks for, not what AWS does with it. The tests read the same description the CDK hands to AWS, so they catch a paid network part, a public bucket, a self sign-up, a secret in the text or a log that never expires. They cannot show that the sign-in works, that the image starts, or that the run finishes. Those are checked by deploying, with the owner's yes, and the limits above are the places most likely to need a change.

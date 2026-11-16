@@ -149,6 +149,28 @@ cognito_domain = ""
 cognito_user_pool_id = ""
 # Cognito login client. Left empty, it is read from Parameter Store at start-up.
 cognito_client_id = ""
+# Most copies of the web page that may run at once. A cap on what a flood of requests can cost.
+aws_web_max_copies = 2
+# Seconds one web page request may take before AWS stops it.
+aws_web_timeout_seconds = 30
+# Memory in megabytes for the web page. More memory also gives more computing power.
+aws_web_memory_mb = 1024
+# CPU for the daily run on AWS, in units where 1024 is one virtual CPU.
+aws_run_cpu = 1024
+# Memory in megabytes for the daily run on AWS.
+aws_run_memory_mb = 2048
+# Hour of the day, in UTC, when the daily run starts on AWS.
+aws_run_hour_utc = 2
+# Days a log is kept before AWS deletes it.
+aws_log_retention_days = 14
+# Zones the AWS network spans, one public subnet in each.
+aws_network_zones = 2
+# Monthly budget for the AWS parts, in US dollars. AWS emails you as spending nears it.
+aws_budget_usd = 10
+# Percent of the budget actually spent at which the first alert is sent.
+aws_budget_warning_percent = 85
+# Your own address for the budget alerts. Set it in your own settings file only.
+aws_budget_email = ""
 # Hours a sign-in lasts before signing in again.
 session_hours = 12
 # Minutes allowed to finish signing in on Cognito's page.

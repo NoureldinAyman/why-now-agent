@@ -487,6 +487,15 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | Signed in for 12 hours | Someone else using a forgotten open session | Starting guess. One working day, so the reviewer signs in about once a day |
 | 10 minutes to finish signing in | A stolen half-finished sign-in being used later | Starting guess. Long enough to type a password and a code |
 | Session secret of 32 characters at least | Someone guessing the secret and making their own session cookie | 32 random characters are far too many to guess |
+| 2 copies of the web page at once | A flood of bad requests running up a bill | Starting guess. One person uses the page, so two is plenty |
+| 30 seconds for a web page request | A stuck request being billed for minutes | Starting guess. The same as the hand-made web function |
+| 1,024 MB for the web function | The review page starting slowly | Starting guess. The same as the hand-made web function. More memory also gives more computing power |
+| 1 virtual CPU and 2 GB for the daily run | The cost of a run, which is billed by the second for its size | Starting guess. The same as the hand-made run |
+| Daily run starts at 02:00 UTC | The read, which takes hours, being ready by morning | Starting guess. AWS schedules use UTC |
+| Logs kept 14 days | Stored logs adding to the bill, and a failed night being gone before it is looked at | Starting guess. Long enough to look back after a long weekend |
+| $10 a month for the AWS parts | Something quietly costing money | Starting guess. A small limit on purpose, so a mistake shows up quickly. The same as the hand-made budget |
+| 2 zones for the AWS network | The run failing because one AWS zone is down | Starting guess. Public subnets are free, so two zones cost nothing extra |
+| First budget alert at 85% | Time to act before the limit | Starting guess. The same as the hand-made budget. The alerts at 100 percent of what is spent and of what AWS forecasts are the budget itself, so they are not settings |
 | Model prices | Charging each call at its real cost | Anthropic's and TypeSafe's published prices, checked on 6 Nov 2026. A model with no price is refused |
 
 ### Records

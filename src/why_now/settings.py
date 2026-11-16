@@ -428,6 +428,76 @@ class Settings(BaseModel):
     cognito_client_id: str = Field(
         default="", description="The login client. Read from Parameter Store when left empty."
     )  # read from Parameter Store when left empty
+    aws_web_max_copies: int = Field(
+        default=2,
+        description=(
+            "A flood of bad requests running up a bill. The review page is for one person, so two"
+            " copies at once is plenty."
+        ),
+    )
+    aws_web_timeout_seconds: int = Field(
+        default=30,
+        description="A stuck page request being billed for minutes. Starting guess.",
+    )
+    aws_web_memory_mb: int = Field(
+        default=1024,
+        description=(
+            "The review page starting slowly. More memory also gives more computing power."
+            " Starting guess."
+        ),
+    )
+    aws_run_cpu: int = Field(
+        default=1024,
+        description=(
+            "The cost of a daily run, which is billed by the second for its size. 1024 is one"
+            " virtual CPU. Starting guess."
+        ),
+    )
+    aws_run_memory_mb: int = Field(
+        default=2048,
+        description="The cost of a daily run, which is billed for its memory. Starting guess.",
+    )
+    aws_run_hour_utc: int = Field(
+        default=2,
+        ge=0,
+        le=23,
+        description=(
+            "The read, which takes hours, being ready by morning. AWS schedules use UTC."
+            " Starting guess."
+        ),
+    )
+    aws_log_retention_days: int = Field(
+        default=14,
+        description=(
+            "Stored logs adding to the bill, and a failed night being gone before it is looked"
+            " at. Starting guess."
+        ),
+    )
+    aws_budget_usd: float = Field(
+        default=10,
+        description=(
+            "Something quietly costing money. A small limit on purpose, so a mistake shows up"
+            " quickly. Starting guess."
+        ),
+    )
+    aws_budget_warning_percent: int = Field(
+        default=85,
+        ge=1,
+        le=100,
+        description="Time to act before the limit. Starting guess.",
+    )
+    aws_budget_email: str = Field(
+        default="",
+        description="The owner's own address for budget alerts. Set only in the owner's own file.",
+    )
+    aws_network_zones: int = Field(
+        default=2,
+        ge=1,
+        description=(
+            "The run failing because one AWS zone is down. Public subnets are free, so two zones"
+            " cost nothing extra. Starting guess."
+        ),
+    )
     session_hours: int = Field(
         default=12,
         description="Someone else using a forgotten open session. One working day. Starting guess.",
