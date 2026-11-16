@@ -327,3 +327,9 @@ A preview of the finished stack, run before any deploy, warned that the CloudFor
 
 **What it taught:** run the preview before the first deploy, and read its warnings. Whether a part can be built as code depends on the region, and the tests could not know that, because they check what the stack asks for and not what the region offers.
 
+
+## 16 Nov 2026: The first deploy could not build the image, and no test had tried
+
+The deploy stopped at the image build with "The system cannot find the file specified" for `infra`. The CDK copies only the files `.dockerignore` lets through into a staging folder and builds from there, and the ignore list did not name `infra/Dockerfile`, so the Dockerfile was not in the folder it was told to use. Building by hand had worked, because Docker reads the Dockerfile straight from the project. The tests and the preview never build an image, so none could notice. The Dockerfile is now on the list, and a test looks for it in the staged folder, which reproduces the failure without Docker.
+
+**What it taught:** a tool that copies files before using them can fail where the tool that reads them in place does not. Before a first deploy, check the staged files and not only the stack description.
