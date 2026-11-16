@@ -82,6 +82,7 @@ def test_web_lambda_is_told_its_names_by_environment_values(template: Template) 
                         "WHY_NOW_AWS_REGION": Match.any_value(),
                         "WHY_NOW_AWS_BUCKET": Match.any_value(),
                         "WHY_NOW_AWS_TABLE": Match.any_value(),
+                        "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
                     }
                 )
             }

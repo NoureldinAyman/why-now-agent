@@ -89,6 +89,9 @@ class WhyNowStack(Stack):
                 "WHY_NOW_AWS_REGION": self.region,
                 "WHY_NOW_AWS_BUCKET": self.bucket.bucket_name,
                 "WHY_NOW_AWS_TABLE": self.table.table_name,
+                "WHY_NOW_DAILY_PROFILES": json.dumps(
+                    [path.as_posix() for path in settings.daily_profiles]
+                ),
             },
         )
         self.web_url = self.web.add_function_url(auth_type=lambda_.FunctionUrlAuthType.NONE)
