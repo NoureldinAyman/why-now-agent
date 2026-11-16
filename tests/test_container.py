@@ -71,7 +71,14 @@ def test_nothing_private_goes_into_the_image():
     ignored = (ROOT / ".dockerignore").read_text(encoding="utf-8").splitlines()
     assert ignored[0] == "*"  # everything is left out unless named
     named = {line.removeprefix("!").rstrip("/") for line in ignored if line.startswith("!")}
-    assert named <= {"pyproject.toml", "uv.lock", "README.md", "src", "examples"}
+    assert named <= {
+        "pyproject.toml",
+        "uv.lock",
+        "README.md",
+        "src",
+        "examples",
+        "infra/Dockerfile",
+    }
 
 
 def test_container_starts_the_app(moto_aws, monkeypatch, tmp_path, make_profile):

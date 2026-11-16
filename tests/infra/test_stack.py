@@ -310,3 +310,13 @@ def test_daily_run_gets_its_model_keys_from_parameter_store(template: Template) 
             ]
         },
     )
+
+
+def test_the_staged_image_folder_holds_the_dockerfile() -> None:
+    app = build_app(
+        load_settings(None, env=ENV | {"WHY_NOW_AWS_REGION": "eu-test-1"}), account=None
+    )
+    staged = Path(app.synth().directory)
+    assert list(staged.glob("asset.*/infra/Dockerfile")), (
+        "the image build cannot find its Dockerfile"
+    )
