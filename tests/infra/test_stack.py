@@ -3,7 +3,7 @@ from pathlib import Path
 
 import aws_cdk as cdk
 import pytest
-from aws_cdk.assertions import Match, Matcher, Template
+from aws_cdk.assertions import Match, Template
 
 from infra.app import build_app
 from infra.stack import WhyNowStack
@@ -11,11 +11,9 @@ from why_now.settings import load_settings
 
 PROFILE = "profiles/test.yaml"
 BOARDS = "boards/test.json"
-EMAIL = "owner@example.com"
 ENV = {
     "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
     "WHY_NOW_BOARD_LISTS": f'{{"greenhouse": "{BOARDS}"}}',
-    "WHY_NOW_AWS_BUDGET_EMAIL": EMAIL,
 }
 
 
@@ -265,34 +263,6 @@ def test_the_run_accepts_no_connections_from_outside(template: Template) -> None
 def test_logs_expire(template: Template) -> None:
     template.resource_count_is("AWS::Logs::LogGroup", 2)
     template.resource_properties_count_is("AWS::Logs::LogGroup", {"RetentionInDays": 14}, 2)
-
-
-def test_a_budget_alarm_emails_the_owner(template: Template) -> None:
-    def alert(kind: str, percent: int) -> Matcher:
-        return Match.object_like(
-            {
-                "Notification": Match.object_like({"NotificationType": kind, "Threshold": percent}),
-                "Subscribers": [{"SubscriptionType": "EMAIL", "Address": EMAIL}],
-            }
-        )
-
-    template.has_resource_properties(
-        "AWS::Budgets::Budget",
-        {
-            "Budget": Match.object_like(
-                {
-                    "BudgetType": "COST",
-                    "TimeUnit": "MONTHLY",
-                    "BudgetLimit": {"Amount": 10, "Unit": "USD"},
-                }
-            ),
-            "NotificationsWithSubscribers": [
-                alert("ACTUAL", 85),
-                alert("ACTUAL", 100),
-                alert("FORECASTED", 100),
-            ],
-        },
-    )
 
 
 def test_no_secret_values_in_the_template(template: Template) -> None:

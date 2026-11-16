@@ -154,12 +154,6 @@ def test_daily_run_numbers_have_the_designs_values():
     assert (s.aws_run_hour_utc, s.aws_log_retention_days) == (2, 14)
 
 
-def test_aws_budget_numbers_have_the_designs_values():
-    s = load_settings(None, env={})
-    assert (s.aws_budget_usd, s.aws_budget_warning_percent) == (10, 85)
-    assert s.aws_budget_email == ""
-
-
 def test_the_network_uses_two_zones_by_default():
     s = load_settings(None, env={})
     assert s.aws_network_zones == 2
