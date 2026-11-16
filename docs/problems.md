@@ -346,3 +346,15 @@ The stack deployed and its address answered with a bad gateway error. The log sa
 
 **What it taught:** tracing what each program reads at start-up has to be done for every command the image runs, not only for the one that was in mind. The web page and the run are two programs with different inputs, and the stack tests, which look at the stack and not at the programs, cannot tell.
 
+## 16 Nov 2026: A running copy of the web function kept the old secret after it was replaced
+
+The web function reads its secrets from Parameter Store once, when a copy of it starts. After the deploy a first visit started a copy, and later the login client's secret was replaced by the new client's. Signing in then reached the last step and failed with a plain "Sign-in failed", because the running copy still sent the old secret and the login service refused it. Changing one line of the function's configuration made AWS start fresh copies, and signing in worked.
+
+**What it taught:** the page says nothing about the reason, on purpose, so the log and the timeline are the only guide. After changing a secret that a function reads at start-up, restart the function. Reading a secret again on each use would avoid this, at the cost of a call to Parameter Store each time.
+
+## 16 Nov 2026: The list of hand-made parts was not the list of what existed
+
+Before deleting the hand-made setup, each service was listed in the account and compared with the ticket 48 list. A schedule and its role, both still on, were not on the list, and the role the hand-made web function used turned out to be the shared sign-in role, which the list had described as a role made for the function. Deleting from the list alone would have left a schedule running and removed a role the owner signs in with.
+
+**What it taught:** a list written while building is a memory and not a record. Before an irreversible step, list what exists, separate it into what is ours and what is shared, and delete only what both agree on.
+
