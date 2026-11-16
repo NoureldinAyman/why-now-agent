@@ -67,6 +67,7 @@ Eight new settings carry the sizes, the hour, the log days and the zones, each i
 - The bucket, the table and the user pool are kept when the stack is deleted, which is the CDK's safe default, so deleting the stack alone does not remove them. The log groups are deleted.
 - Reading the encrypted parameters should work through the default key, but that is not proven until a deploy.
 - The owner's account allows 10 copies in all, and AWS refuses to reserve any when fewer than 10 would stay free, so the first deploy failed on the reservation of two. The owner deploys with `aws_web_max_copies` set to 0, which reserves none, and AWS's own limit of 10 copies at once then caps a flood. Once AWS raises the limit, the default of two can be used.
+- The review page needs a profile to start, so the web function gets the same `daily_profiles` setting as the run, and for now both use the example profile in the image.
 - The recipe makes only the client ID's parameter. The owner enters the session secret and the login client's secret in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values.
 - Leave `aws_bucket` and `aws_table` empty in the owner's settings on the first deploy, so the stack picks fresh names. Names that match the hand-made bucket and table would make the deploy fail, and the stack does not copy any data across.
 - The hand-made image registry has no counterpart, because the CDK uses its own, so it is deleted with the other hand-made parts.

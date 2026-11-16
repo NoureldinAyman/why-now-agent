@@ -340,3 +340,9 @@ The image built and uploaded, and 29 of the 38 parts were created before AWS ref
 
 **What it taught:** a limit the code states can be impossible for the account it runs in, and only a real deploy shows it. Zero can mean "none" in a setting and "everything blocked" in a service, so a setting that allows zero needs a test.
 
+## 16 Nov 2026: The deployed web page crashed at start-up because it was given no profile
+
+The stack deployed and its address answered with a bad gateway error. The log said that `why-now serve` needs a profile, and the stack had given the `daily_profiles` setting to the scheduled run and not to the web function. The same kind of gap as the missing model keys, found a deploy later. The web function now gets the setting, and a test checks it.
+
+**What it taught:** tracing what each program reads at start-up has to be done for every command the image runs, not only for the one that was in mind. The web page and the run are two programs with different inputs, and the stack tests, which look at the stack and not at the programs, cannot tell.
+
