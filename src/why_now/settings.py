@@ -473,23 +473,6 @@ class Settings(BaseModel):
             " at. Starting guess."
         ),
     )
-    aws_budget_usd: float = Field(
-        default=10,
-        description=(
-            "Something quietly costing money. A small limit on purpose, so a mistake shows up"
-            " quickly. Starting guess."
-        ),
-    )
-    aws_budget_warning_percent: int = Field(
-        default=85,
-        ge=1,
-        le=100,
-        description="Time to act before the limit. Starting guess.",
-    )
-    aws_budget_email: str = Field(
-        default="",
-        description="The owner's own address for budget alerts. Set only in the owner's own file.",
-    )
     aws_network_zones: int = Field(
         default=2,
         ge=1,

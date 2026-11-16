@@ -2,7 +2,6 @@ import json
 from pathlib import Path
 
 from aws_cdk import Duration, Environment, Names, RemovalPolicy, Stack
-from aws_cdk import aws_budgets as budgets
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
@@ -29,22 +28,6 @@ LOG_RETENTION = {
     60: logs.RetentionDays.TWO_MONTHS,
     90: logs.RetentionDays.THREE_MONTHS,
 }
-
-
-def budget_alert(
-    kind: str, percent: float, email: str
-) -> budgets.CfnBudget.NotificationWithSubscribersProperty:
-    return budgets.CfnBudget.NotificationWithSubscribersProperty(
-        notification=budgets.CfnBudget.NotificationProperty(
-            notification_type=kind,
-            comparison_operator="GREATER_THAN",
-            threshold=percent,
-            threshold_type="PERCENTAGE",
-        ),
-        subscribers=[
-            budgets.CfnBudget.SubscriberProperty(subscription_type="EMAIL", address=email)
-        ],
-    )
 
 
 class WhyNowStack(Stack):
@@ -202,24 +185,5 @@ class WhyNowStack(Stack):
                     assign_public_ip=True,
                     security_groups=[run_firewall],
                 )
-            ],
-        )
-        if not settings.aws_budget_email:
-            raise ValueError("aws_budget_email must be your own address, for the budget alerts")
-        email = settings.aws_budget_email
-        budgets.CfnBudget(
-            self,
-            "Budget",
-            budget=budgets.CfnBudget.BudgetDataProperty(
-                budget_type="COST",
-                time_unit="MONTHLY",
-                budget_limit=budgets.CfnBudget.SpendProperty(
-                    amount=settings.aws_budget_usd, unit="USD"
-                ),
-            ),
-            notifications_with_subscribers=[
-                budget_alert("ACTUAL", settings.aws_budget_warning_percent, email),
-                budget_alert("ACTUAL", 100, email),
-                budget_alert("FORECASTED", 100, email),
             ],
         )

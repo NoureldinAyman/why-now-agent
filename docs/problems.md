@@ -321,3 +321,9 @@ Preparing the first deploy, a read of the code showed that the models take their
 
 **What it taught:** a test of the setup proves the setup, not that the app can start inside it. Before the first deploy, trace what the program reads at start-up, and check that each thing has a source in the stack.
 
+## 16 Nov 2026: The budget alarm could not be built as code in the owner's region
+
+A preview of the finished stack, run before any deploy, warned that the CloudFormation budget resource does not exist in `eu-north-1`, and AWS confirmed it when asked directly. A deploy there would have failed at the budget and undone everything it had built. The sign-in role is also limited to that one region, so the stack could not move. The alarm was taken out of the stack, and the hand-made budget, which is global and has the same limits, stays.
+
+**What it taught:** run the preview before the first deploy, and read its warnings. Whether a part can be built as code depends on the region, and the tests could not know that, because they check what the stack asks for and not what the region offers.
+

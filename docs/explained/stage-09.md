@@ -54,12 +54,13 @@ The four new numbers (350 KB, 12 hours, 10 minutes, 32 characters) are settings,
 - **The web page.** A Lambda function from the same image, with its own web address that needs no AWS sign-in, because the app checks the login itself. Its copies at once, timeout and memory come from settings. Its role can use only this bucket, this table and the parameters under the prefix.
 - **The network.** Two public subnets, no private ones and no NAT gateway. The daily run gets a public address behind a firewall with no inbound rules, so nothing from outside can connect to it.
 - **The daily run.** A Fargate task from the same image, started by a schedule at the hour in the settings. Its command is `daily` with the first profile in `daily_profiles`, and it will change to `night-run` when that command exists. It has its own role with the same three permissions as the web function.
-- **Logs and money.** Both log groups expire and are deleted with the stack. A budget alarm copies the hand-made one: a monthly limit, alerts at a set percent and at 100 percent of what is spent, and an alert at 100 percent of what AWS forecasts. The address comes from the settings, and the stack will not build without one.
+- **Logs.** Both log groups expire and are deleted with the stack.
 
-Ten new settings carry the sizes, the hour, the log days and the budget, each in the example settings file. The numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
+Eight new settings carry the sizes, the hour, the log days and the zones, each in the example settings file. The numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
 
 **Limits we know about.**
 
+- The budget alarm is not in the stack. CloudFormation has no budget resource in the owner's region, which a preview found before any deploy, so the hand-made budget stays and is the one hand-made part that is not deleted.
 - Nothing has been deployed yet. The tests show what the stack asks AWS for, not that AWS accepts it or that the app works on it.
 - The CDK has not built and pushed the image yet. Docker is not needed to run the tests.
 - The scheduled run uses a profile and board lists that exist inside the image, which today means the examples. There is no tool yet to put the owner's own profile on AWS.
