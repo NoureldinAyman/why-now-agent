@@ -163,6 +163,12 @@ aws_run_memory_mb = 2048
 aws_run_hour_utc = 2
 # Days a log is kept before AWS deletes it.
 aws_log_retention_days = 14
+# Monthly budget for the AWS parts, in US dollars. AWS emails you as spending nears it.
+aws_budget_usd = 10
+# Percent of the budget actually spent at which the first alert is sent.
+aws_budget_warning_percent = 85
+# Your own address for the budget alerts. Set it in your own settings file only.
+aws_budget_email = ""
 # Hours a sign-in lasts before signing in again.
 session_hours = 12
 # Minutes allowed to finish signing in on Cognito's page.

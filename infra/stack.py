@@ -1,7 +1,8 @@
 import json
 from pathlib import Path
 
-from aws_cdk import Duration, Names, RemovalPolicy, Stack
+from aws_cdk import Duration, Environment, Names, RemovalPolicy, Stack
+from aws_cdk import aws_budgets as budgets
 from aws_cdk import aws_cognito as cognito
 from aws_cdk import aws_dynamodb as dynamodb
 from aws_cdk import aws_ec2 as ec2
@@ -30,9 +31,32 @@ LOG_RETENTION = {
 }
 
 
+def budget_alert(
+    kind: str, percent: float, email: str
+) -> budgets.CfnBudget.NotificationWithSubscribersProperty:
+    return budgets.CfnBudget.NotificationWithSubscribersProperty(
+        notification=budgets.CfnBudget.NotificationProperty(
+            notification_type=kind,
+            comparison_operator="GREATER_THAN",
+            threshold=percent,
+            threshold_type="PERCENTAGE",
+        ),
+        subscribers=[
+            budgets.CfnBudget.SubscriberProperty(subscription_type="EMAIL", address=email)
+        ],
+    )
+
+
 class WhyNowStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, *, settings: Settings) -> None:
-        super().__init__(scope, construct_id)
+    def __init__(
+        self,
+        scope: Construct,
+        construct_id: str,
+        *,
+        settings: Settings,
+        env: Environment | None = None,
+    ) -> None:
+        super().__init__(scope, construct_id, env=env)
         self.settings = settings
         retention = LOG_RETENTION.get(settings.aws_log_retention_days)
         if retention is None:
@@ -168,5 +192,24 @@ class WhyNowStack(Stack):
                     assign_public_ip=True,
                     security_groups=[run_firewall],
                 )
+            ],
+        )
+        if not settings.aws_budget_email:
+            raise ValueError("aws_budget_email must be your own address, for the budget alerts")
+        email = settings.aws_budget_email
+        budgets.CfnBudget(
+            self,
+            "Budget",
+            budget=budgets.CfnBudget.BudgetDataProperty(
+                budget_type="COST",
+                time_unit="MONTHLY",
+                budget_limit=budgets.CfnBudget.SpendProperty(
+                    amount=settings.aws_budget_usd, unit="USD"
+                ),
+            ),
+            notifications_with_subscribers=[
+                budget_alert("ACTUAL", settings.aws_budget_warning_percent, email),
+                budget_alert("ACTUAL", 100, email),
+                budget_alert("FORECASTED", 100, email),
             ],
         )

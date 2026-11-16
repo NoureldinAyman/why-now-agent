@@ -493,6 +493,8 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 1 virtual CPU and 2 GB for the daily run | The cost of a run, which is billed by the second for its size | Starting guess. The same as the hand-made run |
 | Daily run starts at 02:00 UTC | The read, which takes hours, being ready by morning | Starting guess. AWS schedules use UTC |
 | Logs kept 14 days | Stored logs adding to the bill, and a failed night being gone before it is looked at | Starting guess. Long enough to look back after a long weekend |
+| $10 a month for the AWS parts | Something quietly costing money | Starting guess. These parts cost almost nothing, so $10 means something is wrong. The same as the hand-made budget |
+| First budget alert at 85% | Time to act before the limit | Starting guess. The same as the hand-made budget |
 | Model prices | Charging each call at its real cost | Anthropic's and TypeSafe's published prices, checked on 6 Nov 2026. A model with no price is refused |
 
 ### Records

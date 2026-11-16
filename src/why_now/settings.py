@@ -473,6 +473,23 @@ class Settings(BaseModel):
             " at. Starting guess."
         ),
     )
+    aws_budget_usd: float = Field(
+        default=10,
+        description=(
+            "Something quietly costing money. These parts cost almost nothing, so $10 means"
+            " something is wrong. Starting guess."
+        ),
+    )
+    aws_budget_warning_percent: int = Field(
+        default=85,
+        ge=1,
+        le=100,
+        description="Time to act before the limit. Starting guess.",
+    )
+    aws_budget_email: str = Field(
+        default="",
+        description="The owner's own address for budget alerts. Set only in the owner's own file.",
+    )
     session_hours: int = Field(
         default=12,
         description="Someone else using a forgotten open session. One working day. Starting guess.",

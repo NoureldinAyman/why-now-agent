@@ -1,23 +1,27 @@
+import json
+from pathlib import Path
+
 import aws_cdk as cdk
 import pytest
-from aws_cdk.assertions import Match, Template
+from aws_cdk.assertions import Match, Matcher, Template
 
+from infra.app import build_app
 from infra.stack import WhyNowStack
 from why_now.settings import load_settings
 
 PROFILE = "profiles/test.yaml"
 BOARDS = "boards/test.json"
+EMAIL = "owner@example.com"
+ENV = {
+    "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
+    "WHY_NOW_BOARD_LISTS": f'{{"greenhouse": "{BOARDS}"}}',
+    "WHY_NOW_AWS_BUDGET_EMAIL": EMAIL,
+}
 
 
 @pytest.fixture(scope="module")
 def template() -> Template:
-    settings = load_settings(
-        None,
-        env={
-            "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
-            "WHY_NOW_BOARD_LISTS": f'{{"greenhouse": "{BOARDS}"}}',
-        },
-    )
+    settings = load_settings(None, env=ENV)
     app = cdk.App()
     stack = WhyNowStack(app, "WhyNowTest", settings=settings)
     return Template.from_stack(stack)
@@ -261,3 +265,60 @@ def test_the_run_accepts_no_connections_from_outside(template: Template) -> None
 def test_logs_expire(template: Template) -> None:
     template.resource_count_is("AWS::Logs::LogGroup", 2)
     template.resource_properties_count_is("AWS::Logs::LogGroup", {"RetentionInDays": 14}, 2)
+
+
+def test_a_budget_alarm_emails_the_owner(template: Template) -> None:
+    def alert(kind: str, percent: int) -> Matcher:
+        return Match.object_like(
+            {
+                "Notification": Match.object_like({"NotificationType": kind, "Threshold": percent}),
+                "Subscribers": [{"SubscriptionType": "EMAIL", "Address": EMAIL}],
+            }
+        )
+
+    template.has_resource_properties(
+        "AWS::Budgets::Budget",
+        {
+            "Budget": Match.object_like(
+                {
+                    "BudgetType": "COST",
+                    "TimeUnit": "MONTHLY",
+                    "BudgetLimit": {"Amount": 10, "Unit": "USD"},
+                }
+            ),
+            "NotificationsWithSubscribers": [
+                alert("ACTUAL", 85),
+                alert("ACTUAL", 100),
+                alert("FORECASTED", 100),
+            ],
+        },
+    )
+
+
+def test_no_secret_values_in_the_template(template: Template) -> None:
+    template.resource_count_is("AWS::SecretsManager::Secret", 0)
+    template.resource_count_is("AWS::SSM::Parameter", 1)
+    template.resource_properties_count_is("AWS::SSM::Parameter", {"Type": "String"}, 1)
+    text = json.dumps(template.to_json())
+    for word in ("session-secret", "client-secret", "sk-ant-", "PASSWORD", "API_KEY"):
+        assert word not in text
+
+
+def test_app_builds_the_stack_where_the_settings_say() -> None:
+    settings = load_settings(None, env=ENV | {"WHY_NOW_AWS_REGION": "eu-test-1"})
+    app = build_app(settings, account="111111111111")
+    stack = app.node.find_child("WhyNow")
+    assert isinstance(stack, WhyNowStack)
+    assert (stack.region, stack.account) == ("eu-test-1", "111111111111")
+
+
+def test_the_app_refuses_to_build_without_a_region() -> None:
+    with pytest.raises(ValueError, match="aws_region"):
+        build_app(load_settings(None, env=ENV), account=None)
+
+
+def test_stack_builds_from_example_settings() -> None:
+    example = Path(__file__).resolve().parents[2] / "examples" / "settings.example.toml"
+    settings = load_settings(example, env=ENV | {"WHY_NOW_AWS_REGION": "eu-test-1"})
+    app = build_app(settings, account=None)
+    assert isinstance(app.node.find_child("WhyNow"), WhyNowStack)
