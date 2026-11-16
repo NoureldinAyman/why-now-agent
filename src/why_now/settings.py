@@ -476,8 +476,8 @@ class Settings(BaseModel):
     aws_budget_usd: float = Field(
         default=10,
         description=(
-            "Something quietly costing money. These parts cost almost nothing, so $10 means"
-            " something is wrong. Starting guess."
+            "Something quietly costing money. A small limit on purpose, so a mistake shows up"
+            " quickly. Starting guess."
         ),
     )
     aws_budget_warning_percent: int = Field(
@@ -489,6 +489,14 @@ class Settings(BaseModel):
     aws_budget_email: str = Field(
         default="",
         description="The owner's own address for budget alerts. Set only in the owner's own file.",
+    )
+    aws_network_zones: int = Field(
+        default=2,
+        ge=1,
+        description=(
+            "The run failing because one AWS zone is down. Public subnets are free, so two zones"
+            " cost nothing extra. Starting guess."
+        ),
     )
     session_hours: int = Field(
         default=12,

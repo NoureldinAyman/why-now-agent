@@ -12,7 +12,7 @@ Decided 16 Nov 2026. Fills in the hosting table in the design's "Hosting on AWS"
 
 ## Why
 
-The project is used by one person in occasional sittings, so most hours of most days nothing is running. Parts that bill by use cost almost nothing then, and parts that bill by the hour cost the same whether or not anyone is there.
+The project is used by one person in occasional sittings, so most hours of most days nothing is running. Parts that bill by use cost little then, and parts that bill by the hour cost the same whether or not anyone is there.
 
 - **Lambda for the page** runs only when someone visits, and stops by itself. The two-copy limit means a flood of bad requests cannot run up a bill.
 - **Fargate for the run** because the read takes hours and Lambda stops a call at 15 minutes. A Fargate task is billed by the second while it runs, and it needs no machine of its own.
@@ -33,5 +33,3 @@ The project is used by one person in occasional sittings, so most hours of most 
 - **A 15-minute limit on web requests,** which the page never needs, and no live connections, which it does not use.
 - **Less control.** There is no server to log in to, so problems are found in the logs.
 - **The run is reachable from the internet in principle,** because it sits in a public subnet. Its firewall blocks every inbound connection, and that is checked by a test.
-EOF
-ls docs/decisions | tail -2

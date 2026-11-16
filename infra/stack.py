@@ -147,7 +147,7 @@ class WhyNowStack(Stack):
         self.network = ec2.Vpc(
             self,
             "Network",
-            max_azs=2,
+            max_azs=settings.aws_network_zones,
             nat_gateways=0,
             subnet_configuration=[
                 ec2.SubnetConfiguration(name="public", subnet_type=ec2.SubnetType.PUBLIC)

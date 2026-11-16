@@ -56,7 +56,7 @@ The four new numbers (350 KB, 12 hours, 10 minutes, 32 characters) are settings,
 - **The daily run.** A Fargate task from the same image, started by a schedule at the hour in the settings. Its command is `daily` with the first profile in `daily_profiles`, and it will change to `night-run` when that command exists. It has its own role with the same three permissions as the web function.
 - **Logs and money.** Both log groups expire and are deleted with the stack. A budget alarm copies the hand-made one: a monthly limit, alerts at a set percent and at 100 percent of what is spent, and an alert at 100 percent of what AWS forecasts. The address comes from the settings, and the stack will not build without one.
 
-Ten new settings carry the sizes, the hour, the log days and the budget, each in the example settings file. The nine numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
+Ten new settings carry the sizes, the hour, the log days and the budget, each in the example settings file. The numbers have lines in the design's table. No account number, region or address is in the code: the region comes from the settings, and the account from the AWS sign-in used to deploy.
 
 **Limits we know about.**
 
@@ -66,6 +66,9 @@ Ten new settings carry the sizes, the hour, the log days and the budget, each in
 - The bucket, the table and the user pool are kept when the stack is deleted, which is the CDK's safe default, so deleting the stack alone does not remove them. The log groups are deleted.
 - Reading the encrypted parameters should work through the default key, but that is not proven until a deploy.
 - A brand-new AWS account may allow too few web copies to reserve two. The deploy would say so.
+- The recipe makes only the client ID's parameter. The owner enters the session secret and the login client's secret in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values.
+- Leave `aws_bucket` and `aws_table` empty in the owner's settings on the first deploy, so the stack picks fresh names. Names that match the hand-made bucket and table would make the deploy fail, and the stack does not copy any data across.
+- The hand-made image registry has no counterpart, because the CDK uses its own, so it is deleted with the other hand-made parts.
 - The recipe passes the run no model keys. The run's role may read the parameters, but a real run has not been tried.
 
 **The hardest question:** "You never deployed it. How do you know it builds what you say?"
