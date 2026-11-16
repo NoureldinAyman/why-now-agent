@@ -333,3 +333,10 @@ A preview of the finished stack, run before any deploy, warned that the CloudFor
 The deploy stopped at the image build with "The system cannot find the file specified" for `infra`. The CDK copies only the files `.dockerignore` lets through into a staging folder and builds from there, and the ignore list did not name `infra/Dockerfile`, so the Dockerfile was not in the folder it was told to use. Building by hand had worked, because Docker reads the Dockerfile straight from the project. The tests and the preview never build an image, so none could notice. The Dockerfile is now on the list, and a test looks for it in the staged folder, which reproduces the failure without Docker.
 
 **What it taught:** a tool that copies files before using them can fail where the tool that reads them in place does not. Before a first deploy, check the staged files and not only the stack description.
+
+## 16 Nov 2026: The second deploy stopped at the web function's reserved copies
+
+The image built and uploaded, and 29 of the 38 parts were created before AWS refused the web function: reserving two copies would leave fewer than 10 unreserved, and the owner's account allows 10 copies in all. CloudFormation rolled everything back by itself. The bucket, table and login pool were kept by design, so they were left behind, empty. The setting now allows 0, which reserves none, and a test checks that 0 leaves the function unreserved. In Lambda a reservation of 0 means "allow no requests", so passing the setting straight through would have made a page that never answers.
+
+**What it taught:** a limit the code states can be impossible for the account it runs in, and only a real deploy shows it. Zero can mean "none" in a setting and "everything blocked" in a service, so a setting that allows zero needs a test.
+

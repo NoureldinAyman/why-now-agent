@@ -83,7 +83,7 @@ class WhyNowStack(Stack):
             architecture=lambda_.Architecture.X86_64,
             memory_size=settings.aws_web_memory_mb,
             timeout=Duration.seconds(settings.aws_web_timeout_seconds),
-            reserved_concurrent_executions=settings.aws_web_max_copies,
+            reserved_concurrent_executions=settings.aws_web_max_copies or None,
             log_group=web_logs,
             environment={
                 "WHY_NOW_AWS_REGION": self.region,

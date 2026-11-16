@@ -150,6 +150,7 @@ cognito_user_pool_id = ""
 # Cognito login client. Left empty, it is read from Parameter Store at start-up.
 cognito_client_id = ""
 # Most copies of the web page that may run at once. A cap on what a flood of requests can cost.
+# 0 reserves none, for an account whose AWS limit is too low to reserve any.
 aws_web_max_copies = 2
 # Seconds one web page request may take before AWS stops it.
 aws_web_timeout_seconds = 30
