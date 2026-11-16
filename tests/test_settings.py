@@ -146,3 +146,9 @@ def test_exactly_two_judge_candidates_are_allowed():
 def test_web_function_numbers_have_the_designs_values():
     s = load_settings(None, env={})
     assert (s.aws_web_max_copies, s.aws_web_timeout_seconds, s.aws_web_memory_mb) == (2, 30, 1024)
+
+
+def test_daily_run_numbers_have_the_designs_values():
+    s = load_settings(None, env={})
+    assert (s.aws_run_cpu, s.aws_run_memory_mb) == (1024, 2048)
+    assert (s.aws_run_hour_utc, s.aws_log_retention_days) == (2, 14)

@@ -446,6 +446,33 @@ class Settings(BaseModel):
             " Starting guess."
         ),
     )
+    aws_run_cpu: int = Field(
+        default=1024,
+        description=(
+            "The cost of a daily run, which is billed by the second for its size. 1024 is one"
+            " virtual CPU. Starting guess."
+        ),
+    )
+    aws_run_memory_mb: int = Field(
+        default=2048,
+        description="The cost of a daily run, which is billed for its memory. Starting guess.",
+    )
+    aws_run_hour_utc: int = Field(
+        default=2,
+        ge=0,
+        le=23,
+        description=(
+            "The read, which takes hours, being ready by morning. AWS schedules use UTC."
+            " Starting guess."
+        ),
+    )
+    aws_log_retention_days: int = Field(
+        default=14,
+        description=(
+            "Stored logs adding to the bill, and a failed night being gone before it is looked"
+            " at. Starting guess."
+        ),
+    )
     session_hours: int = Field(
         default=12,
         description="Someone else using a forgotten open session. One working day. Starting guess.",
