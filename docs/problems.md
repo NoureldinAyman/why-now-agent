@@ -314,3 +314,10 @@ The first stack test failed with "No module named `infra.stack`". The tests live
 Running tests with `uv run --extra infra` installed the CDK libraries and removed the `aws` group, so three older test files could no longer import their libraries and the repo-rules check failed. Syncing every group with `uv sync --all-extras` fixed it, and plain `uv run` is used after that.
 
 **What it taught:** a command that names one optional group means exactly that group. When a test fails with a missing library, check which groups are installed before looking at the code.
+
+## 16 Nov 2026: The scheduled run had no way to receive its model keys
+
+Preparing the first deploy, a read of the code showed that the models take their keys only from environment variables, and the stack gave the run none, so a scheduled run would have stopped at its first model call. The stack tests had no reason to notice, because they check what the stack contains and not what the app needs. The stack now names two Parameter Store secrets for the run, and a test checks that they are passed.
+
+**What it taught:** a test of the setup proves the setup, not that the app can start inside it. Before the first deploy, trace what the program reads at start-up, and check that each thing has a source in the stack.
+

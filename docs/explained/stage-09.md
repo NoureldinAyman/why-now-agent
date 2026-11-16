@@ -69,7 +69,7 @@ Ten new settings carry the sizes, the hour, the log days and the budget, each in
 - The recipe makes only the client ID's parameter. The owner enters the session secret and the login client's secret in Parameter Store, and creates the one login user with its authenticator app, because no agent handles those values.
 - Leave `aws_bucket` and `aws_table` empty in the owner's settings on the first deploy, so the stack picks fresh names. Names that match the hand-made bucket and table would make the deploy fail, and the stack does not copy any data across.
 - The hand-made image registry has no counterpart, because the CDK uses its own, so it is deleted with the other hand-made parts.
-- The recipe passes the run no model keys. The run's role may read the parameters, but a real run has not been tried.
+- The run gets its two model keys from Parameter Store, under the names `anthropic-api-key` and `typesafe-api-key` below the prefix. The stack only names them, and the owner enters the values, so a run fails at its first model call until they exist. A real run has not been tried.
 
 **The hardest question:** "You never deployed it. How do you know it builds what you say?"
 

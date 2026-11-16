@@ -162,6 +162,12 @@ class WhyNowStack(Stack):
             cpu=settings.aws_run_cpu,
             memory_limit_mib=settings.aws_run_memory_mb,
         )
+        anthropic_key = ssm.StringParameter.from_secure_string_parameter_attributes(
+            self, "AnthropicKey", parameter_name=f"/{parameter_path}/anthropic-api-key"
+        )
+        typesafe_key = ssm.StringParameter.from_secure_string_parameter_attributes(
+            self, "TypesafeKey", parameter_name=f"/{parameter_path}/typesafe-api-key"
+        )
         self.run_task.add_container(
             "Run",
             image=ecs.ContainerImage.from_asset(str(REPO_ROOT), file="infra/Dockerfile"),
@@ -174,6 +180,10 @@ class WhyNowStack(Stack):
                 "WHY_NOW_BOARD_LISTS": json.dumps(
                     {name: path.as_posix() for name, path in settings.board_lists.items()}
                 ),
+            },
+            secrets={
+                "ANTHROPIC_API_KEY": ecs.Secret.from_ssm_parameter(anthropic_key),
+                "TYPESAFE_API_KEY": ecs.Secret.from_ssm_parameter(typesafe_key),
             },
         )
         self.bucket.grant_read_write(self.run_task.task_role)

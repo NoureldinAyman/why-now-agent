@@ -300,7 +300,7 @@ def test_no_secret_values_in_the_template(template: Template) -> None:
     template.resource_count_is("AWS::SSM::Parameter", 1)
     template.resource_properties_count_is("AWS::SSM::Parameter", {"Type": "String"}, 1)
     text = json.dumps(template.to_json())
-    for word in ("session-secret", "client-secret", "sk-ant-", "PASSWORD", "API_KEY"):
+    for word in ("session-secret", "client-secret", "sk-ant-", "PASSWORD"):
         assert word not in text
 
 
@@ -322,3 +322,21 @@ def test_stack_builds_from_example_settings() -> None:
     settings = load_settings(example, env=ENV | {"WHY_NOW_AWS_REGION": "eu-test-1"})
     app = build_app(settings, account=None)
     assert isinstance(app.node.find_child("WhyNow"), WhyNowStack)
+
+
+def test_daily_run_gets_its_model_keys_from_parameter_store(template: Template) -> None:
+    template.has_resource_properties(
+        "AWS::ECS::TaskDefinition",
+        {
+            "ContainerDefinitions": [
+                Match.object_like(
+                    {
+                        "Secrets": [
+                            {"Name": "ANTHROPIC_API_KEY", "ValueFrom": Match.any_value()},
+                            {"Name": "TYPESAFE_API_KEY", "ValueFrom": Match.any_value()},
+                        ]
+                    }
+                )
+            ]
+        },
+    )
