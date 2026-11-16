@@ -430,9 +430,11 @@ class Settings(BaseModel):
     )  # read from Parameter Store when left empty
     aws_web_max_copies: int = Field(
         default=2,
+        ge=0,
         description=(
             "A flood of bad requests running up a bill. The review page is for one person, so two"
-            " copies at once is plenty."
+            " copies at once is plenty. 0 reserves none, for an account whose AWS limit is too low"
+            " to reserve any, so AWS's own limit applies."
         ),
     )
     aws_web_timeout_seconds: int = Field(

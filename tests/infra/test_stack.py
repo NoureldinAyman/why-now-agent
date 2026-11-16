@@ -320,3 +320,11 @@ def test_the_staged_image_folder_holds_the_dockerfile() -> None:
     assert list(staged.glob("asset.*/infra/Dockerfile")), (
         "the image build cannot find its Dockerfile"
     )
+
+
+def test_zero_web_copies_leaves_the_function_unreserved() -> None:
+    settings = load_settings(None, env=ENV | {"WHY_NOW_AWS_WEB_MAX_COPIES": "0"})
+    unreserved = Template.from_stack(WhyNowStack(cdk.App(), "WhyNowZero", settings=settings))
+    unreserved.has_resource_properties(
+        "AWS::Lambda::Function", {"ReservedConcurrentExecutions": Match.absent()}
+    )
