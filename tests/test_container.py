@@ -7,7 +7,6 @@ starts, the way the image would, against a stand-in AWS.
 import json
 from pathlib import Path
 
-import pytest
 import typer
 from aws_fake import BUCKET, PARAMETER_PREFIX, REGION, TABLE, put_parameter
 from fastapi.testclient import TestClient
@@ -125,8 +124,5 @@ def test_container_starts_the_app(moto_aws, monkeypatch, tmp_path, make_profile)
     assert page.get("/mark", follow_redirects=False).headers["location"] == "/login"
 
 
-@pytest.mark.xfail(
-    strict=True, reason="`why-now night-run` arrives with ticket 29. Remove this mark then."
-)
 def test_container_starts_the_night_run():
     assert "night-run" in command_names()

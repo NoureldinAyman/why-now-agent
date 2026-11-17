@@ -8,6 +8,7 @@ from why_now.workspace.base import WorkspaceBase
 from why_now.workspace.cases import CasesArea
 from why_now.workspace.daily import DailyArea
 from why_now.workspace.evaluation import EvaluationArea
+from why_now.workspace.improve import ImproveArea
 from why_now.workspace.judge import JudgeArea
 from why_now.workspace.marks import MarksArea
 from why_now.workspace.quick_look import QuickLookArea
@@ -18,6 +19,7 @@ class Workspace(
     CasesArea,
     DailyArea,
     EvaluationArea,
+    ImproveArea,
     MarksArea,
     QuickLookArea,
     ReadArea,

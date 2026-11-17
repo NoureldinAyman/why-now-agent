@@ -106,6 +106,10 @@ _Avoid_: Validation set, dev set
 Test cases opened only at big milestones. Only these give the numbers quoted as results.
 _Avoid_: Test set, held-out set
 
+**Mistake**:
+A company where the agent's yes or no differs from the reviewer's. Mistakes come from the practice pile and from the reviewer's daily decisions, never from the check or final pile. The agent reads them when it tries to improve.
+_Avoid_: Error, failure, miss
+
 **Try**:
 One attempt to improve: a single change to the rules file, measured on the check pile, then kept or discarded. Every try is recorded either way.
 _Avoid_: Experiment, iteration, run

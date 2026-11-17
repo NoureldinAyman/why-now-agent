@@ -118,6 +118,20 @@ class Settings(BaseModel):
             " behind."
         ),
     )
+    new_check_companies: int = Field(
+        default=25,
+        description=(
+            "Against wearing out the check pile. After the allowed tries, this many new check "
+            "companies must join before more are made. Starting guess."
+        ),
+    )
+    tries_per_run: int = Field(
+        default=3,
+        description=(
+            "A run started on demand ending quickly, and one run using up the check pile. "
+            "Starting guess."
+        ),
+    )
 
     practice_size: int = Field(
         default=45,
@@ -397,6 +411,20 @@ class Settings(BaseModel):
     )
     screen_max_why_words: int = Field(
         default=20, description="Learned rules that cannot be explained briefly. Starting guess."
+    )
+    mistake_ads: int = Field(
+        default=3,
+        description=(
+            "The cost of each improvement call. How many of a company's ads are shown with "
+            "each mistake. Starting guess."
+        ),
+    )
+    mistake_ad_chars: int = Field(
+        default=300,
+        description=(
+            "The cost of each improvement call. How much of each of those ads is shown. "
+            "Starting guess."
+        ),
     )
 
     # Only used when `deployment = "aws"`. The names come from the AWS setup.

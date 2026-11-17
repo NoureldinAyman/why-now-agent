@@ -31,6 +31,10 @@ newest_ads_read = 5
 keep_min_gain = 2
 # Tries allowed against one check pile before it is worn out.
 tries_per_check_pile = 50
+# New check companies needed after those tries before more are made.
+new_check_companies = 25
+# Most tries in one improvement run.
+tries_per_run = 3
 
 # Companies in the practice pile.
 practice_size = 45
@@ -130,6 +134,10 @@ brief_max_chars = 1200
 screen_max_copied_words = 8
 # Most words in the reason given for a proposed rule.
 screen_max_why_words = 20
+# Most ads shown with each mistake when asking for a change.
+mistake_ads = 3
+# Most characters of each of those ads.
+mistake_ad_chars = 300
 
 # The settings below are only used when deployment = "aws". Names come from the AWS setup.
 # Secrets are never set here: they come from the environment or from Parameter Store.
