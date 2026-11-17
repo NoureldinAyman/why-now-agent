@@ -211,16 +211,22 @@ def test_an_unknown_mode_is_refused(client, launcher):
     assert launcher.commands == []
 
 
-def test_improve_now_shows_only_once_the_improvement_run_exists(client, monkeypatch, launcher):
-    from why_now.web import routes_control
-
-    assert "Improve now" not in client.get("/run").text
-    assert run(client, "improve").status_code == 422
-
-    monkeypatch.setattr(routes_control, "improve_exists", lambda: True)
+def test_improve_now_is_offered_and_starts_the_improvement_run(client, launcher):
     assert "Improve now" in client.get("/run").text
     assert run(client, "improve").status_code == 303
     assert launcher.commands[0][:2] == ["why-now", "improve"]
+
+
+def test_improve_now_is_left_out_while_the_improvement_run_does_not_exist(
+    client, monkeypatch, launcher
+):
+    from why_now.web import routes_control
+
+    monkeypatch.setattr(routes_control, "improve_exists", lambda: False)
+
+    assert "Improve now" not in client.get("/run").text
+    assert run(client, "improve").status_code == 422
+    assert launcher.commands == []
 
 
 # Profile

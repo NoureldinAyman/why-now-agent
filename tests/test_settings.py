@@ -14,6 +14,7 @@ def test_defaults_match_the_design():
     assert (s.short_list_size, s.hide_days, s.new_ad_days) == (10, 90, 14)
     assert (s.research_per_day, s.research_steps, s.keep_min_gain) == (12, 5, 2)
     assert s.tries_per_check_pile == 50
+    assert (s.tries_per_run, s.new_check_companies) == (3, 25)
     assert (s.practice_size, s.check_size, s.final_size) == (45, 45, 45)
     assert (s.target_yes_per_pile, s.floor_yes_per_pile) == (15, 15)
     assert (s.pilot_size, s.marking_ceiling, s.remark_size) == (40, 500, 30)
@@ -36,6 +37,7 @@ def test_numbers_added_to_the_design_table_have_its_values():
     assert (s.max_page_bytes, s.page_timeout_seconds) == (2_000_000, 15)
     assert (s.max_ad_chars, s.max_pack_chars, s.brief_max_chars) == (20_000, 60_000, 1_200)
     assert (s.screen_max_copied_words, s.screen_max_why_words) == (8, 20)
+    assert (s.mistake_ads, s.mistake_ad_chars) == (3, 300)
     assert (s.aws_inline_max_bytes, s.session_hours, s.login_minutes) == (350_000, 12, 10)
     assert s.session_secret_min_chars == 32
 

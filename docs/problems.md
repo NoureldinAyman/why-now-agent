@@ -358,3 +358,16 @@ Before deleting the hand-made setup, each service was listed in the account and 
 
 **What it taught:** a list written while building is a memory and not a record. Before an irreversible step, list what exists, separate it into what is ours and what is shared, and delete only what both agree on.
 
+
+
+## 17 Nov 2026: A heading shown twice in the AI's briefing passed every test
+
+After an edit, the briefing for the proposer printed "Mistakes:" twice, once before the reasons given for right yes answers and once before the list of mistakes. Every test passed, because each checked that a piece was present and none checked that it was present once. It was found by reading the file. A test now checks that no heading in the briefing repeats.
+
+**What it taught:** a test that something is there does not catch something there twice. For text that goes to a model, read the whole text once as the model sees it.
+
+## 17 Nov 2026: A mistake's name could not be used as a file name
+
+A mistake is named by where it came from and the company, such as `practice:Acme`. The first plan was to keep one record for each tried mistake under that name, but the store refuses a colon in a key, because a colon is not allowed in a file name on Windows. The tried mistakes are now kept as one list for each rules version, and the colon is only inside the list.
+
+**What it taught:** a name made for people to read may not be safe as a key. Check the store's key rules before choosing what to save under.
