@@ -6,8 +6,8 @@ from why_now.cli import app
 from why_now.setup_check import check_setup
 
 
-def by_name(settings, env):
-    return {i.name: i for i in check_setup(settings, env)}
+def by_name(settings, env, profile_ids=()):
+    return {i.name: i for i in check_setup(settings, env, profile_ids)}
 
 
 def test_no_keys_still_allows_the_sample_run(settings):
@@ -46,33 +46,25 @@ def test_an_empty_key_counts_as_missing(settings):
     assert by_name(settings, {"ANTHROPIC_API_KEY": "  "})["Claude API key"].status == "missing"
 
 
-def test_careers_page_list_and_profile_follow_the_settings(settings, tmp_path):
-    items = by_name(settings, {})
-    assert items["careers page list"].status == "missing"
-    assert items["profile"].status == "missing"
+def test_careers_page_list_follows_the_settings(settings, tmp_path):
+    assert by_name(settings, {})["careers page list"].status == "missing"
 
     board_list = tmp_path / "boards.json"
     board_list.write_text(json.dumps(["acme"]))
-    profile = tmp_path / "p.yaml"
-    profile.write_text("id: x")
-    ready = settings.model_copy(
-        update={"board_lists": {"greenhouse": board_list}, "daily_profiles": [profile]}
-    )
-    items = by_name(ready, {})
-    assert items["careers page list"].status == "ok"
-    assert items["profile"].status == "ok"
+    ready = settings.model_copy(update={"board_lists": {"greenhouse": board_list}})
+    assert by_name(ready, {})["careers page list"].status == "ok"
 
 
 def test_a_listed_file_that_does_not_exist_is_missing(settings, tmp_path):
-    broken = settings.model_copy(
-        update={
-            "board_lists": {"greenhouse": tmp_path / "nope.json"},
-            "daily_profiles": [tmp_path / "nope.yaml"],
-        }
-    )
-    items = by_name(broken, {})
-    assert items["careers page list"].status == "missing"
-    assert items["profile"].status == "missing"
+    broken = settings.model_copy(update={"board_lists": {"greenhouse": tmp_path / "nope.json"}})
+    assert by_name(broken, {})["careers page list"].status == "missing"
+
+
+def test_the_profile_item_follows_the_profiles_in_the_workspace(settings):
+    missing = by_name(settings, {})["profile"]
+    assert missing.status == "missing"
+    assert "why-now profile upload" in missing.how_to_fix
+    assert by_name(settings, {}, ["mine"])["profile"].status == "ok"
 
 
 def run_cli(args, env):

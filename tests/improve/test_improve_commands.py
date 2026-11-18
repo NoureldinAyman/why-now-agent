@@ -1,5 +1,6 @@
 import json
 from dataclasses import replace
+from pathlib import Path
 
 import yaml
 from eval_world import NOW, Tracer, add_case, models_saying
@@ -14,8 +15,11 @@ from why_now.cli import improve as improve_command
 from why_now.domain import RulesFile
 from why_now.evaluation.evaluate import EvalRun
 from why_now.hostile.attacks import load_attacks
+from why_now.profile import profile_text
+from why_now.settings import load_settings
 from why_now.store.local import LocalStore
 from why_now.workspace import Workspace
+from why_now.workspace.settings_doc import save_overrides
 
 NAMING = {
     "action": "add",
@@ -132,7 +136,7 @@ def test_night_run_does_the_daily_list_then_the_loop_for_each_profile(
     monkeypatch.setattr(
         daily_command,
         "daily",
-        lambda **kwargs: steps.append(f"daily {kwargs['profile_file'].name}"),
+        lambda **kwargs: steps.append(f"daily {Path(kwargs['profile_ref']).name}"),
     )
     monkeypatch.setattr(
         improve_command,
@@ -152,12 +156,74 @@ def test_night_run_does_the_daily_list_then_the_loop_for_each_profile(
     ]
 
 
-def test_night_run_with_no_profile_says_what_to_give(tmp_path, monkeypatch):
+def test_night_run_with_no_profile_switched_on_says_how_to_switch_one_on(tmp_path, monkeypatch):
     settings = tmp_path / "settings.toml"
     settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
 
-    assert result.exit_code == 2
-    assert "daily_profiles" in result.output
+    assert result.exit_code == 0, result.output
+    assert "No profile is switched on" in result.output
+    assert "nightly_profiles" in result.output
+
+
+def test_night_run_works_only_for_the_profiles_switched_on(tmp_path, monkeypatch, make_profile):
+    on, off = make_profile(), make_profile()
+    store = LocalStore(tmp_path / "ws")
+    for profile in (on, off):
+        Workspace(store).save_profile(profile, profile_text(profile))
+    settings = tmp_path / "settings.toml"
+    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    save_overrides(store, load_settings(settings), {"nightly_profiles": [on.id]})
+    steps: list[str] = []
+    monkeypatch.setattr(
+        daily_command, "daily", lambda **kwargs: steps.append(f"daily {kwargs['profile_ref']}")
+    )
+    monkeypatch.setattr(
+        improve_command,
+        "improve_profile",
+        lambda settings, workspace, profile: steps.append(f"improve {profile.id}") or True,
+    )
+
+    result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
+
+    assert result.exit_code == 0, result.output
+    assert steps == [f"daily {on.id}", f"improve {on.id}"]
+
+
+def test_night_run_does_nothing_when_every_profile_is_off(tmp_path, monkeypatch, make_profile):
+    profile = make_profile()
+    store = LocalStore(tmp_path / "ws")
+    Workspace(store).save_profile(profile, profile_text(profile))
+    settings = tmp_path / "settings.toml"
+    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    save_overrides(store, load_settings(settings), {"nightly_profiles": []})
+    monkeypatch.setattr(daily_command, "daily", lambda **kwargs: 1 / 0)
+
+    result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
+
+    assert result.exit_code == 0, result.output
+    assert "No profile is switched on" in result.output
+
+
+def test_night_run_skips_a_listed_profile_that_is_not_in_the_workspace(
+    tmp_path, monkeypatch, make_profile
+):
+    present = make_profile()
+    store = LocalStore(tmp_path / "ws")
+    Workspace(store).save_profile(present, profile_text(present))
+    settings = tmp_path / "settings.toml"
+    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    save_overrides(store, load_settings(settings), {"nightly_profiles": ["gone", present.id]})
+    steps: list[str] = []
+    monkeypatch.setattr(
+        daily_command, "daily", lambda **kwargs: steps.append(f"daily {kwargs['profile_ref']}")
+    )
+    monkeypatch.setattr(improve_command, "improve_profile", lambda *args: True)
+
+    result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
+
+    assert result.exit_code == 0, result.output
+    assert steps == [f"daily {present.id}"]
+    assert "gone" in result.output

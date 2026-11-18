@@ -22,9 +22,9 @@ def make_models(settings: Settings, meter: Meter) -> Models:
 
 
 @app.command("hostile-test")
-def hostile_test(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def hostile_test(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Run the invented hostile ads and pages against the models. This costs money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     store = workspace.store
     models = make_models(settings, Meter(store, settings, now))
     cutoff = workspace.cutoff(models.judge.answer_key)

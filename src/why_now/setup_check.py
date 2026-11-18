@@ -3,7 +3,7 @@
 Only the names of keys are looked at and shown. A key's value is never printed.
 """
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
 from typing import Literal
 
@@ -22,7 +22,11 @@ class SetupItem(BaseModel):
     how_to_fix: str = ""
 
 
-def check_setup(settings: Settings, env: Mapping[str, str]) -> list[SetupItem]:
+def check_setup(
+    settings: Settings, env: Mapping[str, str], profile_ids: Sequence[str] = ()
+) -> list[SetupItem]:
+    """What is ready and what is missing. `profile_ids` are the profiles in the workspace."""
+
     def has(key: str) -> bool:
         return bool(env.get(key, "").strip())
 
@@ -43,10 +47,12 @@ def check_setup(settings: Settings, env: Mapping[str, str]) -> list[SetupItem]:
         )
     )
     items.append(
-        _file_item(
-            "profile",
-            settings.daily_profiles,
-            "Add daily_profiles to your settings file, pointing at a profile file you wrote.",
+        SetupItem(name="profile", status="ok")
+        if profile_ids
+        else SetupItem(
+            name="profile",
+            status="missing",
+            how_to_fix="Upload a profile file with: why-now profile upload FILE",
         )
     )
     return items

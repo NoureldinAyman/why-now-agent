@@ -3,6 +3,11 @@
 {% block title %}Profile{% endblock %}
 {% block content %}
 <h1>Profile: {{ profile.product_name }}</h1>
+{% if not can_save %}
+<p class="lede">This profile as the workspace holds it. It is read-only here. Change the file on your own computer, then upload it with <code>why-now profile upload FILE</code>.</p>
+<p class="note">Version {{ version }}.</p>
+{% include "_profile_view.html" %}
+{% else %}
 <p class="lede">The profile file, as text. Check it with Preview, which costs nothing, then save it. Saving is your approval of every question in it, the required ones above all, because the improvement loop can never change those.</p>
 <p class="note">Version {{ version }}{% if path %}, from <code>{{ path }}</code>{% endif %}.</p>
 {% if marked %}<div class="alert" role="status">{{ ic("alert", "alert-ic") }}<div><p>Companies have been marked for this profile, so saving a change starts a new version. Marks are kept, but scores from different versions are never joined as one line.</p></div></div>{% endif %}
@@ -20,12 +25,11 @@
 <form method="post" action="/profile/preview{{ query }}" class="mark-form">
   <input type="hidden" name="form_token" value="{{ form_token }}">
   <label for="text">Profile file</label>
-  <textarea id="text" class="profile-box" name="text" rows="30" spellcheck="false"{% if not can_save %} readonly{% endif %}>{{ text }}</textarea>
+  <textarea id="text" class="profile-box" name="text" rows="30" spellcheck="false">{{ text }}</textarea>
   <p>
     <button type="submit">Preview</button>
-    {% if can_save %}<button type="submit" formaction="/profile/save{{ query }}">Save</button>{% endif %}
+    <button type="submit" formaction="/profile/save{{ query }}">Save</button>
   </p>
-  {% if not can_save %}<p class="note">Profiles are edited on your own computer. Change the file there and deploy it.</p>{% endif %}
 </form>
 {% if preview %}
 <section class="tile">
@@ -44,5 +48,6 @@
   <ul>{% for q in quick_look %}<li>{{ q.text }}</li>{% endfor %}</ul>
   {% endif %}
 </section>
+{% endif %}
 {% endif %}
 {% endblock %}

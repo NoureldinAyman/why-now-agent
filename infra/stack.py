@@ -89,9 +89,6 @@ class WhyNowStack(Stack):
                 "WHY_NOW_AWS_REGION": self.region,
                 "WHY_NOW_AWS_BUCKET": self.bucket.bucket_name,
                 "WHY_NOW_AWS_TABLE": self.table.table_name,
-                "WHY_NOW_DAILY_PROFILES": json.dumps(
-                    [path.as_posix() for path in settings.daily_profiles]
-                ),
             },
         )
         self.web_url = self.web.add_function_url(auth_type=lambda_.FunctionUrlAuthType.NONE)
@@ -139,8 +136,6 @@ class WhyNowStack(Stack):
                 ec2.SubnetConfiguration(name="public", subnet_type=ec2.SubnetType.PUBLIC)
             ],
         )
-        if not settings.daily_profiles:
-            raise ValueError("daily_profiles must name a profile for the scheduled run")
         self.cluster = ecs.Cluster(self, "Cluster", vpc=self.network)
         self.run_task = ecs.FargateTaskDefinition(
             self,
@@ -157,7 +152,8 @@ class WhyNowStack(Stack):
         self.run_task.add_container(
             "Run",
             image=ecs.ContainerImage.from_asset(str(REPO_ROOT), file="infra/Dockerfile"),
-            command=["daily", "--profile", settings.daily_profiles[0].as_posix()],
+            # Which profiles run is the night list kept in the workspace, so the image holds none.
+            command=["night-run"],
             logging=ecs.LogDrivers.aws_logs(stream_prefix="run", log_group=run_logs),
             environment={
                 "WHY_NOW_AWS_REGION": self.region,

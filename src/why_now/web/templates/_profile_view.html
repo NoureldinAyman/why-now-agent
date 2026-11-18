@@ -1,0 +1,19 @@
+{# A profile written out to read: what the profile file says, with no form. #}
+<section class="tile">
+  <h2>{{ profile.product_name }}</h2>
+  <p>{{ profile.product_description }}</p>
+  <h3>Who uses it</h3>
+  <p>{{ profile.users }}</p>
+  <h3>Search words</h3>
+  <p>{{ profile.search_words | join(", ") }}</p>
+  {% if profile.countries %}<h3>Countries</h3><p>{{ profile.countries | join(", ") }}</p>{% endif %}
+  {% if profile.languages %}<h3>Languages</h3><p>{{ profile.languages | join(", ") }}</p>{% endif %}
+  <h3>Required questions</h3>
+  <ul>{% for q in profile.fit_questions if q.kind == "required" %}<li>{{ q.text }}</li>{% else %}<li>None.</li>{% endfor %}</ul>
+  <h3>Supporting questions</h3>
+  <ul>{% for q in profile.fit_questions if q.kind != "required" %}<li>{{ q.text }}{% if q.direction == "against" %} (counts against){% endif %}</li>{% else %}<li>None.</li>{% endfor %}</ul>
+  {% if profile.quick_look_questions %}<h3>Quick look questions</h3><ul>{% for q in profile.quick_look_questions %}<li>{{ q.text }}</li>{% endfor %}</ul>{% endif %}
+  <h3>Why now</h3>
+  <p>{{ profile.why_now }}</p>
+  {% if profile.marking_guide %}<h3>Marking guide</h3><p class="text">{{ profile.marking_guide }}</p>{% endif %}
+</section>

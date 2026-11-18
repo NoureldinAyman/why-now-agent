@@ -12,6 +12,7 @@ from why_now.cli import app
 from why_now.cli import daily as daily_command
 from why_now.cli import read as read_command
 from why_now.sample.data import HIRING_SENTENCE, sample_models, sample_profile
+from why_now.store.local import LocalStore
 
 NOW = datetime(2026, 11, 6, 9, tzinfo=UTC)
 
@@ -85,6 +86,16 @@ def test_daily_takes_the_list_size_and_new_ad_window_for_one_run(tmp_path, monke
     assert "More list: 1 companies" in result.output
 
 
+def test_daily_takes_the_research_limit_for_one_run_only(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+    args = ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    limited = CliRunner().invoke(app, args + ["--research-per-day", "1"])
+    assert limited.exit_code == 0, limited.output
+    assert "Short list for 2026-11-06: 1 companies" in limited.output
+    # The limit was for that run alone: nothing was stored for the next one.
+    assert LocalStore(tmp_path / "ws").get("settings", "overrides") is None
+
+
 def test_a_new_ad_window_too_short_for_the_ads_finds_nothing(tmp_path, monkeypatch):
     profile_file, settings = setup(tmp_path, monkeypatch)
     # The ads were published on the 5th. A window of 1 day, today only, leaves them out.
@@ -99,7 +110,7 @@ def test_daily_explains_a_missing_profile(tmp_path, monkeypatch):
     result = CliRunner().invoke(
         app, ["daily", "--profile", str(tmp_path / "none.yaml"), "--settings", str(settings)]
     )
-    assert result.exit_code != 0 and "cannot read profile" in result.output
+    assert result.exit_code != 0 and "no profile file or workspace profile" in result.output
 
 
 def test_daily_explains_missing_board_lists(tmp_path, monkeypatch):

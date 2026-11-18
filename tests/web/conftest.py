@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from why_now.ai.budget import Meter
 from why_now.domain import CaseRecord, EvidencePack, Profile, Source
+from why_now.profile import profile_text
 from why_now.settings import Settings
 from why_now.web.app import AppContext, create_app
 from why_now.web.auth import LocalAuth
@@ -31,10 +32,11 @@ def make_ctx(store, profile) -> Callable[[Settings], AppContext]:
     """An app context for the given settings, over the test store and profile."""
 
     def make(settings: Settings) -> AppContext:
+        # The site reads profiles from the workspace, so the test profile is kept there.
+        Workspace(store).save_profile(profile, profile_text(profile))
         return AppContext(
             settings=settings,
             store=store,
-            profiles={profile.id: profile},
             meter=Meter(store, settings, lambda: NOW),
             clock=lambda: NOW,
         )

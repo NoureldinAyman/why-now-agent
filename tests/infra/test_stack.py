@@ -9,10 +9,8 @@ from infra.app import build_app
 from infra.stack import WhyNowStack
 from why_now.settings import load_settings
 
-PROFILE = "profiles/test.yaml"
 BOARDS = "boards/test.json"
 ENV = {
-    "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
     "WHY_NOW_BOARD_LISTS": f'{{"greenhouse": "{BOARDS}"}}',
 }
 
@@ -82,7 +80,6 @@ def test_web_lambda_is_told_its_names_by_environment_values(template: Template) 
                         "WHY_NOW_AWS_REGION": Match.any_value(),
                         "WHY_NOW_AWS_BUCKET": Match.any_value(),
                         "WHY_NOW_AWS_TABLE": Match.any_value(),
-                        "WHY_NOW_DAILY_PROFILES": f'["{PROFILE}"]',
                     }
                 )
             }
@@ -169,7 +166,12 @@ def test_the_run_has_a_public_only_network(template: Template) -> None:
     assert len(public) == 2
 
 
-def test_daily_run_is_a_fargate_task_that_runs_daily(template: Template) -> None:
+def test_no_profile_is_built_into_the_stack(template: Template) -> None:
+    assert "DAILY_PROFILES" not in json.dumps(template.to_json())
+    assert "NIGHTLY_PROFILES" not in json.dumps(template.to_json())
+
+
+def test_daily_run_is_a_fargate_task_that_runs_the_night_run(template: Template) -> None:
     template.resource_count_is("AWS::ECS::Cluster", 1)
     template.has_resource_properties(
         "AWS::ECS::TaskDefinition",
@@ -178,9 +180,7 @@ def test_daily_run_is_a_fargate_task_that_runs_daily(template: Template) -> None
             "NetworkMode": "awsvpc",
             "Cpu": "1024",
             "Memory": "2048",
-            "ContainerDefinitions": [
-                Match.object_like({"Command": ["daily", "--profile", PROFILE]})
-            ],
+            "ContainerDefinitions": [Match.object_like({"Command": ["night-run"]})],
         },
     )
 

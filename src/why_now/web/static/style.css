@@ -389,3 +389,9 @@ main > h1:first-child { margin-top: var(--s-5); }
   .settings tr, .settings th, .settings td { display: block; border: 0; padding: var(--s-1) 0; }
   .settings tr { border-bottom: 1px solid var(--line); padding: var(--s-3) 0; }
 }
+
+/* The profile switcher in the top bar: a plain details list, so it needs no script. */
+.profile-switch { position: relative; font-size: 0.875rem; }
+.profile-switch > summary { min-height: 2.75rem; font-weight: 400; color: var(--muted); }
+.profile-switch ul { position: absolute; z-index: 10; margin: 0; padding: var(--s-2); list-style: none; background: var(--bg, Canvas); border: 1px solid var(--line); border-radius: 6px; min-width: 12rem; }
+.profile-switch li a { display: block; padding: var(--s-2); }

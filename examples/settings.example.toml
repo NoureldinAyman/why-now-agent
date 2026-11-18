@@ -10,8 +10,8 @@
 deployment = "local"
 # The workspace folder, kept out of Git. Everything a run produces goes here.
 workspace_path = "workspace"
-# Profile files to run every day.
-daily_profiles = []
+# Ids of the profiles the night run works for. Upload a profile first: why-now profile upload FILE.
+nightly_profiles = []
 # Public results pages. Off by default, and only public profiles are ever shown.
 public_results_enabled = false
 
@@ -65,6 +65,10 @@ reason_chips = [
   "too small",
   "good timing",
 ]
+# Most letters in one reason choice, so it stays short enough to tap.
+reason_chip_max_chars = 40
+# The smallest and largest value the settings page may store for each setting it can change. For reason_chips, the fewest and most choices.
+editable_limits = { short_list_size = [1, 30], hide_days = [1, 365], judged_no_shown = [0, 10], prepare_batch = [1, 100], reason_chips = [1, 12] }
 # Most companies the reviewer is asked to mark.
 marking_ceiling = 500
 # Companies marked a second time, to measure the reviewer's consistency.

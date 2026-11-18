@@ -16,7 +16,8 @@ from why_now.cli.testset import make_reader
 from why_now.day_result import DayResult
 from why_now.deployment import open_store
 from why_now.pipeline.day import run_day
-from why_now.profile import ProfileError, load_profile
+from why_now.profile import ProfileError
+from why_now.resolve_profile import resolve_profile
 from why_now.run_context import RunContext
 from why_now.settings import Settings, load_settings
 from why_now.sources.boards import BoardList
@@ -24,6 +25,7 @@ from why_now.sources.polite import PoliteClient
 from why_now.sources.registry import SOURCES
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
+from why_now.workspace.settings_doc import effective_settings
 
 DEFAULT_SETTINGS = Path("settings.toml")
 
@@ -38,7 +40,10 @@ def make_models(settings: Settings, meter: Meter) -> Models:
 
 @app.command("daily")
 def daily(
-    profile_file: Annotated[Path, typer.Option("--profile", help="The profile to run for.")],
+    profile_ref: Annotated[
+        str,
+        typer.Option("--profile", help="Profile file, or the id of a profile in the workspace."),
+    ],
     short_list_size: Annotated[
         int | None,
         typer.Option(
@@ -48,6 +53,10 @@ def daily(
     ] = None,
     new_ad_days: Annotated[
         int | None, typer.Option(min=1, help="Days an ad counts as new, for this run only.")
+    ] = None,
+    research_per_day: Annotated[
+        int | None,
+        typer.Option(min=1, help="Companies researched in a day, for this run only."),
     ] = None,
     saved_read: Annotated[
         bool,
@@ -69,9 +78,11 @@ def daily(
         raise typer.BadParameter("choose either --saved-read or --sample-boards, not both")
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
-    settings = load_settings(settings_file)
+    base = load_settings(settings_file)
+    store = open_store(base)
+    settings = effective_settings(base, store)
     try:
-        profile = load_profile(profile_file)
+        profile = resolve_profile(profile_ref, store)
     except ProfileError as e:
         raise typer.BadParameter(str(e), param_hint="--profile") from e
     unknown = sorted(set(settings.board_lists) - set(SOURCES))
@@ -84,10 +95,13 @@ def daily(
 
     overrides = {
         name: value
-        for name, value in (("short_list_size", short_list_size), ("new_ad_days", new_ad_days))
+        for name, value in (
+            ("short_list_size", short_list_size),
+            ("new_ad_days", new_ad_days),
+            ("research_per_day", research_per_day),
+        )
         if value is not None
     }
-    store = open_store(settings)
     meter = Meter(store, settings, now)
     http = read_command.make_http(settings)
     today = now().date()

@@ -80,11 +80,7 @@ def test_nothing_private_goes_into_the_image():
     }
 
 
-def test_container_starts_the_app(moto_aws, monkeypatch, tmp_path, make_profile):
-    import yaml
-
-    profile_file = tmp_path / "profile.yaml"
-    profile_file.write_text(yaml.safe_dump(make_profile().model_dump(mode="json")))
+def test_container_starts_the_app_with_no_profile_in_the_image(moto_aws, monkeypatch, tmp_path):
     empty_settings = tmp_path / "settings.toml"
     empty_settings.write_text("")
     put_parameter("session-secret", "s" * 40)
@@ -97,7 +93,6 @@ def test_container_starts_the_app(moto_aws, monkeypatch, tmp_path, make_profile)
         "WHY_NOW_AWS_PARAMETER_PREFIX": PARAMETER_PREFIX,
         "WHY_NOW_COGNITO_DOMAIN": "https://login.test",
         "WHY_NOW_COGNITO_USER_POOL_ID": f"{REGION}_test",
-        "WHY_NOW_DAILY_PROFILES": json.dumps([str(profile_file)]),
     }
     for key, value in env.items():
         monkeypatch.setenv(key, value)

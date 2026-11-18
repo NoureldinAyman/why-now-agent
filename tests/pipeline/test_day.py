@@ -471,9 +471,16 @@ def test_a_longer_short_list_is_still_limited_by_daily_research(make_world):
     assert len(r.short_list) == 12
 
 
-def test_only_list_size_and_window_can_be_overridden(make_world):
-    with pytest.raises(ValueError, match="research_per_day"):
-        make_world(1).day(overrides={"research_per_day": 100})
+def test_the_research_limit_can_be_raised_for_one_run(make_world):
+    world = make_world(25)
+    r = world.day(overrides={"short_list_size": 20, "research_per_day": 20})
+    assert len(r.short_list) == 20
+    assert world.settings.research_per_day == 12  # the setting itself is untouched
+
+
+def test_only_list_size_window_and_research_limit_can_be_overridden(make_world):
+    with pytest.raises(ValueError, match="budget_limit_usd"):
+        make_world(1).day(overrides={"budget_limit_usd": 100})
 
 
 def test_a_failing_careers_page_is_reported_and_the_day_goes_on(make_world):

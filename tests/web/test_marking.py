@@ -253,7 +253,7 @@ def test_the_page_shows_a_card_from_the_pack_and_the_full_pack_opens_below_it(
         }).model_dump(mode="json"),
     )  # fmt: skip
     workspace.save_case(case.model_copy(update={"pack_id": "pack-rich"}))
-    html = client.get("/mark").text
+    html = client.get("/mark").text.partition("</header>")[2]  # below the top bar
     card_html, _, pack_html = html.partition("<details")
     assert "Sales Rep ×2" in card_html and "Account Executive" in card_html
     assert "Newest ad: 2026-11-04" in card_html

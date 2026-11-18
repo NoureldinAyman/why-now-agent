@@ -42,7 +42,7 @@ RESEARCH = "research"  # the budget category daily research is charged to, and i
 BRIEF = "brief"  # the step name for a saved brief
 JUDGE = "judge"
 # The settings one run may change. Everything else, the budget above all, stays as set.
-OVERRIDABLE = frozenset({"short_list_size", "new_ad_days"})
+OVERRIDABLE = frozenset({"short_list_size", "new_ad_days", "research_per_day"})
 
 
 def _saved_read(workspace: Workspace) -> ReadResult:
