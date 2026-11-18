@@ -9,7 +9,6 @@ night run's task, and nothing else.
 
 import json
 import os
-from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Any, cast, get_args
 
@@ -38,6 +37,7 @@ from why_now.web.routes_marking import (
 from why_now.web.run_now import AlreadyRunning, Mode, RunNotStarted
 from why_now.web.runs_view import next_run_at, run_row, shown_time, until
 from why_now.workspace import Workspace
+from why_now.workspace.runs import stale_after
 from why_now.workspace.settings_doc import EDITABLE, SettingsRefused, save_overrides
 
 router = APIRouter()
@@ -90,7 +90,7 @@ def _run_page(
 ) -> Response:
     settings = ctx.settings
     now = ctx.clock()
-    stale = timedelta(hours=settings.run_stale_hours)
+    stale = stale_after(settings)
     zone = settings.display_timezone
     workspace = Workspace(ctx.store)
     held = workspace.running(now, stale)
@@ -150,16 +150,16 @@ def run_now(
         raise HTTPException(status_code=404, detail="Starting a run is not set up here")
     if mode not in _modes():
         return _run_page(request, ctx, chosen, "Choose how to run.", status=422)
-    stale = timedelta(hours=ctx.settings.run_stale_hours)
-    if Workspace(ctx.store).running(ctx.clock(), stale) is not None:
+    if Workspace(ctx.store).running(ctx.clock(), stale_after(ctx.settings)) is not None:
         return _run_page(
             request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
         )
     try:
         ctx.runner.start(cast(Mode, mode), chosen.id, ctx.settings.run_now_sample_boards)
-    except AlreadyRunning:
+    except AlreadyRunning as e:
+        why = str(e) if "just started" in str(e) else "a run is still going"
         return _run_page(
-            request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
+            request, ctx, chosen, f"Not started: {why}. Wait for it to finish.", status=409
         )
     except RunNotStarted as e:
         return _run_page(request, ctx, chosen, str(e), status=502)

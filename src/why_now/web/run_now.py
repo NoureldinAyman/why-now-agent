@@ -9,13 +9,15 @@ else. Either way the run writes its own notes, which the page reads. One run at 
 import subprocess
 import threading
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import IO, Any, Literal, Protocol
 
 from pydantic import BaseModel
 
 from why_now.settings import Settings
+from why_now.store import Store
+from why_now.workspace import Workspace
 
 Mode = Literal["saved", "sample", "improve"]
 LOG_NAME = "run-now.log"
@@ -126,12 +128,19 @@ class AwsRunNow:
     posted form cannot point it anywhere else.
     """
 
-    def __init__(self, settings: Settings, ecs: Any):
+    def __init__(self, settings: Settings, ecs: Any, store: Store, clock: Callable[[], datetime]):
         self.settings = settings
         self.ecs = ecs  # a boto3 ECS client, or a stand-in with `run_task`
+        self.workspace = Workspace(store)
+        self.clock = clock
 
     def start(self, mode: Mode, profile: str, sample_boards: int) -> None:
         s = self.settings
+        # The run takes the lock only once its task is up, a little while after this press. In
+        # that while a second press would start a second task, so presses wait for it.
+        wait = timedelta(seconds=s.run_start_wait_seconds)
+        if self.workspace.run_requested(self.clock(), wait):
+            raise AlreadyRunning("a run was just started and is still starting")
         try:
             reply = self.ecs.run_task(
                 cluster=s.aws_run_cluster,
@@ -160,6 +169,7 @@ class AwsRunNow:
         if reply.get("failures") or not reply.get("tasks"):
             reasons = ", ".join(f.get("reason", "unknown") for f in reply.get("failures", []))
             raise RunNotStarted(f"The run was not started: AWS had no room for it ({reasons}).")
+        self.workspace.request_run(self.clock())
 
     def state(self) -> None:
         """No log is kept here. The run's own notes tell how it went."""

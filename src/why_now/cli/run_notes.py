@@ -8,18 +8,14 @@ without running any code, such as one that is killed, leaves its start with no f
 
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import typer
 
 from why_now.settings import Settings
 from why_now.store import Store
 from why_now.workspace import Workspace
-from why_now.workspace.runs import RunAlreadyGoing, RunMode, RunSummary
-
-
-def stale_after(settings: Settings) -> timedelta:
-    return timedelta(hours=settings.run_stale_hours)
+from why_now.workspace.runs import RunAlreadyGoing, RunMode, RunSummary, stale_after
 
 
 class RunRecord:

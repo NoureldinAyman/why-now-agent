@@ -12,6 +12,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from why_now.settings import Settings
 from why_now.workspace.base import WorkspaceBase
 from why_now.workspace.profiles import is_safe_id
 
@@ -21,6 +22,7 @@ RunState = Literal["running", "finished", "failed", "stopped"]
 _NOTES = "runs"
 _LOCK = "run_lock"
 _LOCK_KEY = "current"
+_REQUESTS = "run_requests"
 
 
 class RunSummary(BaseModel):
@@ -56,6 +58,11 @@ class RunAlreadyGoing(Exception):
             f"started {holder.started_at:%d %b %H:%M} UTC"
         )
         self.holder = holder
+
+
+def stale_after(settings: Settings) -> timedelta:
+    """How long a start with no finish may block the next run."""
+    return timedelta(hours=settings.run_stale_hours)
 
 
 def is_stale(note: RunNote, now: datetime, stale_after: timedelta) -> bool:
@@ -123,6 +130,16 @@ class RunsArea(WorkspaceBase):
             return []
         notes = self.list_models(_NOTES, RunNote, f"{profile_id}/")
         return sorted(notes, key=lambda n: n.started_at, reverse=True)[:limit]
+
+    def request_run(self, now: datetime) -> None:
+        """Note that a run was just asked for. The task takes a while to start and take the
+        lock, and until it does, `run_requested` is what tells a second press to wait."""
+        self.store.put(_REQUESTS, "current", {"requested_at": now.isoformat()})
+
+    def run_requested(self, now: datetime, wait: timedelta) -> bool:
+        """Whether a run was asked for less than `wait` ago."""
+        doc = self.store.get(_REQUESTS, "current")
+        return doc is not None and now - datetime.fromisoformat(doc["requested_at"]) < wait
 
     def _held(self) -> dict | None:
         return self.store.get(_LOCK, _LOCK_KEY)

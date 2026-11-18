@@ -65,10 +65,25 @@ def ecs() -> FakeEcs:
     return FakeEcs()
 
 
+class Clock:
+    """The runner's clock, which a test can move on."""
+
+    def __init__(self) -> None:
+        self.now = NOW
+
+    def __call__(self) -> datetime:
+        return self.now
+
+
 @pytest.fixture
-def aws_ctx(aws_settings, make_ctx, ecs) -> AppContext:
+def clock() -> Clock:
+    return Clock()
+
+
+@pytest.fixture
+def aws_ctx(aws_settings, make_ctx, ecs, store, clock) -> AppContext:
     ctx = make_ctx(aws_settings)
-    ctx.runner = AwsRunNow(aws_settings, ecs)
+    ctx.runner = AwsRunNow(aws_settings, ecs, store, clock)
     return ctx
 
 
@@ -139,6 +154,37 @@ def test_a_second_press_while_a_run_is_going_is_refused(aws, ecs, store):
     assert reply.status_code == 409
     assert "still going" in reply.text
     assert ecs.calls == []
+
+
+def test_a_second_press_before_the_first_task_has_started_is_refused(aws, ecs):
+    form_token = token(aws)
+    assert press(aws, "saved", form_token).status_code == 303
+
+    again = press(aws, "improve", form_token)
+
+    assert again.status_code == 409
+    assert "just started" in again.text
+    assert len(ecs.calls) == 1
+
+
+def test_the_press_is_allowed_again_once_the_start_wait_has_passed(aws, ecs, clock, aws_settings):
+    form_token = token(aws)
+    press(aws, "saved", form_token)
+
+    clock.now = NOW + timedelta(seconds=aws_settings.run_start_wait_seconds)
+
+    assert press(aws, "saved", form_token).status_code == 303
+    assert len(ecs.calls) == 2
+
+
+def test_a_task_that_would_not_start_does_not_hold_up_the_next_press(aws_ctx, aws, ecs):
+    form_token = token(aws)
+    ecs.error = ClientError({"Error": {"Code": "ThrottlingException"}}, "RunTask")
+    assert press(aws, "saved", form_token).status_code == 502
+
+    ecs.error = None
+    assert press(aws, "saved", form_token).status_code == 303
+    assert len(ecs.calls) == 2
 
 
 def test_the_page_shows_the_run_that_is_going_and_no_start_form(aws, store, profile):

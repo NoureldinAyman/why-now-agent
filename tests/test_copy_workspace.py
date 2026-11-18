@@ -17,7 +17,7 @@ DOCS = {
     ("marks", "acme/case-1"): {"answer": "yes", "reason": "Hiring."},
     ("marks", "acme/case-2"): {"answer": "no", "reason": "Too big."},
     ("cases", "acme/case-1"): {"company": "Acme"},
-    ("cutoffs", "claude-1"): {"cutoff": 0.55},
+    ("cutoffs", "model-1"): {"cutoff": 0.55},
     ("profiles", "acme"): {"version": "abc", "text": "id: acme"},
     ("board_ads", "greenhouse/acme"): {"ads": ["x" * 400_000]},  # too big for a record, so a file
 }
@@ -94,12 +94,12 @@ def test_running_it_twice_changes_nothing_the_second_time(files, local, aws):
 
 def test_a_document_already_there_is_left_alone_even_when_it_differs(files, local, aws):
     # The improvement run on AWS has moved on, so the older local copy must not overwrite it.
-    aws.put("cutoffs", "claude-1", {"cutoff": 0.7})
+    aws.put("cutoffs", "model-1", {"cutoff": 0.7})
 
     result = copy(files)
 
-    assert aws.get("cutoffs", "claude-1") == {"cutoff": 0.7}
-    assert "1 of them differ" in result.output and "cutoffs/claude-1" in result.output
+    assert aws.get("cutoffs", "model-1") == {"cutoff": 0.7}
+    assert "1 of them differ" in result.output and "cutoffs/model-1" in result.output
     assert aws.get("marks", "acme/case-1") == DOCS[("marks", "acme/case-1")]
 
 
@@ -175,3 +175,14 @@ def test_a_missing_settings_file_is_explained(files, local, tmp_path):
     )
     assert result.exit_code != 0
     assert "none.toml" in result.output
+
+
+def test_every_document_that_differs_is_named_not_only_the_first_few(files, local, aws):
+    for i in range(12):
+        local.put("answers", f"k{i:02d}", {"v": i})
+        aws.put("answers", f"k{i:02d}", {"v": -i - 1})
+
+    result = copy(files)
+
+    assert "12 of them differ" in result.output
+    assert "answers/k00" in result.output and "answers/k11" in result.output

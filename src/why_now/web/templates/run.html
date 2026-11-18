@@ -12,7 +12,7 @@
 {% if local %}
 <p class="lede">Starts a run for {{ profile.product_name }} now, as a separate program. A full read of every careers page takes hours, so a run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
 {% else %}
-<p class="lede">Starts the same task the schedule starts, for {{ profile.product_name }}. It takes a minute or two to start and then shows below. A run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
+<p class="lede">Starts the same task the schedule starts, for {{ profile.product_name }}. It takes a short while to start, and then shows below. A run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
 {% endif %}
 {% if not going %}
 <form method="post" action="{{ post_to }}" class="prepare-form">

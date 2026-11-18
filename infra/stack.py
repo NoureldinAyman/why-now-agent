@@ -228,6 +228,7 @@ class WhyNowStack(Stack):
             "WHY_NOW_AWS_RUN_HOUR_UTC": str(settings.aws_run_hour_utc),
             "WHY_NOW_DISPLAY_TIMEZONE": settings.display_timezone,
             "WHY_NOW_RUN_STALE_HOURS": str(settings.run_stale_hours),
+            "WHY_NOW_RUN_START_WAIT_SECONDS": str(settings.run_start_wait_seconds),
             # Preparing companies on AWS is allowed only while it makes no paid call.
             "WHY_NOW_TEST_CASE_WEB_RESEARCH": str(settings.test_case_web_research).lower(),
         }.items():

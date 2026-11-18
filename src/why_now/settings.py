@@ -550,6 +550,16 @@ class Settings(BaseModel):
             "no finish older than this shows as stopped. Starting guess."
         ),
     )
+    run_start_wait_seconds: int = Field(
+        default=120,
+        gt=0,
+        description=(
+            "A second press of Run now starting a second task while the first is still being "
+            "started. After a press, further presses are refused for this long. A little longer "
+            "than a small task takes to start. Starting guess, to be checked on the first real "
+            "run."
+        ),
+    )
     runs_shown: int = Field(
         default=10,
         gt=0,

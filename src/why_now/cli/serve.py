@@ -80,7 +80,7 @@ def attach_actions(
         )
         return
     if settings.aws_run_cluster and settings.aws_run_task:
-        ctx.runner = AwsRunNow(settings, (clients or aws_clients(settings))("ecs"))
+        ctx.runner = AwsRunNow(settings, (clients or aws_clients(settings))("ecs"), store, now)
     if not settings.test_case_web_research:
         ctx.prepare = lambda profile, n, seed: prepare_ads_only(
             settings, store, profile, n, seed, clock=now

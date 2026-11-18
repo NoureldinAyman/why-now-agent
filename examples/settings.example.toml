@@ -186,6 +186,8 @@ aws_run_subnets = []
 aws_run_security_groups = []
 # Hours before a run that started and never finished shows as stopped and stops blocking the next.
 run_stale_hours = 12
+# Seconds after a press of Run now during which another press is refused, while the task starts.
+run_start_wait_seconds = 120
 # Runs the Runs page lists.
 runs_shown = 10
 # Time zone name the review page shows times in, such as "Europe/Berlin". The schedule is in UTC.

@@ -70,8 +70,7 @@ def _say(report: CopyReport) -> None:
     if report.differing:
         typer.echo(
             f"{len(report.differing)} of them differ from the local copy and were left alone, "
-            f"as the AWS copy may have moved on: {', '.join(report.differing[:10])}"
-            f"{' and more' if len(report.differing) > 10 else ''}."
+            f"as the AWS copy may have moved on: {', '.join(report.differing)}."
         )
     if report.not_copied:
         left = ", ".join(f"{name} ({n})" for name, n in report.not_copied.items())

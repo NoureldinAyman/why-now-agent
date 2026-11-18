@@ -5,8 +5,9 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from why_now.settings import load_settings
 from why_now.workspace import Workspace
-from why_now.workspace.runs import RunAlreadyGoing, RunSummary, run_state
+from why_now.workspace.runs import RunAlreadyGoing, RunSummary, run_state, stale_after
 
 T0 = datetime(2026, 11, 18, 2, 0, tzinfo=UTC)
 STALE = timedelta(hours=12)
@@ -117,3 +118,8 @@ def test_a_profile_id_that_cannot_name_a_place_is_refused(ws):
     with pytest.raises(ValueError):
         ws.start_run("../acme", "daily", T0, STALE)
     assert ws.running(T0, STALE) is None
+
+
+def test_the_stale_time_comes_from_the_setting():
+    settings = load_settings(None, env={"WHY_NOW_RUN_STALE_HOURS": "5"})
+    assert stale_after(settings) == timedelta(hours=5)

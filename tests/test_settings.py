@@ -163,7 +163,7 @@ def test_the_network_uses_two_zones_by_default():
 
 def test_run_note_numbers_have_the_designs_values():
     s = load_settings(None, env={})
-    assert (s.run_stale_hours, s.runs_shown) == (12, 10)
+    assert (s.run_stale_hours, s.runs_shown, s.run_start_wait_seconds) == (12, 10, 120)
     assert s.display_timezone == "UTC"
 
 
