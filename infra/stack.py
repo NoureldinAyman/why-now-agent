@@ -150,7 +150,7 @@ class WhyNowStack(Stack):
             self, "TypesafeKey", parameter_name=f"/{parameter_path}/typesafe-api-key"
         )
         self.run_task.add_container(
-            "Run",
+            settings.aws_run_container,
             image=ecs.ContainerImage.from_asset(str(REPO_ROOT), file="infra/Dockerfile"),
             # Which profiles run is the night list kept in the workspace, so the image holds none.
             command=["night-run"],
@@ -162,6 +162,8 @@ class WhyNowStack(Stack):
                 "WHY_NOW_BOARD_LISTS": json.dumps(
                     {name: path.as_posix() for name, path in settings.board_lists.items()}
                 ),
+                # How long a start with no finish may block the next run.
+                "WHY_NOW_RUN_STALE_HOURS": str(settings.run_stale_hours),
             },
             secrets={
                 "ANTHROPIC_API_KEY": ecs.Secret.from_ssm_parameter(anthropic_key),
@@ -172,6 +174,7 @@ class WhyNowStack(Stack):
         self.table.grant_read_write_data(self.run_task.task_role)
         self.run_task.add_to_task_role_policy(read_secrets)
         run_firewall = ec2.SecurityGroup(self, "RunFirewall", vpc=self.network)
+        self._let_the_page_start_the_run(settings, run_firewall)
         events.Rule(
             self,
             "DailyRun",
@@ -186,3 +189,46 @@ class WhyNowStack(Stack):
                 )
             ],
         )
+
+    def _let_the_page_start_the_run(self, settings: Settings, firewall: ec2.SecurityGroup) -> None:
+        """Run now and Improve now start the night run's task from the web function.
+
+        The function may start that one task, on that one cluster, and hand it the task's two
+        roles, only to ECS tasks. It is given nothing about the schedule, so a stolen sign-in
+        can start a run but cannot change when runs happen or what they are.
+        """
+        family_arn = self.format_arn(
+            service="ecs", resource="task-definition", resource_name=f"{self.run_task.family}:*"
+        )
+        self.web.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["ecs:RunTask"],
+                resources=[family_arn],
+                conditions={"ArnEquals": {"ecs:cluster": self.cluster.cluster_arn}},
+            )
+        )
+        self.web.add_to_role_policy(
+            iam.PolicyStatement(
+                actions=["iam:PassRole"],
+                resources=[
+                    self.run_task.task_role.role_arn,
+                    self.run_task.obtain_execution_role().role_arn,
+                ],
+                conditions={"StringEquals": {"iam:PassedToService": "ecs-tasks.amazonaws.com"}},
+            )
+        )
+        subnets = self.network.select_subnets(subnet_type=ec2.SubnetType.PUBLIC).subnet_ids
+        for name, value in {
+            "WHY_NOW_AWS_RUN_CLUSTER": self.cluster.cluster_arn,
+            "WHY_NOW_AWS_RUN_TASK": self.run_task.task_definition_arn,
+            "WHY_NOW_AWS_RUN_CONTAINER": settings.aws_run_container,
+            "WHY_NOW_AWS_RUN_SUBNETS": self.to_json_string(subnets),
+            "WHY_NOW_AWS_RUN_SECURITY_GROUPS": self.to_json_string([firewall.security_group_id]),
+            # The page shows when the next run is: the schedule's hour, in the reader's zone.
+            "WHY_NOW_AWS_RUN_HOUR_UTC": str(settings.aws_run_hour_utc),
+            "WHY_NOW_DISPLAY_TIMEZONE": settings.display_timezone,
+            "WHY_NOW_RUN_STALE_HOURS": str(settings.run_stale_hours),
+            # Preparing companies on AWS is allowed only while it makes no paid call.
+            "WHY_NOW_TEST_CASE_WEB_RESEARCH": str(settings.test_case_web_research).lower(),
+        }.items():
+            self.web.add_environment(name, value)

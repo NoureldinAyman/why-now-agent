@@ -107,14 +107,28 @@ def test_a_bad_seed_is_refused(ctx, case, seed):
     assert reply.status_code == 422 and preparer.calls == []
 
 
-def test_prepare_is_not_available_when_deployed(settings, make_ctx, case):
-    deployed = make_ctx(settings.model_copy(update={"deployment": "aws"}))
+def test_prepare_is_not_available_when_deployed_and_web_research_would_cost_money(
+    settings, make_ctx, case
+):
+    paid = settings.model_copy(update={"deployment": "aws", "test_case_web_research": True})
+    deployed = make_ctx(paid)
     preparer = Preparer()
     client = page_for(deployed, preparer, SignedIn())
     assert "Prepare" not in client.get("/mark").text
     token = form_of_token(client)
     reply = client.post("/prepare", data={"seed": "1", "form_token": token})
     assert reply.status_code == 404 and preparer.calls == []
+
+
+def test_prepare_works_when_deployed_while_packs_hold_job_ads_only(settings, make_ctx, case):
+    free = settings.model_copy(update={"deployment": "aws", "test_case_web_research": False})
+    preparer = Preparer()
+    client = page_for(make_ctx(free), preparer, SignedIn())
+
+    assert "Prepare" in client.get("/mark").text
+    reply = client.post("/prepare", data=form_of(client))
+
+    assert reply.status_code == 200 and len(preparer.calls) == 1
 
 
 def form_of_token(client: TestClient) -> str:

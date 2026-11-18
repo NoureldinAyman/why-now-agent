@@ -1,6 +1,6 @@
 import json
 from dataclasses import replace
-from pathlib import Path
+from datetime import timedelta
 
 import yaml
 from eval_world import NOW, Tracer, add_case, models_saying
@@ -8,10 +8,12 @@ from hostile_fakes import FakeJudge, fake_web_reader, models_with
 from improve_world import RecordingWriter
 from typer.testing import CliRunner
 
+from why_now.ai.budget import Meter
 from why_now.cli import app
 from why_now.cli import daily as daily_command
 from why_now.cli import evaluation as evaluation_command
 from why_now.cli import improve as improve_command
+from why_now.day_result import DayResult
 from why_now.domain import RulesFile
 from why_now.evaluation.evaluate import EvalRun
 from why_now.hostile.attacks import load_attacks
@@ -19,6 +21,7 @@ from why_now.profile import profile_text
 from why_now.settings import load_settings
 from why_now.store.local import LocalStore
 from why_now.workspace import Workspace
+from why_now.workspace.runs import RunSummary
 from why_now.workspace.settings_doc import save_overrides
 
 NAMING = {
@@ -122,6 +125,36 @@ def test_the_hidden_tests_helper_says_whether_every_attack_was_resisted(
     assert resisted(swayed) is False
 
 
+def night_settings(tmp_path) -> str:
+    """Settings for a night run: a workspace, and one job source so a daily list may start."""
+    return (
+        f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n"
+        'board_lists = { greenhouse = "boards.json" }\n'
+    )
+
+
+def empty_day(settings, store) -> DayResult:
+    status = Meter(store, settings, lambda: NOW).status()
+    return DayResult(
+        day=NOW.date(), short_list=[], more_list=[], failed=[], skipped=[], costs=status
+    )
+
+
+def fake_steps(monkeypatch, steps: list[str], summary: RunSummary | None = None) -> None:
+    """Pretend daily list and improvement loop that only say they were called."""
+
+    def daily(settings, store, profile, *args):
+        steps.append(f"daily {profile.id}")
+        return empty_day(settings, store), 0.0
+
+    def improve(settings, workspace, profile):
+        steps.append(f"improve {profile.id}")
+        return summary or RunSummary(stop="Stopped: no mistakes are left to learn from.")
+
+    monkeypatch.setattr(daily_command, "run_daily", daily)
+    monkeypatch.setattr(improve_command, "improve_profile", improve)
+
+
 def test_night_run_does_the_daily_list_then_the_loop_for_each_profile(
     tmp_path, monkeypatch, make_profile
 ):
@@ -131,34 +164,25 @@ def test_night_run_does_the_daily_list_then_the_loop_for_each_profile(
         write_profile(tmp_path, second, "two.yaml"),
     ]
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    settings.write_text(night_settings(tmp_path))
     steps: list[str] = []
-    monkeypatch.setattr(
-        daily_command,
-        "daily",
-        lambda **kwargs: steps.append(f"daily {Path(kwargs['profile_ref']).name}"),
-    )
-    monkeypatch.setattr(
-        improve_command,
-        "improve_profile",
-        lambda settings, workspace, profile: steps.append(f"improve {profile.id}") or True,
-    )
+    fake_steps(monkeypatch, steps)
     args = [x for f in files for x in ("--profile", str(f))]
 
     result = CliRunner().invoke(app, ["night-run", *args, "--settings", str(settings)])
 
     assert result.exit_code == 0, result.output
     assert steps == [
-        "daily one.yaml",
+        f"daily {first.id}",
         f"improve {first.id}",
-        "daily two.yaml",
+        f"daily {second.id}",
         f"improve {second.id}",
     ]
 
 
 def test_night_run_with_no_profile_switched_on_says_how_to_switch_one_on(tmp_path, monkeypatch):
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    settings.write_text(night_settings(tmp_path))
     monkeypatch.chdir(tmp_path)
 
     result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
@@ -174,17 +198,10 @@ def test_night_run_works_only_for_the_profiles_switched_on(tmp_path, monkeypatch
     for profile in (on, off):
         Workspace(store).save_profile(profile, profile_text(profile))
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    settings.write_text(night_settings(tmp_path))
     save_overrides(store, load_settings(settings), {"nightly_profiles": [on.id]})
     steps: list[str] = []
-    monkeypatch.setattr(
-        daily_command, "daily", lambda **kwargs: steps.append(f"daily {kwargs['profile_ref']}")
-    )
-    monkeypatch.setattr(
-        improve_command,
-        "improve_profile",
-        lambda settings, workspace, profile: steps.append(f"improve {profile.id}") or True,
-    )
+    fake_steps(monkeypatch, steps)
 
     result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
 
@@ -197,9 +214,9 @@ def test_night_run_does_nothing_when_every_profile_is_off(tmp_path, monkeypatch,
     store = LocalStore(tmp_path / "ws")
     Workspace(store).save_profile(profile, profile_text(profile))
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    settings.write_text(night_settings(tmp_path))
     save_overrides(store, load_settings(settings), {"nightly_profiles": []})
-    monkeypatch.setattr(daily_command, "daily", lambda **kwargs: 1 / 0)
+    monkeypatch.setattr(daily_command, "run_daily", lambda *args: 1 / 0)
 
     result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
 
@@ -214,16 +231,123 @@ def test_night_run_skips_a_listed_profile_that_is_not_in_the_workspace(
     store = LocalStore(tmp_path / "ws")
     Workspace(store).save_profile(present, profile_text(present))
     settings = tmp_path / "settings.toml"
-    settings.write_text(f"workspace_path = {json.dumps(str(tmp_path / 'ws'))}\n")
+    settings.write_text(night_settings(tmp_path))
     save_overrides(store, load_settings(settings), {"nightly_profiles": ["gone", present.id]})
     steps: list[str] = []
-    monkeypatch.setattr(
-        daily_command, "daily", lambda **kwargs: steps.append(f"daily {kwargs['profile_ref']}")
-    )
-    monkeypatch.setattr(improve_command, "improve_profile", lambda *args: True)
+    fake_steps(monkeypatch, steps)
 
     result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
 
     assert result.exit_code == 0, result.output
-    assert steps == [f"daily {present.id}"]
+    assert steps == [f"daily {present.id}", f"improve {present.id}"]
     assert "gone" in result.output
+
+
+STALE = timedelta(hours=12)
+
+
+def test_improve_writes_a_note_with_each_try_and_why_it_stopped(
+    tmp_path, monkeypatch, make_profile
+):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile)
+    add_case(workspace, "Acme", "practice", "yes")
+    add_case(workspace, "Cora", "practice", "no")
+    add_case(workspace, "Beta", "check", "yes")
+
+    result = CliRunner().invoke(app, ["improve", *args])
+
+    assert result.exit_code == 0, result.output
+    (note,) = Workspace(workspace.store).last_runs(workspace.require_profile(), 10)
+    assert (note.mode, note.ended) == ("improve", "finished")
+    assert len(note.summary.tries) == 1 and "Try 1: screened out." in note.summary.tries[0]
+    assert note.summary.stop == "Stopped: no mistakes are left to learn from."
+
+
+def test_improve_will_not_start_while_another_run_is_going(tmp_path, monkeypatch, make_profile):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile)
+    Workspace(workspace.store).start_run("busy", "night", NOW - timedelta(minutes=5), STALE)
+
+    result = CliRunner().invoke(app, ["improve", *args])
+
+    assert result.exit_code == 1
+    assert "still going" in result.output
+    assert workspace.tries() == []
+
+
+def test_improve_that_cannot_start_is_noted_as_failed(tmp_path, monkeypatch, make_profile):
+    workspace, args = setup(tmp_path, monkeypatch, make_profile, cutoff=False)
+
+    result = CliRunner().invoke(app, ["improve", *args])
+
+    assert result.exit_code == 1
+    (note,) = Workspace(workspace.store).last_runs(workspace.require_profile(), 10)
+    assert note.ended == "failed" and "No cut-off is recorded" in (note.summary.problem or "")
+
+
+def test_night_run_writes_one_note_for_each_profile_with_both_halves(
+    tmp_path, monkeypatch, make_profile
+):
+    first, second = make_profile(), make_profile()
+    files = [
+        write_profile(tmp_path, first, "one.yaml"),
+        write_profile(tmp_path, second, "two.yaml"),
+    ]
+    settings = tmp_path / "settings.toml"
+    settings.write_text(night_settings(tmp_path))
+    monkeypatch.setattr(improve_command, "now", lambda: NOW)
+    fake_steps(monkeypatch, [], RunSummary(tries=["Try 1: kept."], stop="Stopped: run limit."))
+    args = [x for f in files for x in ("--profile", str(f))]
+
+    result = CliRunner().invoke(app, ["night-run", *args, "--settings", str(settings)])
+
+    assert result.exit_code == 0, result.output
+    workspace = Workspace(LocalStore(tmp_path / "ws"))
+    for profile in (first, second):
+        (note,) = workspace.last_runs(profile.id, 10)
+        assert (note.mode, note.ended) == ("night", "finished")
+        assert note.summary.tries == ["Try 1: kept."]
+        assert note.summary.stop == "Stopped: run limit."
+        assert note.summary.short_list == 0
+    assert workspace.running(NOW, STALE) is None
+
+
+def test_night_run_will_not_start_while_another_run_is_going(tmp_path, monkeypatch, make_profile):
+    profile = make_profile()
+    store = LocalStore(tmp_path / "ws")
+    Workspace(store).save_profile(profile, profile_text(profile))
+    settings = tmp_path / "settings.toml"
+    settings.write_text(night_settings(tmp_path))
+    save_overrides(store, load_settings(settings), {"nightly_profiles": [profile.id]})
+    monkeypatch.setattr(improve_command, "now", lambda: NOW)
+    steps: list[str] = []
+    fake_steps(monkeypatch, steps)
+    Workspace(store).start_run("someone", "improve", NOW - timedelta(minutes=5), STALE)
+
+    result = CliRunner().invoke(app, ["night-run", "--settings", str(settings)])
+
+    assert result.exit_code == 1
+    assert "still going" in result.output
+    assert steps == []
+
+
+def test_night_run_notes_a_failed_daily_list(tmp_path, monkeypatch, make_profile):
+    profile = make_profile()
+    file = write_profile(tmp_path, profile)
+    settings = tmp_path / "settings.toml"
+    settings.write_text(night_settings(tmp_path))
+    monkeypatch.setattr(improve_command, "now", lambda: NOW)
+
+    def crash(*args):
+        raise RuntimeError("no network")
+
+    monkeypatch.setattr(daily_command, "run_daily", crash)
+
+    result = CliRunner().invoke(
+        app, ["night-run", "--profile", str(file), "--settings", str(settings)]
+    )
+
+    assert result.exit_code != 0
+    workspace = Workspace(LocalStore(tmp_path / "ws"))
+    (note,) = workspace.last_runs(profile.id, 10)
+    assert note.ended == "failed" and "no network" in (note.summary.problem or "")
+    assert workspace.running(NOW, STALE) is None

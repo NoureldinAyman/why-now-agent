@@ -12,9 +12,11 @@ from why_now.ai import Models, build_models
 from why_now.ai.budget import Meter
 from why_now.cli import app
 from why_now.cli import read as read_command
+from why_now.cli.run_notes import noted_run
 from why_now.cli.testset import make_reader
 from why_now.day_result import DayResult
 from why_now.deployment import open_store
+from why_now.domain import Profile
 from why_now.pipeline.day import run_day
 from why_now.profile import ProfileError
 from why_now.resolve_profile import resolve_profile
@@ -23,8 +25,10 @@ from why_now.settings import Settings, load_settings
 from why_now.sources.boards import BoardList
 from why_now.sources.polite import PoliteClient
 from why_now.sources.registry import SOURCES
+from why_now.store import Store
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
+from why_now.workspace.runs import RunSummary
 from why_now.workspace.settings_doc import effective_settings
 
 DEFAULT_SETTINGS = Path("settings.toml")
@@ -76,6 +80,26 @@ def daily(
     """Read, search, judge and write briefs for one profile, then print the two lists."""
     if saved_read and sample_boards is not None:
         raise typer.BadParameter("choose either --saved-read or --sample-boards, not both")
+    settings, store, profile = prepare_daily(profile_ref, settings_file)
+    overrides = {
+        name: value
+        for name, value in (
+            ("short_list_size", short_list_size),
+            ("new_ad_days", new_ad_days),
+            ("research_per_day", research_per_day),
+        )
+        if value is not None
+    }
+    with noted_run(store, settings, profile.id, "daily", now) as record:
+        result, cost = run_daily(settings, store, profile, overrides, saved_read, sample_boards)
+        record.summary = day_summary(result, cost)
+    for line in describe(result):
+        typer.echo(line)
+
+
+def prepare_daily(profile_ref: str, settings_file: Path | None) -> tuple[Settings, Store, Profile]:
+    """Load the settings, open the store, and find the profile, refusing a setup that cannot
+    run a daily list. Nothing is written."""
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
     base = load_settings(settings_file)
@@ -92,17 +116,20 @@ def daily(
             f"({', '.join(SOURCES)})",
             param_hint="board_lists",
         )
+    return settings, store, profile
 
-    overrides = {
-        name: value
-        for name, value in (
-            ("short_list_size", short_list_size),
-            ("new_ad_days", new_ad_days),
-            ("research_per_day", research_per_day),
-        )
-        if value is not None
-    }
+
+def run_daily(
+    settings: Settings,
+    store: Store,
+    profile: Profile,
+    overrides: dict[str, int],
+    saved_read: bool,
+    sample_boards: int | None,
+) -> tuple[DayResult, float]:
+    """The whole daily run, with no notes written. It returns the lists and what it cost."""
     meter = Meter(store, settings, now)
+    spent_before = meter.status().spent_usd
     http = read_command.make_http(settings)
     today = now().date()
     reader = make_reader(settings)
@@ -139,8 +166,17 @@ def daily(
             clock=now,
         )
         result = run_day(ctx, profile, today, overrides, saved_read=saved_read)
-    for line in describe(result):
-        typer.echo(line)
+    return result, max(0.0, meter.status().spent_usd - spent_before)
+
+
+def day_summary(result: DayResult, cost_usd: float) -> RunSummary:
+    return RunSummary(
+        short_list=len(result.short_list),
+        more_list=len(result.more_list),
+        failed=result.failed,
+        skipped=result.skipped,
+        cost_usd=cost_usd,
+    )
 
 
 def describe(result: DayResult, label: str = "") -> list[str]:

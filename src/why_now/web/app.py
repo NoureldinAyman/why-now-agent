@@ -18,7 +18,7 @@ from why_now.settings import Settings
 from why_now.store import Store
 from why_now.testset.packs import BuildResult
 from why_now.web.auth import Authenticator, LocalAuth, SignInPages
-from why_now.web.run_now import RunNow
+from why_now.web.run_now import Runner
 from why_now.workspace import Workspace
 from why_now.workspace.settings_doc import effective_settings
 
@@ -49,8 +49,9 @@ class AppContext:
     profile_files: dict[str, Path] = field(default_factory=dict)
     # Drafts a profile from a description, with one paid call. Only on one's own computer.
     draft: Callable[[str], Profile] | None = None
-    # Starts runs from the Run now page. Only on one's own computer.
-    runner: RunNow | None = None
+    # Starts runs from the Runs page: a separate process on one's own computer, the night
+    # run's task on AWS. None where starting a run is not set up.
+    runner: Runner | None = None
     # Where the setup page looks for keys. None means this process's environment.
     env: Mapping[str, str] | None = None
 

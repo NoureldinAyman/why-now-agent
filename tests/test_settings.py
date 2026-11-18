@@ -159,3 +159,21 @@ def test_daily_run_numbers_have_the_designs_values():
 def test_the_network_uses_two_zones_by_default():
     s = load_settings(None, env={})
     assert s.aws_network_zones == 2
+
+
+def test_run_note_numbers_have_the_designs_values():
+    s = load_settings(None, env={})
+    assert (s.run_stale_hours, s.runs_shown) == (12, 10)
+    assert s.display_timezone == "UTC"
+
+
+def test_the_display_time_zone_must_be_a_real_zone_name():
+    assert load_settings(None, env={"WHY_NOW_DISPLAY_TIMEZONE": "Europe/Berlin"}).display_timezone
+    with pytest.raises(ValidationError):
+        load_settings(None, env={"WHY_NOW_DISPLAY_TIMEZONE": "Mars/Olympus"})
+
+
+def test_the_run_task_a_web_function_may_start_is_named_by_settings():
+    s = load_settings(None, env={})
+    assert (s.aws_run_cluster, s.aws_run_task, s.aws_run_container) == ("", "", "Run")
+    assert (s.aws_run_subnets, s.aws_run_security_groups) == ([], [])

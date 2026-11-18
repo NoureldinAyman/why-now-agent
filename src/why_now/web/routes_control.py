@@ -1,13 +1,15 @@
-"""The control pages, so nobody needs the terminal after entering keys: Run now, setup
+"""The control pages, so nobody needs the terminal after entering keys: Runs, setup
 status, settings and the profile.
 
-Running, drafting and editing a profile work only on one's own computer. There the keys,
-the budget and the profile files are the person's own. On AWS the scheduled run does the
-work, and a profile is shown as a readable view and uploaded from one's own computer.
+Drafting and editing a profile work only on one's own computer. There the keys, the budget
+and the profile files are the person's own. On AWS a profile is shown as a readable view and
+uploaded from one's own computer. A run can be started on either: on AWS the page starts the
+night run's task, and nothing else.
 """
 
 import json
 import os
+from datetime import timedelta
 from pathlib import Path
 from typing import Annotated, Any, cast, get_args
 
@@ -33,7 +35,8 @@ from why_now.web.routes_marking import (
     _profile_query,
     check_form_token,
 )
-from why_now.web.run_now import AlreadyRunning, Mode
+from why_now.web.run_now import AlreadyRunning, Mode, RunNotStarted
+from why_now.web.runs_view import next_run_at, run_row, shown_time, until
 from why_now.workspace import Workspace
 from why_now.workspace.settings_doc import EDITABLE, SettingsRefused, save_overrides
 
@@ -58,7 +61,7 @@ def _local(ctx: AppContext) -> bool:
 
 
 def _can_run(ctx: AppContext) -> bool:
-    return _local(ctx) and ctx.runner is not None
+    return ctx.runner is not None
 
 
 def _modes() -> list[str]:
@@ -66,7 +69,7 @@ def _modes() -> list[str]:
     return [*modes, "improve"] if improve_exists() else modes
 
 
-# Run now
+# Runs
 
 
 @router.get("/run", response_class=HTMLResponse)
@@ -85,7 +88,27 @@ def _run_page(
     problem: str | None = None,
     status: int = 200,
 ) -> Response:
-    state = ctx.runner.state() if ctx.runner is not None else None
+    settings = ctx.settings
+    now = ctx.clock()
+    stale = timedelta(hours=settings.run_stale_hours)
+    zone = settings.display_timezone
+    workspace = Workspace(ctx.store)
+    held = workspace.running(now, stale)
+    rows = [
+        run_row(n, now, stale, zone) for n in workspace.last_runs(chosen.id, settings.runs_shown)
+    ]
+    improve_row = next(
+        (
+            r
+            for r in rows
+            if r.note.mode in ("improve", "night") and (r.note.summary.tries or r.note.summary.stop)
+        ),
+        None,
+    )
+    schedule = None
+    if settings.deployment == "aws":
+        at = next_run_at(now, settings.aws_run_hour_utc)
+        schedule = {"when": shown_time(at, zone), "zone": zone, "wait": until(at - now)}
     return _form_page(
         request,
         "run.html",
@@ -93,11 +116,22 @@ def _run_page(
         profile=chosen,
         active="run",
         can_run=_can_run(ctx),
+        local=_local(ctx),
         modes=_modes(),
-        sample_boards=ctx.settings.run_now_sample_boards,
-        state=state,
+        sample_boards=settings.run_now_sample_boards,
+        state=ctx.runner.state() if ctx.runner is not None else None,
+        going=None if held is None else run_row(held, now, stale, zone),
+        rows=rows,
+        improve_row=improve_row,
+        schedule=schedule,
+        night=[
+            {"id": p.id, "name": p.product_name, "on": p.id in settings.nightly_profiles}
+            for p in ctx.profiles.values()
+        ],
+        night_off=not settings.nightly_profiles,
         problem=problem,
         post_to="/run" + _profile_query(ctx, chosen),
+        nightly_to="/run/nightly" + _profile_query(ctx, chosen),
     )
 
 
@@ -113,15 +147,35 @@ def run_now(
     ctx = _ctx(request)
     chosen = _choose_profile(ctx, profile)
     if not _can_run(ctx) or ctx.runner is None or chosen is None:
-        raise HTTPException(status_code=404, detail="Run now is only on one's own computer")
+        raise HTTPException(status_code=404, detail="Starting a run is not set up here")
     if mode not in _modes():
         return _run_page(request, ctx, chosen, "Choose how to run.", status=422)
+    stale = timedelta(hours=ctx.settings.run_stale_hours)
+    if Workspace(ctx.store).running(ctx.clock(), stale) is not None:
+        return _run_page(
+            request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
+        )
     try:
         ctx.runner.start(cast(Mode, mode), chosen.id, ctx.settings.run_now_sample_boards)
     except AlreadyRunning:
         return _run_page(
             request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
         )
+    except RunNotStarted as e:
+        return _run_page(request, ctx, chosen, str(e), status=502)
+    return RedirectResponse("/run" + _profile_query(ctx, chosen), status_code=303)
+
+
+@router.post("/run/nightly", response_class=HTMLResponse)
+async def nightly_save(request: Request, _: Reviewer, profile: str | None = None) -> Response:
+    """Switch profiles on or off for the night run. Only the night list is stored here."""
+    ctx = _ctx(request)
+    chosen = _choose_profile(ctx, profile)
+    if chosen is None:
+        raise HTTPException(status_code=404, detail="No such profile")
+    problem = await _store_posted(request, ctx, frozenset({"nightly_profiles"}))
+    if problem is not None:
+        return _run_page(request, ctx, chosen, problem, status=422)
     return RedirectResponse("/run" + _profile_query(ctx, chosen), status_code=303)
 
 
@@ -150,22 +204,30 @@ def settings_page(request: Request, _: Reviewer) -> Response:
 async def settings_save(request: Request, _: Reviewer) -> Response:
     """Store the everyday limits in the workspace. Only the names in `EDITABLE` are ever
     stored: anything else posted refuses the whole form, so nothing is half saved."""
+    ctx = _ctx(request)
+    problem = await _store_posted(request, ctx, EDITABLE)
+    if problem is not None:
+        return _settings_page(request, ctx, problem, status=422)
+    return RedirectResponse("/settings", status_code=303)
+
+
+async def _store_posted(request: Request, ctx: AppContext, allowed: frozenset[str]) -> str | None:
+    """Store the posted settings, which must all be in `allowed`. None when it worked, else
+    what to tell the person, with nothing stored."""
     form = await request.form()
     check_form_token(request, str(form.get("form_token", "")))
-    ctx = _ctx(request)
     base: Settings = request.app.state.ctx.settings
-    foreign = sorted(set(form.keys()) - EDITABLE - _FORM_ONLY)
+    foreign = sorted(set(form.keys()) - allowed - _FORM_ONLY)
     if foreign:
-        problem = f"{', '.join(foreign)} cannot be changed here. Nothing was saved."
-        return _settings_page(request, ctx, problem, status=422)
+        return f"{', '.join(foreign)} cannot be changed here. Nothing was saved."
     try:
         wanted = _posted_values(form, ctx)
         # Only what differs from the file is stored, so a later change to the file shows.
         stored = {name: value for name, value in wanted.items() if value != getattr(base, name)}
         save_overrides(ctx.store, base, stored)
     except SettingsRefused as e:
-        return _settings_page(request, ctx, f"Nothing was saved. {e}.", status=422)
-    return RedirectResponse("/settings", status_code=303)
+        return f"Nothing was saved. {e}."
+    return None
 
 
 def _posted_values(form: FormData, ctx: AppContext) -> dict[str, Any]:

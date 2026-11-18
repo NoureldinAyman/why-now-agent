@@ -14,6 +14,7 @@ from why_now.workspace.marks import MarksArea
 from why_now.workspace.profiles import ProfilesArea
 from why_now.workspace.quick_look import QuickLookArea
 from why_now.workspace.read import ReadArea
+from why_now.workspace.runs import RunsArea
 
 
 class Workspace(
@@ -25,6 +26,7 @@ class Workspace(
     ProfilesArea,
     QuickLookArea,
     ReadArea,
+    RunsArea,
     JudgeArea,
     WorkspaceBase,
 ):

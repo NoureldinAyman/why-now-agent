@@ -192,18 +192,6 @@ def test_a_second_run_waits_for_the_first(client, launcher):
     assert run(client, "saved").status_code == 303
 
 
-def test_run_now_is_refused_on_aws(settings, make_ctx, launcher, tmp_path):
-    ctx = make_ctx(settings.model_copy(update={"deployment": "aws"}))
-    ctx.runner = RunNow(["why-now"], None, tmp_path / "logs", launch=launcher, clock=lambda: NOW)
-    client = TestClient(create_app(ctx, SignedIn()))
-    page = client.get("/run").text
-    assert "own computer" in page
-    assert 'name="mode"' not in page
-    data = {"mode": "saved", "form_token": "any"}  # no page here has a form to take a token from
-    assert client.post("/run", data=data).status_code in (403, 404)
-    assert launcher.commands == []
-
-
 def test_an_unknown_mode_is_refused(client, launcher):
     assert run(client, "everything").status_code == 422
     assert launcher.commands == []

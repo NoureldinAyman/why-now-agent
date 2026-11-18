@@ -3,7 +3,8 @@
 import json
 import os
 import tempfile
-from collections.abc import Iterator
+import threading
+from collections.abc import Iterator, Sequence
 from pathlib import Path
 
 from why_now.store import split_name
@@ -14,6 +15,7 @@ SUFFIX = ".json"
 class LocalStore:
     def __init__(self, root: Path):
         self.root = Path(root)
+        self._swapping = threading.Lock()
 
     def put(self, collection: str, key: str, doc: dict) -> None:
         path = self._path(collection, key)
@@ -54,6 +56,49 @@ class LocalStore:
 
     def delete(self, collection: str, key: str) -> None:
         self._path(collection, key).unlink(missing_ok=True)
+
+    def collections(self) -> Sequence[str]:
+        """The collections that hold at least one document, by name. Other files in the folder,
+        such as trace logs, are not documents and do not count."""
+        if not self.root.is_dir():
+            return []
+        return sorted(
+            p.name
+            for p in self.root.iterdir()
+            if p.is_dir() and any(f.suffix == SUFFIX for f in p.rglob(f"*{SUFFIX}"))
+        )
+
+    def swap(self, collection: str, key: str, expected: dict | None, new: dict | None) -> bool:
+        """Creating is atomic, even between programs: the finished file is linked into place,
+        and the link fails if the name is taken. Replacing or removing is checked then done,
+        one at a time inside this program, which is enough for one person on one computer."""
+        path = self._path(collection, key)
+        if expected is None:
+            return new is not None and self._create(path, new)
+        with self._swapping:
+            if self.get(collection, key) != expected:
+                return False
+            if new is None:
+                self.delete(collection, key)
+            else:
+                self.put(collection, key, new)
+            return True
+
+    def _create(self, path: Path, doc: dict) -> bool:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=".", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as f:
+                json.dump(doc, f, ensure_ascii=False, indent=1)
+                f.flush()
+                os.fsync(f.fileno())
+            try:
+                os.link(tmp, path)
+            except FileExistsError:
+                return False
+            return True
+        finally:
+            Path(tmp).unlink(missing_ok=True)
 
     def _folder(self, collection: str) -> Path:
         return self._inside(self.root.joinpath(*split_name(collection)), collection)

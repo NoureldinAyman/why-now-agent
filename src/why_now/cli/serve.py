@@ -18,14 +18,16 @@ from why_now.ai.budget import Meter
 from why_now.cli import app
 from why_now.cli.profile import make_writer
 from why_now.cli.testset import run_prepare
-from why_now.deployment import build_auth, open_store
+from why_now.deployment import aws_clients, build_auth, open_store
 from why_now.drafting import draft_profile
 from why_now.profile import ProfileError
 from why_now.resolve_profile import resolve_profile, upload_profile_file
-from why_now.settings import load_settings
+from why_now.settings import Settings, load_settings
 from why_now.store import Store
+from why_now.store.aws import ClientFactory
+from why_now.testset.ads_only import prepare_ads_only
 from why_now.web.app import AppContext, create_app
-from why_now.web.run_now import RunNow
+from why_now.web.run_now import AwsRunNow, RunNow
 
 DEFAULT_SETTINGS = Path("settings.toml")
 HOST = "127.0.0.1"  # this machine only. Other machines on the network cannot reach the page
@@ -51,6 +53,38 @@ def _upload_given(refs: list[str], store: Store) -> dict[str, Path]:
         except (ProfileError, ValueError) as e:
             raise typer.BadParameter(str(e), param_hint="--profile") from e
     return files
+
+
+def attach_actions(
+    ctx: AppContext,
+    settings: Settings,
+    settings_file: Path | None,
+    clients: ClientFactory | None = None,
+) -> None:
+    """Give the page the things it may do for where it runs.
+
+    On one's own computer, where the keys and the budget are the person's own: prepare, draft
+    a profile and start a run as a separate process. On AWS: start the night run's task, if
+    the AWS setup named it, and prepare while that makes no paid call. Drafting stays off,
+    because it is a paid call that needs the person's own keys.
+    """
+    store = ctx.store
+    if settings.deployment == "local":
+        ctx.prepare = lambda profile, n, seed: run_prepare(settings, store, profile, n, seed)
+        ctx.draft = lambda description: draft_profile(description, make_writer(settings))
+        ctx.runner = RunNow(
+            [sys.executable, "-m", "why_now"],
+            settings_file.resolve() if settings_file is not None else None,
+            settings.workspace_path / "run-now",
+            clock=now,
+        )
+        return
+    if settings.aws_run_cluster and settings.aws_run_task:
+        ctx.runner = AwsRunNow(settings, (clients or aws_clients(settings))("ecs"))
+    if not settings.test_case_web_research:
+        ctx.prepare = lambda profile, n, seed: prepare_ads_only(
+            settings, store, profile, n, seed, clock=now
+        )
 
 
 @app.command("serve")
@@ -81,15 +115,7 @@ def serve_command(
         auth = build_auth(settings, os.environ)
         ctx = AppContext(settings, store, Meter(store, settings, now), now)
         ctx.profile_files = _upload_given(profile_refs or [], store)
-        if settings.deployment == "local":
-            ctx.prepare = lambda profile, n, seed: run_prepare(settings, store, profile, n, seed)
-            ctx.draft = lambda description: draft_profile(description, make_writer(settings))
-            ctx.runner = RunNow(
-                [sys.executable, "-m", "why_now"],
-                settings_file.resolve() if settings_file is not None else None,
-                settings.workspace_path / "run-now",
-                clock=now,
-            )
+        attach_actions(ctx, settings, settings_file)
         web_app = create_app(ctx, auth)
     except ValueError as e:
         typer.echo(str(e), err=True)
