@@ -199,6 +199,62 @@ Ticket 15 is built in two parts. First a small pull request with the code below.
 3. A fresh coding agent session, allowed only `mark-next`, `mark` and `unmark`, marks the 20 from the guide. Each pack is untrusted text.
 4. Repeat until `why-now piles` says the loop is ready, about 135 marks.
 
+### Update of 18 Nov 2026: the review site, runs on AWS and the simulation page
+
+Read the design's "Update of 18 Nov 2026" first. This section overrides Task 21, R6, the 13 Nov rows for tickets 46 and 38, and Task 30 where they disagree. The tasks are grouped into four tickets, built in this order: 93, profiles and settings in the workspace (U2, then U3); 94, runs on AWS (U1, then U7, then U4, so the deploy comes last); 95, the review site redesign with Decided and Undo (U5, then U6); and 38, the simulation page (U8).
+
+**U1: Run notes and the night run on AWS.**
+- `workspace/runs.py`: `start_run(profile_id, mode) -> RunNote`, `finish_run(note, summary)`, `running() -> RunNote | None`, `last_runs(profile_id) -> list[RunNote]`. A `RunNote` holds the profile id, the mode (`daily`, `improve` or `night`), start, finish, how it ended and a short summary (list sizes, failures, cost, the improvement run's tries). One note per run in the store, so the page and the next run can read them.
+- `daily`, `improve` and `night-run` write a note at start and at finish, and refuse to start while another run's note has no finish, unless that note is older than a new setting, `run_stale_hours`, with its line in the design's numbers table.
+- `infra/stack.py`: the task runs `night-run`. The web function is given `aws_run_hour_utc` and a new `display_timezone` setting (a name such as `Europe/Berlin`, default `UTC`). The image has time zone data.
+- Tests: two runs cannot overlap; a crash leaves a start without a finish, shown as stopped; a stale note does not block forever; the stack's task command is `night-run`.
+
+**U2: Profiles in the workspace.**
+- `workspace/profiles.py`: `save_profile(profile, text)` keeps the text under the profile id and its version hash; `profile(id) -> Profile | None`; `profile_ids()`; `profile_version(id, version)`.
+- `why-now profile upload FILE [--settings S]` checks the file with `load_profile` and saves it.
+- `resolve_profile(arg, store) -> Profile`: an existing file path loads the file, anything else is an id in the workspace. Every command that takes `--profile` uses it.
+- `serve` and the web routes read profiles from the workspace on each request, so a new upload shows without a restart. The site starts with zero profiles and says how to upload one. On one's own computer, saving the profile text box also saves it to the workspace.
+- The top bar shows the profile in use and a list of the others, with no script (a `<details>` list of links). On AWS the profile page shows a readable view: product, search words, countries, questions by kind, why-now, marking guide.
+- Tests: upload refuses a broken file; an old version stays readable after a new upload; `resolve_profile` takes a path or an id; the site starts with no profiles; the switcher lists every workspace profile; the AWS profile page has no form.
+
+**U3: Stored settings and nightly profiles.**
+- `workspace/settings_doc.py`: one document of overrides. `EDITABLE = {short_list_size, hide_days, reason_chips, judged_no_shown, prepare_batch, nightly_profiles}`. `effective_settings(base, store) -> Settings` applies the document over the file and environment, validated by the same fields. Runs read it at start, and the page on each request.
+- New setting `nightly_profiles: list[str]` (profile ids) replaces `daily_profiles`. `night-run` runs those ids. A profile not on the list never runs at night.
+- Every editable field gets bounds. A read-only field can never be written through the document, whatever is posted.
+- The settings page becomes a form for the editable fields, with the rest shown read-only with their reasons, as now.
+- `daily --research-per-day N`, added to `OVERRIDABLE`, for one run only.
+- Tests: the document overrides the file; a posted budget, ad age or tries per run is refused; bounds are enforced; `night-run` skips a profile that is off; the override lasts one run.
+
+**U4: Copy the workspace to AWS, and Prepare on AWS.**
+- `why-now copy-workspace --to SETTINGS`: copies every document from the local workspace into the store that the other settings file names, skipping documents already there, and prints the counts.
+- Prepare is offered on AWS while `test_case_web_research` is off, because it then makes no paid call.
+- Owner steps, each after the owner's yes: deploy, upload the main example profile, switch it on for the night, copy the workspace, and check one night run.
+- Tests: the copy is complete and can be run twice; Prepare on AWS is refused when web research is on.
+
+**U5: Decided page and Undo.**
+- `Decision` gains `entry: ListEntry | None`, a copy of what the reviewer saw.
+- `GET /decided` lists decisions newest first, with each entry's brief, reason, date and list, and short-list precision.
+- `POST /decided/{key}/undo` removes the decision and puts the entry back on its list. It is refused once a run for that profile has started after the decision.
+- Tests: an undone company is back on its list even after a later run replaced the lists; undo is refused after a later run started; the page needs login and escapes every value.
+
+**U6: The review site redesign.**
+- The menu, top bar and pages from the design's update: the short list status line, the quotes line, the spending warning only at the warning or the stop, the ads summary line with the full list folded, no decorative drawings, marking progress on the marking page. Public pages get a layout with no switcher.
+- The look is made with the taste skill. Still no script, and every value escaped.
+- Tests: spending is absent from the short list below the warning and present at it; the summary groups ad titles with counts; the public layout shows no profile name.
+
+**U7: Run now, Improve now and the Runs page on AWS.**
+- The web function may run the night run's task definition only: `ecs:RunTask` limited to that task family and cluster, and `iam:PassRole` limited to its two roles and `ecs-tasks.amazonaws.com`. It has no permission to change the schedule.
+- On AWS, Run now and Improve now start that task with the command for the chosen mode and profile, after checking `running()`. On one's own computer, the existing separate process stays.
+- The Runs page shows the last run notes with their summaries, each try of the last improvement run, which profiles run each night (switchable, from U3), and the next run with the time until it, written by the server.
+- Tests: the stack grants only those two actions; a second press while a run is going is refused; the next run time follows the hour and time zone settings.
+
+**U8: The simulation page on GitHub Pages.** Replaces Task 30's route.
+- Bring over only the invented sample, the template and the style sheet from the earlier simulation branch, not its route or app changes. Redo the look with the taste skill to match U6. Visitors scroll through the steps.
+- `why-now build-simulation --out FOLDER` writes `index.html` and its style sheet, using default settings only, never the owner's.
+- A GitHub Action publishes only that folder to GitHub Pages. Turning GitHub Pages on is a public change and needs the owner's yes.
+- Tests: the page names every step, shows no score, and has no form that posts anywhere; the build reads no settings file; the output folder holds only those files.
+- The README link is added in ticket 39.
+
 ### How each ticket ends
 
 Each pull request has a "Try it yourself" section: 2 to 3 commands or clicks, what you should see, and the cost, free or an estimate. At the end, the session explains to the owner in plain words what was built, how it works and why, with a small example.

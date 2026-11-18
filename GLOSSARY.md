@@ -76,6 +76,10 @@ _Avoid_: Labeller, user, human in the loop
 A reviewer's approval or rejection, together with the reason for it.
 _Avoid_: Verdict, label, feedback
 
+**Night run**:
+The run started on a schedule each night: for each profile switched on for it, the daily list, then one improvement run. Run now and Improve now start the same work on demand.
+_Avoid_: Cron job, nightly job, batch
+
 **Workspace**:
 One person's private copy of everything that isn't code: settings, profiles, rules files, job ads, decisions and scores. Each person running the project has their own.
 _Avoid_: Tenant, instance, data folder
