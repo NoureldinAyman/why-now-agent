@@ -42,9 +42,9 @@ def now() -> datetime:
 
 
 @app.command("mark-next")
-def mark_next(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def mark_next(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Show the next case to mark: its card, its evidence pack and the marking guide."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     waiting = _waiting(workspace)
     if not waiting:
         typer.echo("Nothing left to mark. Prepare more with why-now prepare.")
@@ -68,13 +68,13 @@ def mark_next(profile_file: ProfileOption, settings_file: SettingsOption = None)
 def mark(
     case_id: Annotated[str, typer.Argument(help="The case, as mark-next shows it.")],
     answer: Annotated[str, typer.Argument(help="yes, no or cant-tell.")],
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     chips: ChipOption = None,
     reason: ReasonOption = "",
     settings_file: SettingsOption = None,
 ) -> None:
     """Mark a case yes, no or can't tell, with a reason."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     case = _case(workspace, case_id)
     answer = "cant_tell" if answer == "cant-tell" else answer
     reason, picked = tidy_reason(reason, chips)
@@ -93,11 +93,11 @@ def mark(
 @app.command("unmark")
 def unmark(
     case_id: Annotated[str, typer.Argument(help="The case whose mark was made by mistake.")],
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     settings_file: SettingsOption = None,
 ) -> None:
     """Remove a mark made by mistake, so the case can be marked again."""
-    _, workspace, _ = open_workspace(profile_file, settings_file)
+    _, workspace, _ = open_workspace(profile_ref, settings_file)
     case = _case(workspace, case_id)
     if not workspace.delete_mark(ROUND, case.case_id):
         _refuse(f"{case_id} has no mark.")
@@ -105,9 +105,9 @@ def unmark(
 
 
 @app.command("decide-next")
-def decide_next(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def decide_next(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Show the next company waiting for a decision: the short list, then the judged-no list."""
-    settings, workspace, _ = open_workspace(profile_file, settings_file)
+    settings, workspace, _ = open_workspace(profile_ref, settings_file)
     short = workspace.short_list()
     turned_down = workspace.judged_no_list(settings.judged_no_shown)
     waiting = [*(("short list", e) for e in short), *(("judged-no list", e) for e in turned_down)]
@@ -142,13 +142,13 @@ def decide_next(profile_file: ProfileOption, settings_file: SettingsOption = Non
 def decide(
     company_key: Annotated[str, typer.Argument(help="The company, as decide-next shows it.")],
     decision: Annotated[str, typer.Argument(help="approve or reject.")],
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     chips: ChipOption = None,
     reason: ReasonOption = "",
     settings_file: SettingsOption = None,
 ) -> None:
     """Approve or reject a company waiting for a decision, with a reason. Nothing is sent."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     found = workspace.awaiting_decision(company_key, "short")
     if found is None:
         _refuse(f"{company_key} is not waiting for a decision.")

@@ -47,11 +47,11 @@ class Settings(BaseModel):
             "ever committed."
         ),
     )
-    daily_profiles: list[Path] = Field(
+    nightly_profiles: list[str] = Field(
         default_factory=list,
         description=(
-            "The profile files the daily run uses and the review page shows. A product works by "
-            "adding a file."
+            "The ids of the profiles the night run works for. A profile not listed never runs "
+            "at night. A product works by uploading its profile and adding its id here."
         ),
     )
     board_lists: dict[str, Path] = Field(
@@ -204,7 +204,6 @@ class Settings(BaseModel):
             "pages per job source, at random. Starting guess."
         ),
     )
-    # Short reasons the reviewer can tap in place of writing a sentence.
     reason_chips: list[str] = Field(
         description=(
             "Short reasons the reviewer can tap in place of writing a sentence, when marking and "
@@ -218,6 +217,28 @@ class Settings(BaseModel):
             "too small",
             "good timing",
         ],
+    )
+    reason_chip_max_chars: int = Field(
+        default=40,
+        gt=0,
+        description=(
+            "A reason choice staying short enough to tap, and the page staying readable. "
+            "Starting guess."
+        ),
+    )
+    editable_limits: dict[str, tuple[int, int]] = Field(
+        default_factory=lambda: {
+            "short_list_size": (1, 30),
+            "hide_days": (1, 365),
+            "judged_no_shown": (0, 10),
+            "prepare_batch": (1, 100),
+            "reason_chips": (1, 12),
+        },
+        description=(
+            "A mistyped or stolen sign-in setting a silly value. The smallest and largest value "
+            "the settings page may store for each setting it can change, and for reason_chips "
+            "the fewest and most choices. Starting guesses, and never changed on the page."
+        ),
     )
     marking_ceiling: int = Field(
         default=500,
@@ -619,7 +640,7 @@ def load_settings(path: Path | None = None, env: Mapping[str, str] | None = None
     """Read `path` (TOML) if given, then apply `WHY_NOW_` overrides from `env`.
 
     `env` defaults to the process environment. Lists and tables in the
-    environment are written as JSON, for example `WHY_NOW_DAILY_PROFILES='["a.yaml"]'`.
+    environment are written as JSON, for example `WHY_NOW_NIGHTLY_PROFILES='["mine"]'`.
     """
     values: dict[str, Any] = {}
     if path is not None:

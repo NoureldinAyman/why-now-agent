@@ -1,17 +1,18 @@
 """The control pages, so nobody needs the terminal after entering keys: Run now, setup
 status, settings and the profile.
 
-Running, drafting and saving a profile work only on one's own computer. There the keys,
+Running, drafting and editing a profile work only on one's own computer. There the keys,
 the budget and the profile files are the person's own. On AWS the scheduled run does the
-work, and a profile is changed in its file and deployed.
+work, and a profile is shown as a readable view and uploaded from one's own computer.
 """
 
 import json
 import os
 from pathlib import Path
-from typing import Annotated, cast, get_args
+from typing import Annotated, Any, cast, get_args
 
 from fastapi import APIRouter, Form, HTTPException
+from starlette.datastructures import FormData
 from starlette.requests import Request
 from starlette.responses import HTMLResponse, RedirectResponse, Response
 
@@ -34,6 +35,7 @@ from why_now.web.routes_marking import (
 )
 from why_now.web.run_now import AlreadyRunning, Mode
 from why_now.workspace import Workspace
+from why_now.workspace.settings_doc import EDITABLE, SettingsRefused, save_overrides
 
 router = APIRouter()
 
@@ -90,7 +92,7 @@ def _run_page(
         status=status,
         profile=chosen,
         active="run",
-        can_run=_can_run(ctx) and chosen.id in ctx.profile_files,
+        can_run=_can_run(ctx),
         modes=_modes(),
         sample_boards=ctx.settings.run_now_sample_boards,
         state=state,
@@ -112,13 +114,10 @@ def run_now(
     chosen = _choose_profile(ctx, profile)
     if not _can_run(ctx) or ctx.runner is None or chosen is None:
         raise HTTPException(status_code=404, detail="Run now is only on one's own computer")
-    profile_file = ctx.profile_files.get(chosen.id)
-    if profile_file is None:
-        raise HTTPException(status_code=404, detail="This profile has no file to run")
     if mode not in _modes():
         return _run_page(request, ctx, chosen, "Choose how to run.", status=422)
     try:
-        ctx.runner.start(cast(Mode, mode), profile_file, ctx.settings.run_now_sample_boards)
+        ctx.runner.start(cast(Mode, mode), chosen.id, ctx.settings.run_now_sample_boards)
     except AlreadyRunning:
         return _run_page(
             request, ctx, chosen, "A run is still going. Wait for it to finish.", status=409
@@ -133,18 +132,101 @@ def run_now(
 def setup_page(request: Request, _: Reviewer) -> Response:
     ctx = _ctx(request)
     env = ctx.env if ctx.env is not None else os.environ
-    items = check_setup(ctx.settings, env)
+    items = check_setup(ctx.settings, env, list(ctx.profiles))
     return _page(request, "setup.html", active="setup", items=items, local=_local(ctx))
+
+
+# Form fields that are not settings.
+_FORM_ONLY = {"form_token", "nightly_listed"}
+_NUMBERS = ("short_list_size", "hide_days", "judged_no_shown", "prepare_batch")
 
 
 @router.get("/settings", response_class=HTMLResponse)
 def settings_page(request: Request, _: Reviewer) -> Response:
-    settings = _ctx(request).settings
-    return _page(request, "settings.html", active="settings", rows=settings_rows(settings))
+    return _settings_page(request, _ctx(request))
+
+
+@router.post("/settings", response_class=HTMLResponse)
+async def settings_save(request: Request, _: Reviewer) -> Response:
+    """Store the everyday limits in the workspace. Only the names in `EDITABLE` are ever
+    stored: anything else posted refuses the whole form, so nothing is half saved."""
+    form = await request.form()
+    check_form_token(request, str(form.get("form_token", "")))
+    ctx = _ctx(request)
+    base: Settings = request.app.state.ctx.settings
+    foreign = sorted(set(form.keys()) - EDITABLE - _FORM_ONLY)
+    if foreign:
+        problem = f"{', '.join(foreign)} cannot be changed here. Nothing was saved."
+        return _settings_page(request, ctx, problem, status=422)
+    try:
+        wanted = _posted_values(form, ctx)
+        # Only what differs from the file is stored, so a later change to the file shows.
+        stored = {name: value for name, value in wanted.items() if value != getattr(base, name)}
+        save_overrides(ctx.store, base, stored)
+    except SettingsRefused as e:
+        return _settings_page(request, ctx, f"Nothing was saved. {e}.", status=422)
+    return RedirectResponse("/settings", status_code=303)
+
+
+def _posted_values(form: FormData, ctx: AppContext) -> dict[str, Any]:
+    """The editable settings as posted, with the current value for any that was not posted."""
+    values: dict[str, Any] = {name: getattr(ctx.settings, name) for name in EDITABLE}
+    for name in _NUMBERS:
+        if name in form:
+            try:
+                values[name] = int(str(form[name]).strip())
+            except ValueError as e:
+                raise SettingsRefused(f"{name} must be a whole number") from e
+    if "reason_chips" in form:
+        lines = (line.strip() for line in str(form["reason_chips"]).splitlines())
+        values["reason_chips"] = [line for line in lines if line]
+    if "nightly_listed" in form:
+        ids = [str(i) for i in form.getlist("nightly_profiles")]
+        unknown = [i for i in ids if i not in ctx.profiles]
+        if unknown:
+            raise SettingsRefused(f"no profile named {', '.join(unknown)} is in the workspace")
+        values["nightly_profiles"] = ids
+    return values
+
+
+def _settings_page(
+    request: Request, ctx: AppContext, problem: str | None = None, status: int = 200
+) -> Response:
+    settings = ctx.settings
+    fields = Settings.model_fields
+    limits = settings.editable_limits
+    return _form_page(
+        request,
+        "settings.html",
+        status=status,
+        active="settings",
+        problem=problem,
+        numbers=[
+            {
+                "name": name,
+                "value": getattr(settings, name),
+                "low": limits[name][0] if name in limits else None,
+                "high": limits[name][1] if name in limits else None,
+                "why": fields[name].description or "",
+            }
+            for name in _NUMBERS
+        ],
+        chips_text="\n".join(settings.reason_chips),
+        chips_why=fields["reason_chips"].description or "",
+        chips_range=limits.get("reason_chips"),
+        chip_chars=settings.reason_chip_max_chars,
+        night_why=fields["nightly_profiles"].description or "",
+        night=[
+            {"id": p.id, "name": p.product_name, "on": p.id in settings.nightly_profiles}
+            for p in ctx.profiles.values()
+        ],
+        rows=settings_rows(settings),
+    )
 
 
 def settings_rows(settings: Settings) -> list[dict[str, str]]:
-    """Each setting's name, value and reason, in the order they are written."""
+    """Each read-only setting's name, value and reason, in the order they are written. The
+    settings the page can change are in its form instead."""
     values = settings.model_dump(mode="json")
     return [
         {
@@ -153,6 +235,7 @@ def settings_rows(settings: Settings) -> list[dict[str, str]]:
             "why": field.description or "",
         }
         for name, field in Settings.model_fields.items()
+        if name not in EDITABLE
     ]
 
 
@@ -229,15 +312,15 @@ def profile_save(
     text: Annotated[str, Form()] = "",
     form_token: Annotated[str, Form()] = "",
 ) -> Response:
-    """Save the box to the profile file, once the loader accepts it. Saving is the person's
-    approval of what it says, the required questions above all."""
+    """Save the box to the workspace, once the loader accepts it, and to the profile file too
+    when the profile came from one. Saving is the person's approval of what it says, the
+    required questions above all."""
     check_form_token(request, form_token)
     ctx, chosen = _profile_for_form(request, profile)
-    path = ctx.profile_files.get(chosen.id)
-    if not _local(ctx) or path is None:
+    if not _local(ctx):
         raise HTTPException(status_code=404, detail="Profiles are edited on one's own computer")
     try:
-        edited = parse_profile(text, str(path))
+        edited = parse_profile(text, "in the box")
     except ProfileError as e:
         return _profile_page(request, ctx, chosen, text, problem=str(e), status=422)
     if edited.id != chosen.id:
@@ -246,8 +329,10 @@ def profile_save(
             "For a new product, make a new profile file."
         )
         return _profile_page(request, ctx, chosen, text, problem=problem, status=422)
-    _write(path, text)
-    ctx.profiles[chosen.id] = edited
+    Workspace(ctx.store).save_profile(edited, text)
+    path = ctx.profile_files.get(chosen.id)
+    if path is not None:
+        _write(path, text)
     return RedirectResponse("/profile" + _profile_query(ctx, edited), status_code=303)
 
 
@@ -260,8 +345,7 @@ def _profile_for_form(request: Request, requested: str | None) -> tuple[AppConte
 
 
 def _current_text(ctx: AppContext, chosen: Profile) -> str:
-    path = ctx.profile_files.get(chosen.id)
-    return path.read_text(encoding="utf-8") if path is not None else profile_text(chosen)
+    return Workspace(ctx.store).profile_text(chosen.id) or profile_text(chosen)
 
 
 def _write(path: Path, text: str) -> None:
@@ -300,7 +384,7 @@ def _profile_page(
         new_version=edited is not None and edited.version != chosen.version,
         drafted=drafted,
         description=description,
-        can_save=local and chosen.id in ctx.profile_files,
+        can_save=local,
         can_draft=local and ctx.draft is not None,
         marked=marked,
         query=_profile_query(ctx, chosen),

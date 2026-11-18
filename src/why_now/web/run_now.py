@@ -61,24 +61,25 @@ class RunNow:
         self._mode: Mode | None = None
         self._started_at: datetime | None = None
 
-    def args(self, mode: Mode, profile_file: Path, sample_boards: int) -> list[str]:
+    def args(self, mode: Mode, profile: str, sample_boards: int) -> list[str]:
+        """The command for a run. `profile` is the id of a profile in the workspace."""
         if mode == "improve":
-            args = [*self.command, "improve", "--profile", str(profile_file)]
+            args = [*self.command, "improve", "--profile", profile]
         else:
-            args = [*self.command, "daily", "--profile", str(profile_file)]
+            args = [*self.command, "daily", "--profile", profile]
             args += ["--saved-read"] if mode == "saved" else ["--sample-boards", str(sample_boards)]
         if self.settings_file is not None:
             args += ["--settings", str(self.settings_file)]
         return args
 
-    def start(self, mode: Mode, profile_file: Path, sample_boards: int) -> None:
+    def start(self, mode: Mode, profile: str, sample_boards: int) -> None:
         with self._lock:
             if self._process is not None and self._process.poll() is None:
                 raise AlreadyRunning("a run is still going")
             self.log_path.parent.mkdir(parents=True, exist_ok=True)
             # The process keeps its own copy of the file, so this one is closed straight away.
             with self.log_path.open("w", encoding="utf-8") as log:
-                self._process = self.launch(self.args(mode, profile_file, sample_boards), log)
+                self._process = self.launch(self.args(mode, profile, sample_boards), log)
             self._mode = mode
             self._started_at = self.clock()
 

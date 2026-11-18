@@ -7,8 +7,10 @@ from typing import Annotated
 import typer
 
 from why_now.cli import app
+from why_now.deployment import open_store
 from why_now.settings import load_settings
 from why_now.setup_check import check_setup
+from why_now.workspace import Workspace
 
 DEFAULT_SETTINGS = Path("settings.toml")
 
@@ -25,7 +27,9 @@ def check_setup_command(
     """List what is ready, missing and optional. Never prints key values."""
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
-    items = check_setup(load_settings(settings_file), os.environ)
+    settings = load_settings(settings_file)
+    profile_ids = Workspace(open_store(settings)).profile_ids()
+    items = check_setup(settings, os.environ, profile_ids)
     for status, heading in HEADINGS:
         group = [i for i in items if i.status == status]
         if not group:

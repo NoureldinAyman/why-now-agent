@@ -74,12 +74,12 @@ def test_environment_can_set_lists_dicts_and_booleans():
     s = load_settings(
         None,
         env={
-            "WHY_NOW_DAILY_PROFILES": '["a.yaml"]',
+            "WHY_NOW_NIGHTLY_PROFILES": '["mine"]',
             "WHY_NOW_BOARD_LISTS": '{"greenhouse": "boards.txt"}',
             "WHY_NOW_PUBLIC_RESULTS_ENABLED": "true",
         },
     )
-    assert s.daily_profiles == [Path("a.yaml")]
+    assert s.nightly_profiles == ["mine"]
     assert s.board_lists == {"greenhouse": Path("boards.txt")}
     assert s.public_results_enabled is True
 

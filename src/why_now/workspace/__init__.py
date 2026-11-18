@@ -11,6 +11,7 @@ from why_now.workspace.evaluation import EvaluationArea
 from why_now.workspace.improve import ImproveArea
 from why_now.workspace.judge import JudgeArea
 from why_now.workspace.marks import MarksArea
+from why_now.workspace.profiles import ProfilesArea
 from why_now.workspace.quick_look import QuickLookArea
 from why_now.workspace.read import ReadArea
 
@@ -21,6 +22,7 @@ class Workspace(
     EvaluationArea,
     ImproveArea,
     MarksArea,
+    ProfilesArea,
     QuickLookArea,
     ReadArea,
     JudgeArea,

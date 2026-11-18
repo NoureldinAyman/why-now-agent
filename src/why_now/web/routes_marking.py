@@ -180,7 +180,11 @@ def _profile_version(ctx: AppContext, profile_id: str) -> str | None:
 
 
 def _ctx(request: Request) -> AppContext:
-    return request.app.state.ctx
+    """The app context for this visit, with the workspace's profiles and stored settings.
+    It is read once per visit, so a page that asks again does not read the workspace again."""
+    if not hasattr(request.state, "ctx"):
+        request.state.ctx = request.app.state.ctx.current()
+    return request.state.ctx
 
 
 def _choose_profile(ctx: AppContext, requested: str | None) -> Profile | None:
@@ -333,6 +337,11 @@ def _web_href(url: str) -> str | None:
     return url if url.lower().startswith(("http://", "https://")) else None
 
 
+def _others(ctx: AppContext, profile: Profile | None) -> list[Profile]:
+    """The profiles the top bar offers to switch to: every one but the one in use."""
+    return [p for p in ctx.profiles.values() if profile is None or p.id != profile.id]
+
+
 def _page(
     request: Request,
     template: str,
@@ -355,6 +364,9 @@ def _page(
         "settings_link": "/settings",
     }
     html = request.app.state.templates.get_template(template).render(
-        profile=profile, **links, **values
+        profile=profile,
+        switch=_others(_ctx(request), profile),
+        **links,
+        **values,
     )
     return HTMLResponse(html, status_code=status)

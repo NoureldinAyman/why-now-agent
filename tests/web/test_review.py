@@ -14,6 +14,7 @@ from fastapi.testclient import TestClient
 from why_now.ai.budget import BudgetStatus
 from why_now.day_result import DayResult, ListEntry
 from why_now.domain import Brief, Claim, Decision, EvidencePack, JobAd, Source
+from why_now.profile import profile_text
 from why_now.web.app import create_app
 from why_now.web.auth import LocalAuth
 from why_now.workspace import Workspace
@@ -254,7 +255,7 @@ def test_with_two_profiles_the_page_asks_which_and_decisions_stay_in_theirs(
     client, ctx, profile, make_profile, listed_company, workspace, store
 ):
     other = make_profile()
-    ctx.profiles[other.id] = other
+    Workspace(store).save_profile(other, profile_text(other))
     for path in ("/", "/more", "/spending"):
         assert f"?profile={profile.id}" in client.get(path).text
 

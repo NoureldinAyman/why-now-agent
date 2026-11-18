@@ -78,9 +78,9 @@ def make_eval_run(settings: Settings, workspace: Workspace, profile: Profile) ->
 
 
 @app.command("set-cutoff")
-def set_cutoff_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def set_cutoff_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Choose the cut-off on the practice pile and record it for the judge. This costs money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     try:
         cutoff = set_cutoff(run)
@@ -97,12 +97,12 @@ def set_cutoff_command(profile_file: ProfileOption, settings_file: SettingsOptio
 
 @app.command("evaluate")
 def evaluate_command(
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     pile: Annotated[str, typer.Option(help="The pile to score: practice or check.")] = "check",
     settings_file: SettingsOption = None,
 ) -> None:
     """Score the agent against the reviewer's marks on one pile. This costs money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     try:
         result = evaluate_pile(pile, workspace.load_rules(), run, CATEGORY)
@@ -127,12 +127,12 @@ def evaluate_command(
 
 @app.command("baselines")
 def baselines_command(
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     pile: Annotated[str, typer.Option(help="The pile to score: practice or check.")] = "check",
     settings_file: SettingsOption = None,
 ) -> None:
     """Score three simple rivals the agent must beat. This costs a little money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     try:
         scores = baselines(pile, run)
@@ -151,10 +151,10 @@ def baselines_command(
 
 @app.command("compare-models")
 def compare_models_command(
-    profile_file: ProfileOption, settings_file: SettingsOption = None
+    profile_ref: ProfileOption, settings_file: SettingsOption = None
 ) -> None:
     """Compare two judges on the same check pile companies. This costs money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     meter = Meter(workspace.store, settings, now)
     try:
@@ -181,10 +181,10 @@ def compare_models_command(
 
 
 @app.command("consistency")
-def consistency_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def consistency_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Ask the same questions again and again on practice packs and show how far the answers
     move, for each of the two judges. Saved answers are not used. This costs money."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     meter = Meter(workspace.store, settings, now)
     # Practice cases only, in a fixed order, so no check or final pile company is read.
@@ -221,7 +221,7 @@ def consistency_command(profile_file: ProfileOption, settings_file: SettingsOpti
 
 @app.command("open-final")
 def open_final_command(
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     moment: Annotated[
         str, typer.Option(help="Why it is opened: first, after_loop, publishing or extra.")
     ],
@@ -233,7 +233,7 @@ def open_final_command(
     """Open the final pile. Every opening is logged, and this costs money."""
     if moment not in MOMENTS:
         raise typer.BadParameter(f"must be one of {', '.join(MOMENTS)}", param_hint="--moment")
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     run = make_eval_run(settings, workspace, profile)
     try:
         result = open_final_pile(run, cast(Moment, moment), reason)

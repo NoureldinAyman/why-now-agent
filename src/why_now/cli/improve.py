@@ -4,7 +4,6 @@ These call the real models, so they cost money. Every paid call is charged to th
 budget category, which has its own share of the month.
 """
 
-from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -14,6 +13,7 @@ from why_now.cli import app
 from why_now.cli import daily as daily_command
 from why_now.cli.evaluation import make_eval_run
 from why_now.cli.testset import ProfileOption, SettingsOption, make_reader, now, open_workspace
+from why_now.deployment import open_store
 from why_now.domain import Profile, RulesFile
 from why_now.evaluation.evaluate import EvalRun
 from why_now.hostile.attacks import load_attacks
@@ -26,6 +26,7 @@ from why_now.pipeline.research import PageSource
 from why_now.settings import Settings, load_settings
 from why_now.testset.piles import pile_report
 from why_now.workspace import Workspace
+from why_now.workspace.settings_doc import effective_settings
 
 STOPPED = {
     "no_mistakes": "Stopped: no mistakes are left to learn from.",
@@ -39,42 +40,55 @@ STOPPED = {
 
 
 @app.command("improve")
-def improve_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def improve_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Improve now: look for mistakes, try changes to the rules, keep the ones that help."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     if not improve_profile(settings, workspace, profile):
         raise typer.Exit(1)
 
 
 @app.command("night-run")
 def night_run_command(
-    profile_files: Annotated[
-        list[Path] | None,
+    profile_refs: Annotated[
+        list[str] | None,
         typer.Option(
             "--profile",
-            help="Profile file to run. Repeat for more. Defaults to daily_profiles.",
+            help=(
+                "Profile file or workspace id to run. Repeat for more. Defaults to the "
+                "profiles on the night list (nightly_profiles)."
+            ),
         ),
     ] = None,
     settings_file: SettingsOption = None,
 ) -> None:
-    """For each profile, the daily list first, then the improvement loop."""
+    """For each profile switched on, the daily list first, then the improvement loop."""
     if settings_file is None and daily_command.DEFAULT_SETTINGS.is_file():
         settings_file = daily_command.DEFAULT_SETTINGS
-    files = profile_files or load_settings(settings_file).daily_profiles
-    if not files:
-        raise typer.BadParameter("give a profile, or list daily_profiles in the settings")
-    for file in files:
-        typer.echo(f"=== {file}: the daily list")
+    base = load_settings(settings_file)
+    refs = profile_refs or effective_settings(base, open_store(base)).nightly_profiles
+    if not refs:
+        typer.echo(
+            "No profile is switched on for the night run, so nothing was done. Switch one on "
+            "in the settings, or add its id to nightly_profiles."
+        )
+        return
+    store = open_store(base)
+    for ref in refs:
+        if not profile_refs and Workspace(store).profile(ref) is None:
+            typer.echo(f"=== {ref}: skipped, no profile with this id is in the workspace")
+            continue
+        typer.echo(f"=== {ref}: the daily list")
         daily_command.daily(
-            profile_file=file,
+            profile_ref=ref,
             short_list_size=None,
             new_ad_days=None,
+            research_per_day=None,
             saved_read=False,
             sample_boards=None,
             settings_file=settings_file,
         )
-        typer.echo(f"=== {file}: the improvement loop")
-        settings, workspace, profile = open_workspace(file, settings_file)
+        typer.echo(f"=== {ref}: the improvement loop")
+        settings, workspace, profile = open_workspace(ref, settings_file)
         # The daily list is already made and kept, so a loop that cannot start does not undo it.
         improve_profile(settings, workspace, profile)
 

@@ -21,6 +21,13 @@
       </svg>
       <span>Why-Now</span>
     </a>
+    {% set sections = {"today": "/", "more": "/more", "spending": "/spending", "mark": "/mark", "progress": "/mark/progress", "run": "/run", "profile": "/profile"} %}
+    {% if switch or profile %}
+    <details class="profile-switch">
+      <summary>{% if profile %}Profile in use: <b>{{ profile.product_name }}</b>{% else %}Choose a profile{% endif %}</summary>
+      {% if switch %}<ul>{% for other in switch %}<li><a href="{{ sections.get(active | default(""), "/") }}?profile={{ other.id }}">{{ other.product_name }}</a></li>{% endfor %}</ul>{% endif %}
+    </details>
+    {% endif %}
     <nav aria-label="Pages">
       <ul class="nav-group">
         <li><a href="{{ review_link }}"{% if active == "today" %} aria-current="page"{% endif %}>{{ ic("list") }}Short list</a></li>

@@ -19,9 +19,9 @@ def now() -> datetime:
 
 
 @app.command("yes-share")
-def yes_share_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def yes_share_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Show how many marked companies are a yes, to see if the piles can hold enough."""
-    settings, workspace, _ = open_workspace(profile_file, settings_file)
+    settings, workspace, _ = open_workspace(profile_ref, settings_file)
     marks = workspace.marks("first")
     yes = sum(m.answer == "yes" for m in marks)
     no = sum(m.answer == "no" for m in marks)
@@ -39,9 +39,9 @@ def yes_share_command(profile_file: ProfileOption, settings_file: SettingsOption
 
 
 @app.command("piles")
-def piles_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def piles_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Show how full each pile is, and whether the improvement loop can start."""
-    settings, workspace, _ = open_workspace(profile_file, settings_file)
+    settings, workspace, _ = open_workspace(profile_ref, settings_file)
     report = pile_report(workspace)
     for pile, row in report.piles.items():
         typer.echo(
@@ -65,10 +65,10 @@ def piles_command(profile_file: ProfileOption, settings_file: SettingsOption = N
 
 @app.command("repeat-marks")
 def repeat_marks_command(
-    profile_file: ProfileOption, seed: SeedOption, settings_file: SettingsOption = None
+    profile_ref: ProfileOption, seed: SeedOption, settings_file: SettingsOption = None
 ) -> None:
     """Pick companies to mark again, once their first mark is old enough."""
-    settings, workspace, _ = open_workspace(profile_file, settings_file)
+    settings, workspace, _ = open_workspace(profile_ref, settings_file)
     existing = workspace.repeat_selection()
     if existing is not None:
         typer.echo(f"{len(existing)} companies were already picked. Mark them at /repeat.")
@@ -92,9 +92,9 @@ def repeat_marks_command(
 
 
 @app.command("agreement")
-def agreement_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def agreement_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Show how often the reviewer gave the same answer twice."""
-    _, workspace, _ = open_workspace(profile_file, settings_file)
+    _, workspace, _ = open_workspace(profile_ref, settings_file)
     again = workspace.marks("repeat")
     agreed, compared = agreement_counts(workspace.marks("first"), again)
     if compared == 0:

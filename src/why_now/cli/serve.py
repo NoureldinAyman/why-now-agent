@@ -20,8 +20,10 @@ from why_now.cli.profile import make_writer
 from why_now.cli.testset import run_prepare
 from why_now.deployment import build_auth, open_store
 from why_now.drafting import draft_profile
-from why_now.profile import ProfileError, load_profile
+from why_now.profile import ProfileError
+from why_now.resolve_profile import resolve_profile, upload_profile_file
 from why_now.settings import load_settings
+from why_now.store import Store
 from why_now.web.app import AppContext, create_app
 from why_now.web.run_now import RunNow
 
@@ -33,13 +35,35 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
+def _upload_given(refs: list[str], store: Store) -> dict[str, Path]:
+    """Save each given profile file in the workspace, and return the file of each by profile
+    id. A ref that is not a file must be the id of a profile already in the workspace."""
+    files: dict[str, Path] = {}
+    for ref in refs:
+        path = Path(ref)
+        try:
+            if path.is_file():
+                profile = upload_profile_file(path, store)
+                files[profile.id] = path.resolve()
+                typer.echo(f"Uploaded profile {profile.id}, version {profile.version[:8]}.")
+            else:
+                resolve_profile(ref, store)
+        except (ProfileError, ValueError) as e:
+            raise typer.BadParameter(str(e), param_hint="--profile") from e
+    return files
+
+
 @app.command("serve")
 def serve_command(
-    profile_files: Annotated[
-        list[Path] | None,
+    profile_refs: Annotated[
+        list[str] | None,
         typer.Option(
             "--profile",
-            help="Profile file to mark for. Repeat for more. Defaults to daily_profiles.",
+            help=(
+                "A profile file to upload to the workspace before starting, which saving the "
+                "profile page then also writes. Repeat for more. Optional: the page shows "
+                "the profiles in the workspace."
+            ),
         ),
     ] = None,
     settings_file: Annotated[
@@ -48,23 +72,15 @@ def serve_command(
     ] = None,
     port: Annotated[int | None, typer.Option(help="Port to listen on.")] = None,
 ) -> None:
-    """Run the review page, where the reviewer marks test cases."""
+    """Run the review page. It reads profiles from the workspace on each visit."""
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
     settings = load_settings(settings_file, env=dict(os.environ))
-    profile_files = profile_files or settings.daily_profiles
-    if not profile_files:
-        raise typer.BadParameter("give a profile, or list daily_profiles in the settings")
-    try:
-        loaded = [(load_profile(f), f) for f in profile_files]
-    except ProfileError as e:
-        raise typer.BadParameter(str(e), param_hint="--profile") from e
-    profiles = {p.id: p for p, _ in loaded}
     try:
         store = open_store(settings)
         auth = build_auth(settings, os.environ)
-        ctx = AppContext(settings, store, profiles, Meter(store, settings, now), now)
-        ctx.profile_files = {p.id: f.resolve() for p, f in loaded}
+        ctx = AppContext(settings, store, Meter(store, settings, now), now)
+        ctx.profile_files = _upload_given(profile_refs or [], store)
         if settings.deployment == "local":
             ctx.prepare = lambda profile, n, seed: run_prepare(settings, store, profile, n, seed)
             ctx.draft = lambda description: draft_profile(description, make_writer(settings))

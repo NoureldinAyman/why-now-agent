@@ -453,6 +453,8 @@ Every number below is a setting and not fixed in code. A number stays only if we
 | 45, 45 and 45 companies, the aim for each pile | Measurement quality within the reviewer's time | The fewest that give each pile about 15 yes answers at 1 company in 3. About 135 marks in all. Daily decisions and the judged-no list add learning material to the practice pile |
 | About 15 yes answers per pile | Against precision that swings too much | A judgement. With 15, one company moves precision by about 7 points, so numbers are reported as rough |
 | 3 companies on the judged-no list | Showing wrong no's without adding much to the reviewer's day | Starting guess |
+| Short list 1 to 30, days hidden 1 to 365, judged-no list 0 to 10, prepared at a time 1 to 100, 1 to 12 reason choices (`editable_limits`) | A mistyped or stolen sign-in storing a silly value through the settings page | Starting guesses. 30 companies is about an hour at 1 to 2 minutes each. The page changes the settings it can change only inside these bounds, and cannot change the bounds |
+| 40 letters in a reason choice (`reason_chip_max_chars`) | A reason choice staying short enough to tap, and the page staying readable | Starting guess |
 | No web research for test case packs (`test_case_web_research` off) | The cost of preparing companies for marking | Ads are saved by the free read and hold most of what decides a company. See decision 0008 |
 | 40 companies marked first | Knowing the share of yes answers early | Enough to tell 1 in 3 (about 13 yes) from 1 in 10 (about 4 yes) |
 | 500 companies marked at most | The reviewer's time | The owner's choice |

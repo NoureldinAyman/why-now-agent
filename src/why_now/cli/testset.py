@@ -16,7 +16,8 @@ from why_now.deployment import open_store
 from why_now.domain import Profile
 from why_now.pipeline.reader import PageReader
 from why_now.pipeline.search import search_ads
-from why_now.profile import ProfileError, load_profile
+from why_now.profile import ProfileError
+from why_now.resolve_profile import resolve_profile
 from why_now.run_context import RunContext
 from why_now.settings import Settings, load_settings
 from why_now.store import Store
@@ -25,10 +26,14 @@ from why_now.testset.picking import eligible_companies, pick_cases
 from why_now.testset.piles import pile_sizes
 from why_now.tracing import UnitCounter, build_tracer
 from why_now.workspace import Workspace
+from why_now.workspace.settings_doc import effective_settings
 
 DEFAULT_SETTINGS = Path("settings.toml")
 
-ProfileOption = Annotated[Path, typer.Option("--profile", help="Profile file the cases are for.")]
+ProfileOption = Annotated[
+    str,
+    typer.Option("--profile", help="Profile file, or the id of a profile in the workspace."),
+]
 SettingsOption = Annotated[
     Path | None,
     typer.Option("--settings", help="Settings file. Defaults to settings.toml if present."),
@@ -77,7 +82,7 @@ def run_prepare(
 
 @app.command("prepare")
 def prepare_command(
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     n: Annotated[
         int | None,
         typer.Option(
@@ -91,7 +96,7 @@ def prepare_command(
     settings_file: SettingsOption = None,
 ) -> None:
     """Pick companies at random, decide their piles and research each, ready to mark."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     n = settings.prepare_batch if n is None else n
     # A new seed each time, so asking again prepares more. Say it, so a stop can be finished.
     seed = random.SystemRandom().randrange(SEED_LIMIT) if seed is None else seed
@@ -126,13 +131,13 @@ def prepare_command(
 
 @app.command("pick-cases")
 def pick_cases_command(
-    profile_file: ProfileOption,
+    profile_ref: ProfileOption,
     n: Annotated[int, typer.Option("--n", min=1, help="How many companies to pick.")],
     seed: Annotated[int, typer.Option(help="Seed for the random pick. It is recorded.")],
     settings_file: SettingsOption = None,
 ) -> None:
     """Pick companies at random from everyone with a relevant ad in the window."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     companies = search_ads(workspace.all_board_ads(), profile, {})
     eligible = eligible_companies(companies, settings, now().date())
     picked_before = {c.company_key for c in workspace.cases()}
@@ -149,9 +154,9 @@ def pick_cases_command(
 
 
 @app.command("build-packs")
-def build_packs_command(profile_file: ProfileOption, settings_file: SettingsOption = None) -> None:
+def build_packs_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Research each picked company once and save its frozen evidence pack."""
-    settings, workspace, profile = open_workspace(profile_file, settings_file)
+    settings, workspace, profile = open_workspace(profile_ref, settings_file)
     store = workspace.store
     cases = workspace.cases()
     if not cases:
@@ -184,13 +189,15 @@ def build_packs_command(profile_file: ProfileOption, settings_file: SettingsOpti
 
 
 def open_workspace(
-    profile_file: Path, settings_file: Path | None
+    profile_ref: str | Path, settings_file: Path | None
 ) -> tuple[Settings, Workspace, Profile]:
     if settings_file is None and DEFAULT_SETTINGS.is_file():
         settings_file = DEFAULT_SETTINGS
-    settings = load_settings(settings_file)
+    base = load_settings(settings_file)
+    store = open_store(base)
+    settings = effective_settings(base, store)
     try:
-        profile = load_profile(profile_file)
+        profile = resolve_profile(profile_ref, store)
     except ProfileError as e:
         raise typer.BadParameter(str(e), param_hint="--profile") from e
-    return settings, Workspace(open_store(settings), profile.id), profile
+    return settings, Workspace(store, profile.id), profile

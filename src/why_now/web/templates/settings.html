@@ -2,7 +2,30 @@
 {% block title %}Settings{% endblock %}
 {% block content %}
 <h1>Settings</h1>
-<p class="lede">Every setting, its value and why it is there. This page is read-only: settings are changed in the settings file. Keys are never settings, so none is shown.</p>
+<p class="lede">The everyday limits can be changed here, within bounds. Every other setting is read-only, with its reason: it is changed in the settings file. A stolen sign-in must not be able to raise the budget, and settings that shape the score must not change after scores have been seen. Keys are never settings, so none is shown.</p>
+{% if problem %}<p class="error" role="alert">{{ problem }}</p>{% endif %}
+<form method="post" action="/settings" class="mark-form">
+  <input type="hidden" name="form_token" value="{{ form_token }}">
+  <h2>Everyday limits</h2>
+  {% for n in numbers %}
+  <p><label for="{{ n.name }}"><code>{{ n.name }}</code></label>
+  <input id="{{ n.name }}" type="number" name="{{ n.name }}" value="{{ n.value }}"{% if n.low is not none %} min="{{ n.low }}" max="{{ n.high }}"{% endif %} step="1" required>
+  <span class="note">{% if n.low is not none %}From {{ n.low }} to {{ n.high }}. {% endif %}{{ n.why }}</span></p>
+  {% endfor %}
+  <p><label for="reason_chips"><code>reason_chips</code></label></p>
+  <textarea id="reason_chips" name="reason_chips" rows="6">{{ chips_text }}</textarea>
+  <p class="note">One reason per line, {% if chips_range %}from {{ chips_range[0] }} to {{ chips_range[1] }}, {% endif %}each at most {{ chip_chars }} letters. {{ chips_why }}</p>
+  <h3><code>nightly_profiles</code></h3>
+  <p class="note">{{ night_why }}</p>
+  <input type="hidden" name="nightly_listed" value="1">
+  {% for p in night %}
+  <p><label><input type="checkbox" name="nightly_profiles" value="{{ p.id }}"{% if p.on %} checked{% endif %}> {{ p.name }}</label></p>
+  {% else %}
+  <p class="note">There are no profiles in the workspace yet. Upload one with <code>why-now profile upload FILE</code>.</p>
+  {% endfor %}
+  <p><button type="submit">Save</button></p>
+</form>
+<h2>Read-only settings</h2>
 <table class="settings">
   <thead><tr><th scope="col">Setting</th><th scope="col">Value</th><th scope="col">Why</th></tr></thead>
   <tbody>

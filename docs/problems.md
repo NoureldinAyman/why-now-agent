@@ -371,3 +371,15 @@ After an edit, the briefing for the proposer printed "Mistakes:" twice, once bef
 A mistake is named by where it came from and the company, such as `practice:Acme`. The first plan was to keep one record for each tried mistake under that name, but the store refuses a colon in a key, because a colon is not allowed in a file name on Windows. The tried mistakes are now kept as one list for each rules version, and the colon is only inside the list.
 
 **What it taught:** a name made for people to read may not be safe as a key. Check the store's key rules before choosing what to save under.
+
+## 18 Nov 2026: A file path typed as a profile reached the store as if it were an id
+
+Every command now takes a profile file or the id of a profile in the workspace. A path to a file that does not exist went down the second road, and the store refused it with "name not allowed in the workspace", because a path holds characters a stored name cannot. The command crashed with a plain error instead of saying that no such profile exists. An older test of the missing-file message caught it. Reading a profile by an id that is not one safe name now answers "not found", and the message says how to upload one.
+
+**What it taught:** when one argument can mean two things, the wrong guess must end in the same plain message as a right guess that finds nothing, and not in whatever the second road happens to throw.
+
+## 18 Nov 2026: A new session's branch was behind the merged plan
+
+The branch for ticket 93 was cut before the plan and design for the 18 Nov redesign were merged, so the sections the ticket points at were not in the working folder. Reading the ticket alone would have meant building from a plan that did not exist yet. The branch was brought up to date before any work.
+
+**What it taught:** before starting a ticket, check that the branch holds the documents the ticket names.
