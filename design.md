@@ -1,6 +1,6 @@
 # Why-Now Agent: Design
 
-Status: approved 5 Nov 2026, revised 8 Nov 2026. "Revision of 8 Nov 2026" at the end lists what changed and why. Words with a special meaning here are defined in `GLOSSARY.md`.
+Status: approved 5 Nov 2026, revised 8 Nov 2026, updated 14 and 18 Nov 2026. The dated sections at the end list what changed and why. Words with a special meaning here are defined in `GLOSSARY.md`.
 
 ## Problem Statement
 
@@ -180,7 +180,8 @@ Judging models are also compared directly. See "AI models" below.
 7. As a reviewer, I want a company with five similar ads to appear once, so that I judge the company and not each ad.
 8. As a reviewer, I want a day with few good companies to show few, so that the agent isn't padding the list.
 9. As a reviewer, I want to sign in from anywhere with a proper login, so that nobody else can change my decisions.
-10. As a reviewer, I want to see this month's spending and any warning on the review page, so that costs never surprise me.
+10. As a reviewer, I want this month's spending on a page of its own, and a warning on the short list only when spending reaches the warning or paid calls have stopped, so that costs never surprise me and the list stays about companies.
+10a. As a reviewer, I want a page of the companies I have decided on, with a way to undo a decision made by mistake, so that approved companies don't vanish and a wrong click can be taken back.
 
 ### Reviewer: marking
 
@@ -248,7 +249,7 @@ Judging models are also compared directly. See "AI models" below.
 
 ### Profiles
 
-- A profile is a file loaded at run time from a location given in settings. It can be anywhere, including outside the repo.
+- A profile is a file. It can be anywhere, including outside the repo. One command copies it into the workspace, where runs and the review page find it by its id, so on AWS no profile has to be built into the app.
 - No code, test or setting may name a product. A product works by adding a file and nothing else.
 - A profile holds:
   - The product and who uses it.
@@ -261,7 +262,7 @@ Judging models are also compared directly. See "AI models" below.
 - **Drafting a profile.** The person describes the product in a few sentences, and a model drafts the whole profile: search words, fit questions, which are required or supporting and for or against, and what a good why-now reason looks like. The person edits it and accepts it, on the web page or as the file. A preview shows the companies the last saved read would give. A person approves every required question, because the loop can never change them.
 - The two invented products ship only as example files. Deleting them breaks nothing, and the test suite uses throwaway profiles it creates itself.
 - Each profile has its own rules file, test cases, scores and traces. These live in the workspace and not in the repo. A new profile's rules file starts empty.
-- Which profiles run daily is a setting. Only the main example runs daily. The second runs on demand and has no loop.
+- Which profiles run each night is a setting, switched on and off per profile on the review page. Only the main example runs each night. Other profiles run on demand, and the second has no loop.
 - The second example profile is a smaller proof. Its roughly 50 marked companies form one pile with no split and no final pile. It uses the main profile's cut-off, and it gets one number, published as rough.
 
 ### Job sources
@@ -362,9 +363,9 @@ Job ads and web pages may contain text aimed at AI, such as "ignore your rules a
 
 ### Review page and public pages
 
-- **Review page, behind login:** the place a person does everything after setup, so nobody needs the terminal: drafting a profile, preparing and marking companies, "Run now" and "Improve now" (on one's own computer), the short list and more list, decisions with reasons, the re-marking round, rule approvals as soon as they appear, the history of tries, spending, a read-only settings page showing each number with its reason, and a setup status page saying what is missing and how to fix it. Keys stay in the environment file or Parameter Store, and schedules are set in the AWS setup, not on the page. The terminal stays for developers.
+- **Review page, behind login:** the place a person does everything after setup, so nobody needs the terminal: preparing and marking companies, "Run now" and "Improve now" (on one's own computer and on AWS), the short list and more list, decisions with reasons, the decided companies with undo, the re-marking round, rule approvals as soon as they appear, what each improvement run tried, spending, a settings page showing each number with its reason, where a few everyday limits can be changed, and a setup status page saying what is missing and how to fix it. Profiles are viewed on the page everywhere and edited as text on one's own computer, where a profile can also be drafted from a description. Keys stay in the environment file or Parameter Store, and the schedule's hour is set in the AWS setup, not on the page. The terminal stays for developers. See "Update of 18 Nov 2026".
 - **Public score page, no login, off by default:** final pile results, working scores over time with kept and rejected tries, final pile openings, the number of companies behind each number, and the statement of what the score means. Only profiles marked public appear, and no company names appear. Before there is data, it says so.
-- **Public simulation page, no login:** one invented company followed through every step, where visitors can click approve or reject. It carries one small label, always visible at the top while scrolling, saying it is a demo with invented companies, so a screenshot can't lose it. It should look modern and fit the project. It makes no AI calls, saves nothing and shows no scores, so real numbers appear only on the score page. It is built after the real agent works, so it copies something real.
+- **Public simulation page, no login:** one invented company followed through every step, where visitors can click approve or reject. It carries one small label, always visible at the top while scrolling, saying it is a demo with invented companies, so a screenshot can't lose it. It should look modern and fit the project. It makes no AI calls, saves nothing and shows no scores, so real numbers appear only on the score page. It is built after the real agent works, so it copies something real. It is one static page published on GitHub Pages, apart from the private site, and the README links to it.
 
 ### Hosting on AWS
 
@@ -376,6 +377,7 @@ Job ads and web pages may contain text aimed at AI, such as "ignore your rules a
 | Saved data | S3 for files, DynamoDB for records | Both are private and charged by use |
 | Secrets | AWS Parameter Store | Secrets stay out of the code |
 | Setup | AWS CDK in Python | Rebuildable with one command |
+| Simulation page | GitHub Pages | Free hosting for one static page, kept apart from the private site and its bill |
 
 - **Built by hand first.** The owner builds the AWS parts by hand, guided, to learn each service, and runs the app against them. Then the AWS setup as code builds everything, and the hand-made parts are deleted. No real data lives on AWS before that, so nothing is lost. People who clone the project use the code.
 - There is no custom domain at first. The free AWS web address is used.
@@ -618,3 +620,33 @@ Marking about 300 companies was too much work for one person. What changed:
 - **Marking and deciding also work through two commands each,** for developers and coding agents, with the same checks as the page.
 
 See `docs/decisions/0008-smaller-test-set-from-ads.md`.
+
+## Update of 18 Nov 2026: the review site and the simulation page
+
+The owner used the deployed review site and found it too complicated, with the controls they needed missing on AWS. An independent reviewer checked the proposed answers. What changed and why:
+
+**Where things live**
+
+- **Profiles live in the workspace.** One command copies a profile file into the workspace, and every version is kept by its hash, so the version recorded on a mark or decision can always be read again. Runs and the page find a profile by its id, so AWS no longer needs profiles built into the image. Profiles are edited as text on one's own computer, as before, and the page shows them as a readable view.
+- **A few settings are stored in the workspace.** The settings page can change the short list size, the days a decided company stays hidden, the reason choices, the judged-no list size, how many companies are prepared at a time, and which profiles run each night. These override the settings file. Everything else stays read-only on the page, for two reasons. A stolen sign-in must not be able to raise the budget and start paid runs. And settings that shape the score or the piles, such as ad age, which also decides what Prepare picks from, or tries per run, which stops one run using up the check pile, must not change after scores have been seen.
+- **The workspace moves to AWS once.** A command copies the local workspace into the AWS store. Marking then works against the AWS store, so the night run has marks to learn from. Prepare is allowed on AWS while test case packs hold job ads only, because it then makes no paid call.
+
+**Runs**
+
+- **The scheduled run is the night run:** for each profile switched on, the daily list, then one improvement run.
+- **Every run writes a note when it starts and when it finishes,** wherever it was started. Only one run goes at a time, because two runs at once could lose spending records or tries. A start with no finish shows as a run that stopped, so a crash in the night is seen in the morning.
+- **Run now and Improve now work on AWS.** The page starts the same task the schedule starts. It may start that one task and nothing else, and it cannot change the schedule. The page shows the next run and the time until it, but the hour is set in the AWS setup, because a change made on the page would be undone by the next deploy. Switching every profile off stops the nightly work.
+- **A run can raise the research limit for that run only,** like the existing short list size and ad age options.
+
+**The review page**
+
+- The short list shows companies only, with one line on the last and next run, and one line saying every quote was checked against the page it came from. Spending has its own page, and the short list shows a warning only when spending reaches the warning or paid calls have stopped.
+- Each company shows its full brief. Its relevant ads are summarised in one line by title, with the full list folded away. Decorative drawings are removed.
+- The menu is: Short list, More, Decided, Mark, Runs, and a small menu for Spending, Profile, Settings and Setup. The profile in use is chosen from the top bar. Marking progress shows on the marking page.
+- **Decided** lists approved and rejected companies, newest first, with each one's brief, reason and date, and short-list precision. A decision keeps a copy of what the reviewer saw. **Undo** puts the company back on its list, and is allowed only until that profile's next run starts, so the improvement loop never learns from a decision that was taken back.
+- **Runs** shows Run now and Improve now, the state of the last run and its summary, what each try of the last improvement run did, which profiles run each night, and the next run.
+- Public pages use their own layout, with no profile names.
+
+**The simulation page** is one static page built from the invented sample by a command and published on GitHub Pages, so the README can link to it without sending visitors to the private site. The page inside the review site is removed. Visitors scroll through one invented company's day, step by step.
+
+**Unchanged:** keys are never entered on the page, and the improvement loop's guards and the honesty of the score are as before.
