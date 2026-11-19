@@ -395,3 +395,28 @@ The Runs page shows times in a time zone named by a setting, such as `Europe/Ber
 The plan said a run refuses to start while another run's note has no finish. Written as a read followed by a write, two starts a moment apart, such as the schedule and a press of Run now, would both read "nothing going" and both start. The store had no way to write only if nothing was there. It now has one conditional write, which DynamoDB decides in one step, and the lock is taken with it. A test starts eight at once and checks that exactly one wins.
 
 **What it taught:** a check and the action it guards must be one step, or the check only works when nothing else is happening.
+
+## 19 Nov 2026: A test called free reached paid calls, because the store was not read first
+
+Before the first run on AWS after the deploy, the plan was to start the night task once on the saved read and call it free, on the belief that the AWS store held no job ads. It did. The first deploy check had left ads for ten careers pages and saved research there. The run reused four saved companies, tried one new paid call, and the model service refused that call, so nothing was charged. The test was free by luck, not by design.
+
+**What it taught:** before a test is called free, read what the store holds and which calls the run would make with it. A belief about what is in the store is not a reading.
+
+## 19 Nov 2026: The schedule was found switched off after the deploy
+
+After the deploy the stack's template said the nightly rule is enabled, and the live rule was disabled. The deploy changed only the rule's target, so it most likely did not touch the rule's state, and the two disagreed. Why it was disabled was not found. It was left as it was, which also kept the night run from starting, because no profile was on the night list yet.
+
+**What it taught:** after a deploy, read the live state of anything that starts work. The template says what the stack asks for, not what is switched on.
+
+## 19 Nov 2026: Python's AWS library could not use a login made with the AWS command line
+
+Commands that talk to AWS from Python stopped with "Using the login credential provider requires an additional dependency", after signing in with `aws login`. The library needs the `botocore[crt]` extra to read that kind of login. The same error stopped a test that made an AWS client without a fake. The commands ran with the extra added for that one command (`uv run --with "botocore[crt]"`), and nothing was changed in the project.
+
+**What it taught:** a login that works for one tool on a machine may not work for another. A test that builds a real client should not depend on the person's login.
+
+## 19 Nov 2026: A settings file outside the repo still used a name that had been retired
+
+The owner's settings file, kept out of Git, still had `daily_profiles`, which ticket 93 replaced with `nightly_profiles`. Every command that reads settings refused it with "Extra inputs are not permitted". No test could see the file, so it was found only when something was run with it.
+
+**What it taught:** renaming a setting breaks files that live outside the repo. A refusal that names the retired setting and its new name would have saved the search.
+
