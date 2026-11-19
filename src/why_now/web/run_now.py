@@ -1,18 +1,23 @@
-"""Run now: start a run as a separate process, and tell the page how it is going.
+"""Run now: start a run apart from the page, and tell the page how it is going.
 
-The run is a separate process so the page stays quick while it works, and a run that
-fails cannot take the page down with it. Its output goes to a log file, which the page
-shows as the last result. One run at a time.
+On one's own computer the run is a separate process, so the page stays quick while it works,
+and a run that fails cannot take the page down with it. Its output goes to a log file, which
+the page shows as the last result. On AWS the page starts the night run's task and nothing
+else. Either way the run writes its own notes, which the page reads. One run at a time.
 """
 
 import subprocess
 import threading
 from collections.abc import Callable
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import IO, Literal, Protocol
+from typing import IO, Any, Literal, Protocol
 
 from pydantic import BaseModel
+
+from why_now.settings import Settings
+from why_now.store import Store
+from why_now.workspace import Workspace
 
 Mode = Literal["saved", "sample", "improve"]
 LOG_NAME = "run-now.log"
@@ -31,6 +36,24 @@ def launch_process(args: list[str], stdout: IO[str]) -> Process:
 
 class AlreadyRunning(Exception):
     """A run started from the page has not finished yet."""
+
+
+class RunNotStarted(Exception):
+    """The run could not be started. The message says why, in plain words."""
+
+
+def run_args(mode: Mode, profile: str, sample_boards: int) -> list[str]:
+    """The `why-now` arguments for a run. `profile` is the id of a profile in the workspace."""
+    if mode == "improve":
+        return ["improve", "--profile", profile]
+    args = ["daily", "--profile", profile]
+    return args + (["--saved-read"] if mode == "saved" else ["--sample-boards", str(sample_boards)])
+
+
+class Runner(Protocol):
+    def start(self, mode: Mode, profile: str, sample_boards: int) -> None: ...
+
+    def state(self) -> "RunState | None": ...
 
 
 class RunState(BaseModel):
@@ -63,11 +86,7 @@ class RunNow:
 
     def args(self, mode: Mode, profile: str, sample_boards: int) -> list[str]:
         """The command for a run. `profile` is the id of a profile in the workspace."""
-        if mode == "improve":
-            args = [*self.command, "improve", "--profile", profile]
-        else:
-            args = [*self.command, "daily", "--profile", profile]
-            args += ["--saved-read"] if mode == "saved" else ["--sample-boards", str(sample_boards)]
+        args = [*self.command, *run_args(mode, profile, sample_boards)]
         if self.settings_file is not None:
             args += ["--settings", str(self.settings_file)]
         return args
@@ -99,3 +118,59 @@ class RunNow:
             exit_code=code,
             output=output,
         )
+
+
+class AwsRunNow:
+    """Starts the task the schedule starts, with the command for the chosen run.
+
+    The web function may start that one task and nothing else. The cluster, the task and the
+    network come from the settings the AWS setup gave the function, never from the page, so a
+    posted form cannot point it anywhere else.
+    """
+
+    def __init__(self, settings: Settings, ecs: Any, store: Store, clock: Callable[[], datetime]):
+        self.settings = settings
+        self.ecs = ecs  # a boto3 ECS client, or a stand-in with `run_task`
+        self.workspace = Workspace(store)
+        self.clock = clock
+
+    def start(self, mode: Mode, profile: str, sample_boards: int) -> None:
+        s = self.settings
+        # The run takes the lock only once its task is up, a little while after this press. In
+        # that while a second press would start a second task, so presses wait for it.
+        wait = timedelta(seconds=s.run_start_wait_seconds)
+        if self.workspace.run_requested(self.clock(), wait):
+            raise AlreadyRunning("a run was just started and is still starting")
+        try:
+            reply = self.ecs.run_task(
+                cluster=s.aws_run_cluster,
+                taskDefinition=s.aws_run_task,
+                launchType="FARGATE",
+                count=1,
+                networkConfiguration={
+                    "awsvpcConfiguration": {
+                        "subnets": s.aws_run_subnets,
+                        "securityGroups": s.aws_run_security_groups,
+                        "assignPublicIp": "ENABLED",
+                    }
+                },
+                overrides={
+                    "containerOverrides": [
+                        {
+                            "name": s.aws_run_container,
+                            "command": run_args(mode, profile, sample_boards),
+                        }
+                    ]
+                },
+            )
+        except Exception as e:  # shown as text, so a refusal from AWS is not a blank page
+            code = getattr(e, "response", {}).get("Error", {}).get("Code", type(e).__name__)
+            raise RunNotStarted(f"The run was not started: AWS answered {code}.") from e
+        if reply.get("failures") or not reply.get("tasks"):
+            reasons = ", ".join(f.get("reason", "unknown") for f in reply.get("failures", []))
+            raise RunNotStarted(f"The run was not started: AWS had no room for it ({reasons}).")
+        self.workspace.request_run(self.clock())
+
+    def state(self) -> None:
+        """No log is kept here. The run's own notes tell how it went."""
+        return None

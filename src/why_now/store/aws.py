@@ -93,6 +93,45 @@ class AwsStore:
         )
         self._remove_file(removed.get("Attributes"))
 
+    def swap(self, collection: str, key: str, expected: dict | None, new: dict | None) -> bool:
+        """A conditional write, which DynamoDB decides in one step, so two racers cannot both
+        win. The documents are small ones kept in their records, never in files."""
+        item = _record_key(collection, key)
+        for doc in (expected, new):
+            if doc is not None and len(self._body(doc)) > self.inline_max_bytes:
+                raise ValueError("swap is for small documents")
+        try:
+            if expected is None:
+                if new is None:
+                    return False
+                self._db.put_item(
+                    TableName=self.table,
+                    Item=item | {"doc": {"S": self._body(new)}},
+                    ConditionExpression="attribute_not_exists(#k)",
+                    ExpressionAttributeNames={"#k": "key"},
+                )
+                return True
+            condition = {
+                "ConditionExpression": "#d = :e",
+                "ExpressionAttributeNames": {"#d": "doc"},
+                "ExpressionAttributeValues": {":e": {"S": self._body(expected)}},
+            }
+            if new is None:
+                self._db.delete_item(TableName=self.table, Key=item, **condition)
+            else:
+                self._db.put_item(
+                    TableName=self.table,
+                    Item=item | {"doc": {"S": self._body(new)}},
+                    **condition,
+                )
+            return True
+        except self._db.exceptions.ConditionalCheckFailedException:
+            return False
+
+    @staticmethod
+    def _body(doc: dict) -> str:
+        return json.dumps(doc, ensure_ascii=False)
+
     def _read(self, collection: str, key: str) -> dict | None:
         reply = self._db.get_item(
             TableName=self.table, Key=_record_key(collection, key), ConsistentRead=True

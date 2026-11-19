@@ -12,6 +12,7 @@ from why_now.ai.budget import LOOP, Meter
 from why_now.cli import app
 from why_now.cli import daily as daily_command
 from why_now.cli.evaluation import make_eval_run
+from why_now.cli.run_notes import noted_run
 from why_now.cli.testset import ProfileOption, SettingsOption, make_reader, now, open_workspace
 from why_now.deployment import open_store
 from why_now.domain import Profile, RulesFile
@@ -26,6 +27,7 @@ from why_now.pipeline.research import PageSource
 from why_now.settings import Settings, load_settings
 from why_now.testset.piles import pile_report
 from why_now.workspace import Workspace
+from why_now.workspace.runs import RunSummary
 from why_now.workspace.settings_doc import effective_settings
 
 STOPPED = {
@@ -43,7 +45,9 @@ STOPPED = {
 def improve_command(profile_ref: ProfileOption, settings_file: SettingsOption = None) -> None:
     """Improve now: look for mistakes, try changes to the rules, keep the ones that help."""
     settings, workspace, profile = open_workspace(profile_ref, settings_file)
-    if not improve_profile(settings, workspace, profile):
+    with noted_run(workspace.store, settings, profile.id, "improve", now) as record:
+        record.summary = improve_profile(settings, workspace, profile)
+    if record.summary.problem is not None:
         raise typer.Exit(1)
 
 
@@ -78,35 +82,39 @@ def night_run_command(
             typer.echo(f"=== {ref}: skipped, no profile with this id is in the workspace")
             continue
         typer.echo(f"=== {ref}: the daily list")
-        daily_command.daily(
-            profile_ref=ref,
-            short_list_size=None,
-            new_ad_days=None,
-            research_per_day=None,
-            saved_read=False,
-            sample_boards=None,
-            settings_file=settings_file,
-        )
-        typer.echo(f"=== {ref}: the improvement loop")
-        settings, workspace, profile = open_workspace(ref, settings_file)
-        # The daily list is already made and kept, so a loop that cannot start does not undo it.
-        improve_profile(settings, workspace, profile)
+        settings, store, profile = daily_command.prepare_daily(ref, settings_file)
+        # One note for the profile's whole night, so the loop never starts between two other
+        # runs and the page shows the night as one run.
+        with noted_run(store, settings, profile.id, "night", now) as record:
+            result, cost = daily_command.run_daily(settings, store, profile, {}, False, None)
+            for line in daily_command.describe(result):
+                typer.echo(line)
+            record.summary = daily_command.day_summary(result, cost)
+            typer.echo(f"=== {ref}: the improvement loop")
+            # The daily list is already made and kept, so a loop that cannot start does not
+            # undo it, and does not fail the night.
+            improved = improve_profile(settings, Workspace(store, profile.id), profile)
+            record.summary.tries = improved.tries
+            record.summary.stop = improved.stop or improved.problem
+            record.summary.cost_usd += improved.cost_usd
 
 
-def improve_profile(settings: Settings, workspace: Workspace, profile: Profile) -> bool:
+def improve_profile(settings: Settings, workspace: Workspace, profile: Profile) -> RunSummary:
     """Run the loop once for one profile and say in plain words what happened.
 
-    False when it could not start, so the caller can fail or carry on.
+    The summary has `problem` set when the loop could not start, so the caller can fail or
+    carry on.
     """
     run = make_eval_run(settings, workspace, profile)
     judge_key = run.models.judge.answer_key
     cutoff = workspace.cutoff(judge_key)
     if cutoff is None:
-        typer.echo(
+        problem = (
             f"No cut-off is recorded for {judge_key}, so the hidden tests can't be compared. "
             "Choose one on the practice pile first (why-now set-cutoff)."
         )
-        return False
+        typer.echo(problem)
+        return RunSummary(problem=problem)
     reader = make_reader(settings)
     meter = Meter(workspace.store, settings, now)
     spent_before = meter.status().by_category.get(LOOP, 0.0)
@@ -114,12 +122,17 @@ def improve_profile(settings: Settings, workspace: Workspace, profile: Profile) 
         with reader.http:
             result = run_improvement(run, meter, _hidden_tests(run, reader, cutoff))
     except ValueError as e:
-        typer.echo(f"Could not improve: {e}")
-        return False
+        problem = f"Could not improve: {e}"
+        typer.echo(problem)
+        return RunSummary(problem=problem)
     spent = meter.status().by_category.get(LOOP, 0.0) - spent_before
     for line in describe(result, settings, workspace, spent):
         typer.echo(line)
-    return True
+    return RunSummary(
+        tries=["\n".join(_try_lines(n, t)) for n, t in enumerate(result.tries, start=1)],
+        stop=_stop_line(result, settings, workspace),
+        cost_usd=spent,
+    )
 
 
 def _hidden_tests(run: EvalRun, reader: PageSource, cutoff: float) -> HostileCheck:
@@ -151,16 +164,19 @@ def describe(
     lines: list[str] = []
     for number, t in enumerate(result.tries, start=1):
         lines += _try_lines(number, t)
+    lines.append(_stop_line(result, settings, workspace))
+    lines.append(f"Spent ${spent:.2f} on this run, scoring included.")
+    return lines
+
+
+def _stop_line(result: ImproveResult, settings: Settings, workspace: Workspace) -> str:
     if result.stop_reason == "not_ready":
         yes = pile_report(workspace).piles["check"].yes
-        lines.append(
+        return (
             f"Not ready: the check pile has {yes} yes answers and needs "
             f"{settings.floor_yes_per_pile}. Keep marking."
         )
-    else:
-        lines.append(STOPPED[result.stop_reason])
-    lines.append(f"Spent ${spent:.2f} on this run, scoring included.")
-    return lines
+    return STOPPED[result.stop_reason]
 
 
 def _try_lines(number: int, t: TryRecord) -> list[str]:

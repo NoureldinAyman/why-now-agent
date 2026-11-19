@@ -1,14 +1,20 @@
 {% extends "base.html" %}
 {% from "_icons.html" import ic %}
-{% block title %}Run now{% endblock %}
+{% block title %}Runs{% endblock %}
 {% block content %}
-<h1>Run now</h1>
+<h1>Runs</h1>
 {% if problem %}<p class="error" role="alert">{{ problem }}</p>{% endif %}
+{% if going %}
+<p class="note" role="status">A run is going: {{ going.mode }} for {{ going.profile_id }}, started {{ going.started }}. Reload this page to see when it ends.</p>
+{% endif %}
+
 {% if can_run %}
-<p class="lede">Starts a daily run for {{ profile.product_name }} now, as a separate program. A full read of every careers page takes hours, so a run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
-{% if state and state.running %}
-<p class="note">A run is going. Reload this page to see when it ends.</p>
+{% if local %}
+<p class="lede">Starts a run for {{ profile.product_name }} now, as a separate program. A full read of every careers page takes hours, so a run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
 {% else %}
+<p class="lede">Starts the same task the schedule starts, for {{ profile.product_name }}. It takes a short while to start, and then shows below. A run started here uses the last saved read, or reads a sample. Research and briefs cost money, within the monthly limit.</p>
+{% endif %}
+{% if not going %}
 <form method="post" action="{{ post_to }}" class="prepare-form">
   <input type="hidden" name="form_token" value="{{ form_token }}">
   <p><label><input type="radio" name="mode" value="saved" checked> On the last saved read. Reads no careers page.</label></p>
@@ -18,11 +24,78 @@
 </form>
 {% endif %}
 {% else %}
-<p class="lede">Run now works only on your own computer, where the keys and the budget are your own. Here the scheduled run does the daily work.</p>
+<p class="lede">Starting a run from this page is not set up here. {% if local %}Start one with <code>why-now daily</code>.{% else %}The scheduled run does the daily work.{% endif %}</p>
 {% endif %}
+
+{% if schedule %}
+<section class="tile">
+  <h2>{{ ic("clock") }}Next run</h2>
+  {% if night_off %}
+  <p>The night run starts on {{ schedule.when }} ({{ schedule.zone }}), {{ schedule.wait }}. No profile is switched on for the night, so it will do nothing.</p>
+  {% else %}
+  <p>The night run starts on {{ schedule.when }} ({{ schedule.zone }}), {{ schedule.wait }}. For each profile switched on below, it makes the daily list and then runs the improvement loop once.</p>
+  {% endif %}
+  <p class="note">The hour is set in the AWS setup, not on this page.</p>
+</section>
+{% endif %}
+
+<section class="tile">
+  <h2>Profiles that run each night</h2>
+  <form method="post" action="{{ nightly_to }}" class="prepare-form">
+    <input type="hidden" name="form_token" value="{{ form_token }}">
+    <input type="hidden" name="nightly_listed" value="1">
+    {% for p in night %}
+    <p><label><input type="checkbox" name="nightly_profiles" value="{{ p.id }}"{% if p.on %} checked{% endif %}> {{ p.name }}</label></p>
+    {% endfor %}
+    <button type="submit">Save</button>
+  </form>
+  {% if night_off %}<p class="note">No profile is switched on, so nothing runs at night.</p>{% endif %}
+</section>
+
+<section class="tile">
+  <h2>{{ ic("clock") }}Last runs</h2>
+  {% if rows %}
+  {% for r in rows %}
+  <article class="run-row">
+    <h3>{{ r.mode }}: {{ r.state_name }}</h3>
+    <p class="note">Started {{ r.started }}{% if r.finished %}, ended {{ r.finished }}{% endif %}.</p>
+    {% set s = r.note.summary %}
+    <p>
+      {% if s.short_list is not none %}{{ s.short_list }} on the short list. {% endif %}
+      {% if s.more_list is not none %}{{ s.more_list }} on the more list. {% endif %}
+      {% if s.failed %}{{ s.failed | length }} failed. {% endif %}
+      {% if r.note.finished_at %}Cost ${{ "%.2f" | format(s.cost_usd) }}.{% endif %}
+    </p>
+    {% if s.problem %}<p class="error">{{ s.problem }}</p>{% endif %}
+    {% if s.failed or s.skipped %}
+    <details><summary>What failed or was skipped</summary>
+      <ul>{% for line in s.failed %}<li>Failed: {{ line }}</li>{% endfor %}{% for line in s.skipped %}<li>Skipped: {{ line }}</li>{% endfor %}</ul>
+    </details>
+    {% endif %}
+    {% if r.state == "stopped" %}<p class="note">This run started and never wrote a finish note, so it probably stopped part way. Its logs are in AWS.</p>{% endif %}
+  </article>
+  {% endfor %}
+  {% else %}
+  <p class="note">No run has been noted for this profile yet.</p>
+  {% endif %}
+</section>
+
+{% if improve_row %}
+<section class="tile">
+  <h2>{{ ic("bars") }}The last improvement run</h2>
+  <p class="note">{{ improve_row.mode }}, started {{ improve_row.started }}.</p>
+  {% if improve_row.note.summary.tries %}
+  {% for t in improve_row.note.summary.tries %}<pre class="text">{{ t }}</pre>{% endfor %}
+  {% else %}
+  <p>No try was made.</p>
+  {% endif %}
+  {% if improve_row.note.summary.stop %}<p>{{ improve_row.note.summary.stop }}</p>{% endif %}
+</section>
+{% endif %}
+
 {% if state and (state.running or state.output) %}
 <section class="tile">
-  <h2>{{ ic("clock") }}{% if state.running %}Running{% elif state.exit_code == 0 %}Finished{% elif state.exit_code is none %}Last run{% else %}Stopped with an error{% endif %}</h2>
+  <h2>{{ ic("clock") }}{% if state.running %}Running{% elif state.exit_code == 0 %}Finished{% elif state.exit_code is none %}Last run started here{% else %}Stopped with an error{% endif %}</h2>
   {% if state.started_at %}<p class="note">Started {{ state.started_at.strftime("%d %b %Y %H:%M") }} UTC{% if state.mode == "saved" %}, on the last saved read{% elif state.mode == "sample" %}, on a sample of careers pages{% elif state.mode == "improve" %}, improving the rules{% endif %}.</p>{% endif %}
   {% if state.output %}<pre class="text run-log">{{ state.output }}</pre>{% endif %}
 </section>

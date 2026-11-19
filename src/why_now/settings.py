@@ -10,8 +10,9 @@ import tomllib
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Literal
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 ENV_PREFIX = "WHY_NOW_"
 
@@ -517,6 +518,63 @@ class Settings(BaseModel):
             " Starting guess."
         ),
     )
+    aws_run_cluster: str = Field(
+        default="",
+        description=(
+            "Where the review page starts a run. Set by the AWS setup for the web function, so "
+            "the page can start the night run's task and nothing else."
+        ),
+    )
+    aws_run_task: str = Field(
+        default="",
+        description="The one task definition the review page may start. Set by the AWS setup.",
+    )
+    aws_run_container: str = Field(
+        default="Run",
+        description="The container in that task whose command the page sets for a run.",
+    )
+    aws_run_subnets: list[str] = Field(
+        default_factory=list,
+        description="The subnets a run started from the page uses. Set by the AWS setup.",
+    )
+    aws_run_security_groups: list[str] = Field(
+        default_factory=list,
+        description="The firewall a run started from the page uses. Set by the AWS setup.",
+    )
+    run_stale_hours: int = Field(
+        default=12,
+        gt=0,
+        description=(
+            "A crashed run blocking the next one for ever, while a live run is never taken over. "
+            "Longer than a night run, which reads for hours, and shorter than a day. A start with "
+            "no finish older than this shows as stopped. Starting guess."
+        ),
+    )
+    run_start_wait_seconds: int = Field(
+        default=120,
+        gt=0,
+        description=(
+            "A second press of Run now starting a second task while the first is still being "
+            "started. After a press, further presses are refused for this long. A little longer "
+            "than a small task takes to start. Starting guess, to be checked on the first real "
+            "run."
+        ),
+    )
+    runs_shown: int = Field(
+        default=10,
+        gt=0,
+        description=(
+            "The Runs page staying short enough to read. About a week of nights for a couple of "
+            "profiles. Starting guess."
+        ),
+    )
+    display_timezone: str = Field(
+        default="UTC",
+        description=(
+            "Times on the review page being in the reader's own time. A time zone name such as "
+            "Europe/Berlin. The schedule itself is in UTC, so this only changes how times show."
+        ),
+    )
     aws_log_retention_days: int = Field(
         default=14,
         description=(
@@ -634,6 +692,15 @@ class Settings(BaseModel):
             "jev-1.14.0": ModelPrice(input_per_million_usd=0.042, output_per_million_usd=0),
         },
     )
+
+    @field_validator("display_timezone")
+    @classmethod
+    def _real_time_zone(cls, name: str) -> str:
+        try:
+            ZoneInfo(name)
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ValueError(f"{name!r} is not a time zone name, such as Europe/Berlin") from e
+        return name
 
 
 def load_settings(path: Path | None = None, env: Mapping[str, str] | None = None) -> Settings:

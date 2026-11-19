@@ -329,3 +329,112 @@ def test_zero_web_copies_leaves_the_function_unreserved() -> None:
     unreserved.has_resource_properties(
         "AWS::Lambda::Function", {"ReservedConcurrentExecutions": Match.absent()}
     )
+
+
+def web_policy_statements(template: Template) -> list[dict]:
+    """Every permission statement given to the web function's role."""
+    found = []
+    for policy in template.find_resources("AWS::IAM::Policy").values():
+        roles = policy["Properties"]["Roles"]
+        if any(r["Ref"].startswith("WebServiceRole") for r in roles):
+            found += policy["Properties"]["PolicyDocument"]["Statement"]
+    return found
+
+
+def actions_of(statement: dict) -> list[str]:
+    action = statement["Action"]
+    return [action] if isinstance(action, str) else action
+
+
+def test_web_lambda_may_start_the_run_task_and_nothing_else_in_ecs_or_iam(
+    template: Template,
+) -> None:
+    statements = web_policy_statements(template)
+    ecs = [s for s in statements if any(a.startswith("ecs:") for a in actions_of(s))]
+    iam = [s for s in statements if any(a.startswith("iam:") for a in actions_of(s))]
+
+    assert [actions_of(s) for s in ecs] == [["ecs:RunTask"]]
+    assert [actions_of(s) for s in iam] == [["iam:PassRole"]]
+    # Limited to the one task's family and the one cluster.
+    run = ecs[0]
+    assert run["Resource"] != "*" and "task-definition/" in json.dumps(run["Resource"])
+    assert "ecs:cluster" in json.dumps(run["Condition"])
+    # PassRole: only its two roles, and only to ECS tasks.
+    assert len(iam[0]["Resource"]) == 2
+    assert iam[0]["Condition"] == {
+        "StringEquals": {"iam:PassedToService": "ecs-tasks.amazonaws.com"}
+    }
+
+
+def test_web_lambda_has_no_permission_to_change_the_schedule(template: Template) -> None:
+    for statement in web_policy_statements(template):
+        for action in actions_of(statement):
+            assert not action.startswith(("events:", "scheduler:")), action
+            assert action != "*" and not action.endswith(":*"), action
+
+
+def test_the_wildcard_resource_is_not_used_for_starting_the_task(template: Template) -> None:
+    (statement,) = [s for s in web_policy_statements(template) if "ecs:RunTask" in actions_of(s)]
+    assert statement["Resource"] != "*"
+    assert statement["Condition"]["ArnEquals"]["ecs:cluster"] != "*"
+
+
+def test_web_lambda_is_told_which_task_to_start_and_where(template: Template) -> None:
+    template.has_resource_properties(
+        "AWS::Lambda::Function",
+        {
+            "Environment": {
+                "Variables": Match.object_like(
+                    {
+                        "WHY_NOW_AWS_RUN_CLUSTER": Match.any_value(),
+                        "WHY_NOW_AWS_RUN_TASK": Match.any_value(),
+                        "WHY_NOW_AWS_RUN_CONTAINER": "Run",
+                        "WHY_NOW_AWS_RUN_SUBNETS": Match.any_value(),
+                        "WHY_NOW_AWS_RUN_SECURITY_GROUPS": Match.any_value(),
+                    }
+                )
+            }
+        },
+    )
+
+
+def test_web_lambda_knows_the_schedule_hour_and_the_display_time_zone() -> None:
+    settings = load_settings(
+        None,
+        env=ENV
+        | {
+            "WHY_NOW_AWS_RUN_HOUR_UTC": "4",
+            "WHY_NOW_DISPLAY_TIMEZONE": "Europe/Berlin",
+            "WHY_NOW_RUN_STALE_HOURS": "9",
+        },
+    )
+    zoned = Template.from_stack(WhyNowStack(cdk.App(), "WhyNowZone", settings=settings))
+    zoned.has_resource_properties(
+        "AWS::Lambda::Function",
+        {
+            "Environment": {
+                "Variables": Match.object_like(
+                    {
+                        "WHY_NOW_AWS_RUN_HOUR_UTC": "4",
+                        "WHY_NOW_DISPLAY_TIMEZONE": "Europe/Berlin",
+                        "WHY_NOW_RUN_STALE_HOURS": "9",
+                        "WHY_NOW_TEST_CASE_WEB_RESEARCH": "false",
+                    }
+                )
+            }
+        },
+    )
+    zoned.has_resource_properties(
+        "AWS::ECS::TaskDefinition",
+        {
+            "ContainerDefinitions": [
+                Match.object_like(
+                    {
+                        "Environment": Match.array_with(
+                            [{"Name": "WHY_NOW_RUN_STALE_HOURS", "Value": "9"}]
+                        )
+                    }
+                )
+            ]
+        },
+    )

@@ -183,3 +183,34 @@ def test_aws_store_removes_the_files_it_replaces(moto_aws):
     store.delete("packs", "p")
     found = boto3.client("s3", region_name=REGION).list_objects_v2(Bucket=BUCKET)
     assert found.get("KeyCount", 0) == 0
+
+
+def test_swap_creates_only_when_nothing_is_there(any_store):
+    assert any_store.swap("lock", "run", None, {"by": "a"}) is True
+    assert any_store.swap("lock", "run", None, {"by": "b"}) is False
+    assert any_store.get("lock", "run") == {"by": "a"}
+
+
+def test_swap_replaces_only_the_document_it_expects(any_store):
+    any_store.put("lock", "run", {"by": "a"})
+    assert any_store.swap("lock", "run", {"by": "other"}, {"by": "b"}) is False
+    assert any_store.get("lock", "run") == {"by": "a"}
+    assert any_store.swap("lock", "run", {"by": "a"}, {"by": "b"}) is True
+    assert any_store.get("lock", "run") == {"by": "b"}
+
+
+def test_swap_to_nothing_removes_only_the_document_it_expects(any_store):
+    any_store.put("lock", "run", {"by": "a"})
+    assert any_store.swap("lock", "run", {"by": "other"}, None) is False
+    assert any_store.get("lock", "run") == {"by": "a"}
+    assert any_store.swap("lock", "run", {"by": "a"}, None) is True
+    assert any_store.get("lock", "run") is None
+    assert any_store.swap("lock", "run", {"by": "a"}, None) is False
+
+
+def test_swap_lets_only_one_of_many_racers_create(any_store):
+    from concurrent.futures import ThreadPoolExecutor
+
+    with ThreadPoolExecutor(8) as pool:
+        won = list(pool.map(lambda i: any_store.swap("lock", "run", None, {"by": i}), range(8)))
+    assert won.count(True) == 1

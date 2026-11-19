@@ -2,12 +2,14 @@ from datetime import UTC, date, datetime, timedelta
 
 import httpx
 import pytest
+from pydantic import BaseModel
 
 from why_now.ai import Models, ResearchStep
 from why_now.ai.budget import TEST_CASES, Meter
 from why_now.domain import JobAd
 from why_now.pipeline.reader import PageReader
 from why_now.run_context import RunContext
+from why_now.testset.ads_only import PaidCallRefused, prepare_ads_only
 from why_now.testset.packs import prepare
 from why_now.testset.piles import pile_for, pile_sizes
 from why_now.tracing import LocalLogTracer, UnitCounter
@@ -193,3 +195,38 @@ def test_an_ads_only_pack_holds_the_newest_ads_within_the_limits(
     assert [s.url for s in pack.sources] == ["https://jobs.test/acme/1"] * 2
     assert all(len(s.text) <= 30 for s in pack.sources)
     assert pack.relevant_ad_count == 3  # every relevant ad is counted, as in a researched pack
+
+
+def test_prepare_without_models_builds_ads_only_packs_and_can_call_no_model(
+    store, settings, workspace, profile, six_companies
+):
+    result = prepare_ads_only(settings, store, profile, 4, 7, clock=lambda: NOW)
+
+    assert (result.picked, result.eligible, result.built) == (4, 6, 4)
+    packs = [workspace.load_pack(c.pack_id) for c in workspace.cases() if c.pack_id]
+    assert len(packs) == 4
+    assert all(s.kind == "job_ad" for pack in packs if pack for s in pack.sources)
+    assert not workspace.one_time_research_active()
+
+
+def test_prepare_without_models_is_refused_when_web_research_is_on(
+    store, settings, workspace, profile, six_companies
+):
+    paid = settings.model_copy(update={"test_case_web_research": True})
+
+    with pytest.raises(PaidCallRefused, match="web research"):
+        prepare_ads_only(paid, store, profile, 4, 7, clock=lambda: NOW)
+
+    assert workspace.cases() == []  # refused before anything was picked
+
+
+def test_the_models_it_is_given_refuse_every_call(settings, store):
+    from why_now.testset.ads_only import no_models
+
+    models = no_models()
+    with pytest.raises(PaidCallRefused):
+        models.research.step([], "test_cases")
+    with pytest.raises(PaidCallRefused):
+        models.judge.answer("", [], "daily")
+    with pytest.raises(PaidCallRefused):
+        models.writer.structured(system="", untrusted="", schema=BaseModel, category="daily")

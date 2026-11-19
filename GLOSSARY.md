@@ -80,6 +80,18 @@ _Avoid_: Verdict, label, feedback
 The run started on a schedule each night: for each profile switched on for it, the daily list, then one improvement run. Run now and Improve now start the same work on demand.
 _Avoid_: Cron job, nightly job, batch
 
+**Run note**:
+The record a run writes when it starts and again when it finishes, wherever it was started. It holds the profile, the kind of run, the times, how it ended and a short summary. A start with no finish reads as a run that stopped.
+_Avoid_: Run log, job record
+
+**Run lock**:
+The one document that is held while a run goes, so only one run goes at a time. A run that dies leaves it, and it stops blocking once it is older than the stale time.
+_Avoid_: Mutex, semaphore
+
+**Runs page**:
+The review page that starts Run now and Improve now, and shows the last runs, what each try of the last improvement run did, which profiles run each night, and the next run.
+_Avoid_: Jobs page, run history
+
 **Workspace**:
 One person's private copy of everything that isn't code: settings, profiles, rules files, job ads, decisions and scores. Each person running the project has their own.
 _Avoid_: Tenant, instance, data folder

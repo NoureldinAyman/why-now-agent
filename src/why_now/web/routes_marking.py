@@ -103,7 +103,8 @@ def prepare_now(
     profile: str | None = None,
     form_token: Annotated[str, Form()] = "",
 ) -> Response:
-    """Prepare companies now, and wait for it. It costs money, so only on one's own computer."""
+    """Prepare companies now, and wait for it. With web research on it costs money, so then only on
+    one's own computer."""
     check_form_token(request, form_token)
     ctx = _ctx(request)
     chosen = _choose_profile(ctx, profile)
@@ -249,7 +250,11 @@ def _progress(workspace: Workspace) -> Progress:
 
 
 def _can_prepare(ctx: AppContext) -> bool:
-    return ctx.prepare is not None and ctx.settings.deployment == "local"
+    """Prepare is offered on one's own computer, and on AWS only while packs hold job ads
+    only, because then it makes no paid call."""
+    if ctx.prepare is None:
+        return False
+    return ctx.settings.deployment == "local" or not ctx.settings.test_case_web_research
 
 
 def _show_case(

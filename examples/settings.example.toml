@@ -174,6 +174,24 @@ aws_run_cpu = 1024
 aws_run_memory_mb = 2048
 # Hour of the day, in UTC, when the daily run starts on AWS.
 aws_run_hour_utc = 2
+# The cluster the review page starts a run in. Set by the AWS setup, not by hand.
+aws_run_cluster = ""
+# The one task definition the review page may start. Set by the AWS setup.
+aws_run_task = ""
+# The container in that task whose command the page sets.
+aws_run_container = "Run"
+# The subnets a run started from the page uses. Set by the AWS setup.
+aws_run_subnets = []
+# The firewall a run started from the page uses. Set by the AWS setup.
+aws_run_security_groups = []
+# Hours before a run that started and never finished shows as stopped and stops blocking the next.
+run_stale_hours = 12
+# Seconds after a press of Run now during which another press is refused, while the task starts.
+run_start_wait_seconds = 120
+# Runs the Runs page lists.
+runs_shown = 10
+# Time zone name the review page shows times in, such as "Europe/Berlin". The schedule is in UTC.
+display_timezone = "UTC"
 # Days a log is kept before AWS deletes it.
 aws_log_retention_days = 14
 # Zones the AWS network spans, one public subnet in each.

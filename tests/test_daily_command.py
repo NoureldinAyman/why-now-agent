@@ -2,7 +2,7 @@
 
 import json
 import re
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 import yaml
@@ -13,6 +13,7 @@ from why_now.cli import daily as daily_command
 from why_now.cli import read as read_command
 from why_now.sample.data import HIRING_SENTENCE, sample_models, sample_profile
 from why_now.store.local import LocalStore
+from why_now.workspace import Workspace
 
 NOW = datetime(2026, 11, 6, 9, tzinfo=UTC)
 
@@ -158,3 +159,57 @@ def test_saved_read_and_a_sample_cannot_be_asked_for_together(tmp_path, monkeypa
     args = ["daily", "--profile", str(profile_file), "--settings", str(settings)]
     result = CliRunner().invoke(app, args + ["--saved-read", "--sample-boards", "1"])
     assert result.exit_code != 0
+
+
+STALE = timedelta(hours=12)
+
+
+def test_daily_writes_a_note_when_it_starts_and_when_it_finishes(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+
+    result = CliRunner().invoke(
+        app, ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    )
+
+    assert result.exit_code == 0, result.output
+    workspace = Workspace(LocalStore(tmp_path / "ws"))
+    (note,) = workspace.last_runs("outside-repo", 10)
+    assert (note.mode, note.started_at, note.finished_at, note.ended) == (
+        "daily", NOW, NOW, "finished",
+    )  # fmt: skip
+    assert (note.summary.short_list, note.summary.more_list) == (2, 0)
+    assert workspace.running(NOW, STALE) is None
+
+
+def test_daily_will_not_start_while_another_run_is_going(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+    workspace = Workspace(LocalStore(tmp_path / "ws"))
+    workspace.start_run("somebody-else", "improve", NOW - timedelta(minutes=5), STALE)
+
+    result = CliRunner().invoke(
+        app, ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    )
+
+    assert result.exit_code == 1
+    assert "still going" in result.output and "somebody-else" in result.output
+    assert "Short list for" not in result.output
+    assert workspace.last_runs("outside-repo", 10) == []
+
+
+def test_a_daily_run_that_crashes_is_noted_as_failed_and_lets_the_next_start(tmp_path, monkeypatch):
+    profile_file, settings = setup(tmp_path, monkeypatch)
+
+    def crash(*args, **kwargs):
+        raise RuntimeError("the job source fell over")
+
+    monkeypatch.setattr(daily_command, "run_day", crash)
+    result = CliRunner().invoke(
+        app, ["daily", "--profile", str(profile_file), "--settings", str(settings)]
+    )
+
+    assert result.exit_code != 0
+    workspace = Workspace(LocalStore(tmp_path / "ws"))
+    (note,) = workspace.last_runs("outside-repo", 10)
+    assert note.ended == "failed"
+    assert "the job source fell over" in (note.summary.problem or "")
+    assert workspace.running(NOW, STALE) is None

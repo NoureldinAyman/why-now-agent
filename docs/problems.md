@@ -383,3 +383,15 @@ Every command now takes a profile file or the id of a profile in the workspace. 
 The branch for ticket 93 was cut before the plan and design for the 18 Nov redesign were merged, so the sections the ticket points at were not in the working folder. Reading the ticket alone would have meant building from a plan that did not exist yet. The branch was brought up to date before any work.
 
 **What it taught:** before starting a ticket, check that the branch holds the documents the ticket names.
+
+## 18 Nov 2026: A time zone name did not work on the computer the tests run on
+
+The Runs page shows times in a time zone named by a setting, such as `Europe/Berlin`. The first try of that name failed with "No time zone found" on Windows, because Python's time zone data comes from the operating system there, and Windows has none. The image for AWS would have had the same gap on a slim base. The `tzdata` package is now a dependency, so the data travels with the code, and a test checks a real zone name.
+
+**What it taught:** a name that works on the machine where it was written may rest on data that another machine does not have. Check a time zone name on each place the code runs.
+
+## 18 Nov 2026: A check-then-write could let two runs start at once
+
+The plan said a run refuses to start while another run's note has no finish. Written as a read followed by a write, two starts a moment apart, such as the schedule and a press of Run now, would both read "nothing going" and both start. The store had no way to write only if nothing was there. It now has one conditional write, which DynamoDB decides in one step, and the lock is taken with it. A test starts eight at once and checks that exactly one wins.
+
+**What it taught:** a check and the action it guards must be one step, or the check only works when nothing else is happening.

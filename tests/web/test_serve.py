@@ -6,6 +6,10 @@ from typer.testing import CliRunner
 
 from why_now.cli import app
 from why_now.cli import serve as serve_command
+from why_now.settings import load_settings
+from why_now.store.local import LocalStore
+from why_now.web.app import AppContext
+from why_now.web.run_now import AwsRunNow
 
 
 def serve_args(tmp_path, make_profile, deployment: str = "local"):
@@ -117,3 +121,49 @@ def test_serve_gives_the_page_the_prepare_step_on_one_own_computer(
     result = CliRunner().invoke(app, serve_args(tmp_path, make_profile))
     assert result.exit_code == 0, result.output
     assert started["app"].state.ctx.prepare is not None
+
+
+def aws_context(tmp_path, **updates):
+    base = load_settings(None, env={}).model_copy(
+        update={"deployment": "aws", "aws_region": "eu-test-1", "workspace_path": tmp_path}
+        | updates
+    )
+    store = LocalStore(tmp_path / "ws")  # stands in for the AWS store
+    return base, AppContext(base, store, None, lambda: None)  # type: ignore[arg-type]
+
+
+def test_on_aws_the_page_may_start_the_run_task_and_prepare_without_paid_calls(tmp_path):
+    settings, ctx = aws_context(
+        tmp_path, aws_run_task="arn:task/1", aws_run_cluster="arn:cluster/1"
+    )
+
+    serve_command.attach_actions(ctx, settings, None, clients=lambda service: object())
+
+    assert isinstance(ctx.runner, AwsRunNow)
+    assert ctx.prepare is not None
+    assert ctx.draft is None  # a drafted profile is one paid call, and needs the person's own keys
+
+
+def test_on_aws_without_the_run_task_named_nothing_can_be_started(tmp_path):
+    settings, ctx = aws_context(tmp_path)
+
+    serve_command.attach_actions(ctx, settings, None)
+
+    assert ctx.runner is None
+
+
+def test_on_aws_prepare_is_left_out_while_web_research_is_on(tmp_path):
+    settings, ctx = aws_context(tmp_path, test_case_web_research=True)
+
+    serve_command.attach_actions(ctx, settings, None)
+
+    assert ctx.prepare is None
+
+
+def test_on_ones_own_computer_everything_is_offered(tmp_path):
+    settings = load_settings(None, env={}).model_copy(update={"workspace_path": tmp_path})
+    ctx = AppContext(settings, LocalStore(tmp_path / "ws"), None, lambda: None)  # type: ignore[arg-type]
+
+    serve_command.attach_actions(ctx, settings, None)
+
+    assert ctx.runner is not None and ctx.prepare is not None and ctx.draft is not None
